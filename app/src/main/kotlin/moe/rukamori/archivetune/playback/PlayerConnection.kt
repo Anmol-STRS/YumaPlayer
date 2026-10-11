@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.firstOrNull
+import moe.rukamori.archivetune.utils.YTPlayerUtils
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.stateIn
@@ -290,8 +291,30 @@ class PlayerConnection(
     override fun onPlayerErrorChanged(playbackError: PlaybackException?) {
         if (playbackError != null) {
             reportException(playbackError)
+            if (moe.rukamori.archivetune.BuildConfig.DEBUG) {
+                var isLogin = false
+                var t: Throwable? = playbackError
+                while (t != null) {
+                    if (t is YTPlayerUtils.LoginRequiredForPlaybackException) {
+                        isLogin = true
+                        break
+                    }
+                    t = t.cause
+                }
+                if (isLogin) {
+                    PlaybackTiming.log(
+                        "LOGIN_REQUIRED_MEDIA3_HANDLER",
+                        mediaId = player.currentMediaItem?.mediaId,
+                        extra = "code=${playbackError.errorCode}",
+                    )
+                }
+            }
         }
         error.value = playbackError
+    }
+
+    fun dismissPlaybackError() {
+        error.value = null
     }
 
     override fun onTracksChanged(tracks: Tracks) {

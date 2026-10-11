@@ -70,6 +70,9 @@ object PlaybackStreamFetcher {
                 )
             deferred.complete(result)
             result
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            deferred.cancel(e)
+            throw e
         } catch (e: Throwable) {
             deferred.complete(Result.failure(e))
             throw e
@@ -85,8 +88,8 @@ object PlaybackStreamFetcher {
         connectivityManager: ConnectivityManager,
         preferredStreamClient: PlayerStreamClient,
         networkMetered: Boolean?,
-    ): Result<PlaybackData> =
-        runCatching {
+    ): Result<PlaybackData> {
+        return try {
             val attempts =
                 when (audioQuality) {
                     AudioQuality.HIGHEST -> listOf(AudioQuality.HIGHEST, AudioQuality.HIGH, AudioQuality.LOW)
@@ -99,26 +102,8 @@ object PlaybackStreamFetcher {
             var didRefreshIpRotationAfterBotDetection = false
             for ((attemptIndex, attempt) in attempts.withIndex()) {
                 val attemptResult =
-                    runCatching {
-                        playerResponseForPlaybackOnce(
-                            videoId = videoId,
-                            playlistId = playlistId,
-                            audioQuality = attempt,
-                            connectivityManager = connectivityManager,
-                            preferredStreamClient = preferredStreamClient,
-                            networkMetered = networkMetered,
-                        )
-                    }
-                if (attemptResult.isSuccess) return@runCatching attemptResult.getOrThrow()
-                lastError = attemptResult.exceptionOrNull()
-                if (
-                    !didRefreshIpRotationAfterBotDetection &&
-                    lastError is BotDetectionPlaybackException &&
-                    PlaybackAuthCoordinator.refreshIpRotationForBotDetection(videoId, lastError)
-                ) {
-                    didRefreshIpRotationAfterBotDetection = true
-                    val rotatedAttemptResult =
-                        runCatching {
+                    try {
+                        Result.success(
                             playerResponseForPlaybackOnce(
                                 videoId = videoId,
                                 playlistId = playlistId,
@@ -127,9 +112,45 @@ object PlaybackStreamFetcher {
                                 preferredStreamClient = preferredStreamClient,
                                 networkMetered = networkMetered,
                             )
+                        )
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
+                    } catch (e: Throwable) {
+                        Result.failure(e)
+                    }
+                if (attemptResult.isSuccess) return Result.success(attemptResult.getOrThrow())
+                lastError = attemptResult.exceptionOrNull()
+                if (lastError is kotlinx.coroutines.CancellationException) {
+                    throw lastError
+                }
+                if (
+                    !didRefreshIpRotationAfterBotDetection &&
+                    lastError is BotDetectionPlaybackException &&
+                    PlaybackAuthCoordinator.refreshIpRotationForBotDetection(videoId, lastError)
+                ) {
+                    didRefreshIpRotationAfterBotDetection = true
+                    val rotatedAttemptResult =
+                        try {
+                            Result.success(
+                                playerResponseForPlaybackOnce(
+                                    videoId = videoId,
+                                    playlistId = playlistId,
+                                    audioQuality = attempt,
+                                    connectivityManager = connectivityManager,
+                                    preferredStreamClient = preferredStreamClient,
+                                    networkMetered = networkMetered,
+                                )
+                            )
+                        } catch (e: kotlinx.coroutines.CancellationException) {
+                            throw e
+                        } catch (e: Throwable) {
+                            Result.failure(e)
                         }
-                    if (rotatedAttemptResult.isSuccess) return@runCatching rotatedAttemptResult.getOrThrow()
+                    if (rotatedAttemptResult.isSuccess) return Result.success(rotatedAttemptResult.getOrThrow())
                     lastError = rotatedAttemptResult.exceptionOrNull()
+                    if (lastError is kotlinx.coroutines.CancellationException) {
+                        throw lastError
+                    }
                 }
 
                 val isTerminalLogin = lastError is LoginRequiredForPlaybackException ||
@@ -166,7 +187,12 @@ object PlaybackStreamFetcher {
                 }
             }
             throw lastError ?: IllegalStateException("Failed to resolve stream")
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Throwable) {
+            Result.failure(e)
         }
+    }
 
     suspend fun playerResponseForDownload(
         videoId: String,
@@ -174,8 +200,8 @@ object PlaybackStreamFetcher {
         audioQuality: AudioQuality,
         connectivityManager: ConnectivityManager,
         networkMetered: Boolean? = null,
-    ): Result<PlaybackData> =
-        runCatching {
+    ): Result<PlaybackData> {
+        return try {
             Timber.tag(logTag).i("Fetching download response for videoId: $videoId, playlistId: $playlistId")
             var lastError: Throwable? = null
 
@@ -190,9 +216,12 @@ object PlaybackStreamFetcher {
                         networkMetered = networkMetered,
                     )
 
-                if (attemptResult.isSuccess) return@runCatching attemptResult.getOrThrow()
+                if (attemptResult.isSuccess) return Result.success(attemptResult.getOrThrow())
 
                 lastError = attemptResult.exceptionOrNull()
+                if (lastError is kotlinx.coroutines.CancellationException) {
+                    throw lastError
+                }
                 Timber.tag(logTag).w(
                     lastError,
                     "Download stream resolution failed with preferred client %s for %s",
@@ -202,7 +231,12 @@ object PlaybackStreamFetcher {
             }
 
             throw lastError ?: IllegalStateException("Failed to resolve download stream for $videoId")
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Throwable) {
+            Result.failure(e)
         }
+    }
 
     internal suspend fun playerResponseForPlaybackOnce(
         videoId: String,
@@ -320,6 +354,8 @@ object PlaybackStreamFetcher {
                             webClientPoTokenEnabled = true,
                         )
                     }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     Timber.tag(logTag).w(e, "PoToken generation failed for metadata request")
                 }
@@ -386,6 +422,8 @@ object PlaybackStreamFetcher {
                                 webClientPoTokenEnabled = true,
                             )
                         }
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
                     } catch (e: Exception) {
                         Timber.tag(logTag).w(e, "PoToken generation failed for metadata retry request")
                     }
@@ -702,6 +740,14 @@ object PlaybackStreamFetcher {
                 Timber.tag(logTag).w(
                     "Playback requires login recovery for $videoId via ${failure.clientName} (${failure.status}): ${failure.reason.orEmpty()}",
                 )
+                if (moe.rukamori.archivetune.BuildConfig.DEBUG) {
+                    moe.rukamori.archivetune.playback.PlaybackTiming.log(
+                        "LOGIN_REQUIRED_RESOLVER_BUILT",
+                        attemptId = fetchAttemptId,
+                        mediaId = videoId,
+                        extra = "status=${failure.status} reason=${failure.reason.orEmpty()}",
+                    )
+                }
                 throw LoginRequiredForPlaybackException(
                     videoId = videoId,
                     targetUrl = "https://music.youtube.com/watch?v=$videoId",
@@ -726,6 +772,14 @@ object PlaybackStreamFetcher {
 
             if (PlaybackErrorMapper.isLoginRecoveryError(status, errorReason)) {
                 Timber.tag(logTag).w("Playback requires login recovery for $videoId: $errorReason")
+                if (moe.rukamori.archivetune.BuildConfig.DEBUG) {
+                    moe.rukamori.archivetune.playback.PlaybackTiming.log(
+                        "LOGIN_REQUIRED_RESOLVER_BUILT",
+                        attemptId = fetchAttemptId,
+                        mediaId = videoId,
+                        extra = "status=$status reason=$errorReason",
+                    )
+                }
                 throw LoginRequiredForPlaybackException(
                     videoId = videoId,
                     targetUrl = "https://music.youtube.com/watch?v=$videoId",
@@ -745,6 +799,14 @@ object PlaybackStreamFetcher {
                 Timber.tag(logTag).w(
                     "Playback requires login recovery for $videoId via earlier client ${failure.clientName} (${failure.status}): ${failure.reason.orEmpty()}",
                 )
+                if (moe.rukamori.archivetune.BuildConfig.DEBUG) {
+                    moe.rukamori.archivetune.playback.PlaybackTiming.log(
+                        "LOGIN_REQUIRED_RESOLVER_BUILT",
+                        attemptId = fetchAttemptId,
+                        mediaId = videoId,
+                        extra = "status=${failure.status} reason=${failure.reason.orEmpty()}",
+                    )
+                }
                 throw LoginRequiredForPlaybackException(
                     videoId = videoId,
                     targetUrl = "https://music.youtube.com/watch?v=$videoId",
@@ -854,6 +916,8 @@ object PlaybackStreamFetcher {
                             webClientPoTokenEnabled = true,
                         )
                     }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     Timber.tag(logTag).w(e, "PoToken generation failed for metadata request")
                 }

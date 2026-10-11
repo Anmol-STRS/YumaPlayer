@@ -6,9 +6,19 @@
 
 package moe.rukamori.archivetune.utils
 
+import androidx.media3.common.PlaybackException
+import kotlinx.coroutines.CancellationException
+import moe.rukamori.archivetune.ui.player.PlaybackErrorKind
+import moe.rukamori.archivetune.ui.player.PlaybackRecoveryAction
+import moe.rukamori.archivetune.ui.player.findCause
+import moe.rukamori.archivetune.ui.player.toPlaybackErrorInfo
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.IOException
 
 class PlaybackErrorMapperTest {
 
@@ -53,4 +63,91 @@ class PlaybackErrorMapperTest {
         assertTrue(PlaybackErrorMapper.isBotDetectionError("automated queries"))
         assertFalse(PlaybackErrorMapper.isBotDetectionError("Sign in to confirm your age"))
     }
+
+    @Test
+    fun nestedLoginRequiredForPlaybackException_unwrapsCorrectly() {
+        val rootCause = YTPlayerUtils.LoginRequiredForPlaybackException(
+            videoId = "7JGDWKJfgxQ",
+            targetUrl = "https://music.youtube.com/watch?v=7JGDWKJfgxQ",
+            reason = "Sign in to confirm your age",
+        )
+        val intermediateIoException = IOException("ResolvingDataSource failed to open stream", rootCause)
+        val outer = IOException("ExoPlayer source error", intermediateIoException)
+
+        val unwrapped = outer.findCause<YTPlayerUtils.LoginRequiredForPlaybackException>()
+        assertNotNull(unwrapped)
+        assertSame(rootCause, unwrapped)
+    }
+
+    @Test
+    fun nestedInvalidPlaybackLoginContextException_unwrapsCorrectly() {
+        val rootCause = YTPlayerUtils.InvalidPlaybackLoginContextException(
+            videoId = "testVideo",
+            targetUrl = "https://music.youtube.com",
+            cause = IllegalStateException("Playback credentials expired"),
+        )
+        val intermediateIoException = IOException("Data source open error", rootCause)
+        val outer = IOException("ExoPlayer remote error", intermediateIoException)
+
+        val unwrapped = outer.findCause<YTPlayerUtils.InvalidPlaybackLoginContextException>()
+        assertNotNull(unwrapped)
+        assertSame(rootCause, unwrapped)
+    }
+
+    @Test
+    fun cancellationException_propagatesWithoutMappingToLoginOrFallback() {
+        val cancellation = CancellationException("Prefetch job cancelled")
+        assertFalse(PlaybackErrorMapper.isLoginRecoveryError("CANCELLED", cancellation.message))
+        assertFalse(PlaybackErrorMapper.isBotDetectionError(cancellation.message.orEmpty()))
+
+        var rethrown: Throwable? = null
+        try {
+            val caught: Throwable = cancellation
+            if (caught is CancellationException) {
+                throw caught
+            }
+        } catch (e: Throwable) {
+            rethrown = e
+        }
+        assertSame(cancellation, rethrown)
+    }
+
+    @Test
+    fun loginRequiredWithoutUrl_fallsBackToRefreshLoginAction() {
+        val rootCause = YTPlayerUtils.LoginRequiredForPlaybackException(
+            videoId = "restrictedId",
+            targetUrl = "",
+            reason = "Sign in to confirm your age",
+        )
+        val playbackEx = TestPlaybackException(
+            "Source error",
+            IOException(rootCause),
+            PlaybackException.ERROR_CODE_IO_UNSPECIFIED,
+        )
+
+        val errorInfo = playbackEx.toPlaybackErrorInfo()
+        assertEquals(PlaybackErrorKind.ConfirmationRequired, errorInfo.kind)
+        assertEquals(null, errorInfo.loginRecoveryUrl)
+        assertEquals(PlaybackRecoveryAction.RefreshLogin, errorInfo.recoveryAction)
+    }
+
+    @Test
+    fun plainNetworkError_hasNoAuthRecoveryAction() {
+        val playbackEx = TestPlaybackException(
+            "Network connection failed",
+            null,
+            PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
+        )
+
+        val errorInfo = playbackEx.toPlaybackErrorInfo()
+        assertEquals(PlaybackErrorKind.NoInternet, errorInfo.kind)
+        assertEquals(null, errorInfo.recoveryAction)
+        assertEquals(null, errorInfo.loginRecoveryUrl)
+    }
+
+    private class TestPlaybackException(
+        message: String?,
+        cause: Throwable?,
+        errorCode: Int,
+    ) : PlaybackException(message, cause, errorCode, io.mockk.mockk(relaxed = true), 0L)
 }
