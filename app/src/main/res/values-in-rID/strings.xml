@@ -44,7 +44,7 @@
     <string name="other_versions">Versi lainnya</string>
     <string name="liked_songs">Lagu yang disukai</string>
     <string name="downloaded_songs">Lagu yang diunduh</string>
-    <string name="playlist_is_empty">Playlist-nya kosong</string>
+    <string name="playlist_is_empty">Playlist ini kosong</string>
     <string name="remove_download_playlist_confirm">Apakah Anda yakin ingin menghapus semua lagu playlist \"%s\" dari penyimpanan Lagu Unduhan?</string>
     <string name="delete_playlist_confirm">Apakah Anda yakin ingin menghapus playlist \"%s\"?</string>
     <string name="change_playlist_cover">Ubah sampul playlist</string>
@@ -827,7 +827,7 @@
     <string name="most_tracks">Sering diputar</string>
     <string name="least_tracks">Jarang diputar</string>
     <string name="cast_sheet_subtitle">Buka dimana YumaPlayer diputar</string>
-    <string name="cast_searching_devices">Cari perangkat</string>
+    <string name="cast_searching_devices">Mencari perangkat</string>
     <string name="cast_no_devices">Tidak ditemukan perangkat Cast</string>
     <string name="cast_no_devices_desc">Pastikan perangkat Anda terhubung ke jaringan Wi-Fi yang sama.</string>
     <string name="cast_connected_to">Terhubung ke %1$s</string>
