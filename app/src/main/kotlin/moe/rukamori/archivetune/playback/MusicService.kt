@@ -456,6 +456,11 @@ class MusicService :
 
     override fun onCreate() {
         super.onCreate()
+        val timingStartNanos = if (moe.rukamori.archivetune.BuildConfig.DEBUG) {
+            val t = PlaybackTiming.nowNanos()
+            PlaybackTiming.log("SERVICE_CREATE_START", startNanos = PlaybackTiming.processStartNanos.takeIf { it > 0L } ?: t)
+            t
+        } else 0L
         ProxyAuth.init()
         ensureScopesActive()
 
@@ -492,6 +497,9 @@ class MusicService :
                     setOffloadEnabled(false)
                 }
         djFilterByPlayer[localPlayer] = localDjFilter
+        if (moe.rukamori.archivetune.BuildConfig.DEBUG) {
+            PlaybackTiming.log("PLAYER_CREATED", startNanos = timingStartNanos)
+        }
         castPlaybackRepository = CastPlaybackRepositoryLocator.get(this)
         val basePlayer =
             castPlaybackRepository

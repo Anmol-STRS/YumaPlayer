@@ -139,6 +139,20 @@ class PlayerConnection(
     fun playQueue(queue: Queue) {
         synchronized(this) {
             playRequestGeneration++
+            if (moe.rukamori.archivetune.BuildConfig.DEBUG) {
+                val mediaId = queue.preloadItem?.id
+                    ?: (queue as? moe.rukamori.archivetune.playback.queues.LocalAlbumRadio)?.let { it.albumWithSongs.songs.getOrNull(it.startIndex)?.id }
+                    ?: (queue as? moe.rukamori.archivetune.playback.queues.YouTubeQueue)?.endpoint?.videoId
+                    ?: PlaybackTiming.lastClickMediaId
+                val id = if (mediaId != null && mediaId == PlaybackTiming.lastClickMediaId && PlaybackTiming.lastClickAttemptId > 0L) {
+                    PlaybackTiming.lastClickAttemptId
+                } else if (mediaId != null) {
+                    PlaybackTiming.getAttemptId(mediaId)
+                } else {
+                    PlaybackTiming.markClick(null)
+                }
+                PlaybackTiming.log("COMMAND_DISPATCHED", attemptId = id, mediaId = mediaId, extra = "queue=${queue.javaClass.simpleName}")
+            }
             service.playQueue(queue)
         }
     }
@@ -147,6 +161,20 @@ class PlayerConnection(
         synchronized(this) {
             if (generation != playRequestGeneration) return false
             playRequestGeneration++
+            if (moe.rukamori.archivetune.BuildConfig.DEBUG) {
+                val mediaId = queue.preloadItem?.id
+                    ?: (queue as? moe.rukamori.archivetune.playback.queues.LocalAlbumRadio)?.let { it.albumWithSongs.songs.getOrNull(it.startIndex)?.id }
+                    ?: (queue as? moe.rukamori.archivetune.playback.queues.YouTubeQueue)?.endpoint?.videoId
+                    ?: PlaybackTiming.lastClickMediaId
+                val id = if (mediaId != null && mediaId == PlaybackTiming.lastClickMediaId && PlaybackTiming.lastClickAttemptId > 0L) {
+                    PlaybackTiming.lastClickAttemptId
+                } else if (mediaId != null) {
+                    PlaybackTiming.getAttemptId(mediaId)
+                } else {
+                    PlaybackTiming.markClick(null)
+                }
+                PlaybackTiming.log("COMMAND_DISPATCHED", attemptId = id, mediaId = mediaId, extra = "queue=${queue.javaClass.simpleName} gated")
+            }
             service.playQueue(queue)
             return true
         }
