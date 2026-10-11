@@ -60,7 +60,6 @@ import moe.rukamori.archivetune.MainActivity
 import moe.rukamori.archivetune.R
 import moe.rukamori.archivetune.ui.screens.buildLoginRoute
 import moe.rukamori.archivetune.ui.settings.SettingsDimensions
-import moe.rukamori.archivetune.utils.openYouTubeMusicUrl
 
 @Composable
 fun PlaybackErrorDialog(
@@ -68,7 +67,6 @@ fun PlaybackErrorDialog(
     onDismiss: () -> Unit,
     onRetry: () -> Unit,
     onLogin: (() -> Unit)? = null,
-    onConfirm: ((String) -> Unit)? = null,
 ) {
     Dialog(
         onDismissRequest = onDismiss,
@@ -102,7 +100,6 @@ fun PlaybackErrorDialog(
                     onRetry = onRetry,
                     onDismiss = onDismiss,
                     onLogin = onLogin,
-                    onConfirm = onConfirm,
                 )
             }
         }
@@ -116,7 +113,6 @@ fun PlaybackError(
     modifier: Modifier = Modifier,
     onDismiss: () -> Unit = {},
     onLogin: (() -> Unit)? = null,
-    onConfirm: ((String) -> Unit)? = null,
 ) {
     val clipboard = LocalClipboardManager.current
     val context = LocalContext.current
@@ -129,9 +125,7 @@ fun PlaybackError(
     val dismissText = stringResource(R.string.dismiss)
     val copyText = stringResource(R.string.copy)
     val copiedText = stringResource(R.string.copied)
-    val openYouTubeMusicText = stringResource(R.string.open_youtube_music)
     val loginText = stringResource(R.string.login)
-    val couldNotOpenYouTubeMusicText = stringResource(R.string.could_not_open_youtube_music)
     val detailsText = stringResource(R.string.details)
     val codeLabel = stringResource(R.string.playback_error_code)
     val httpLabel = stringResource(R.string.playback_error_http)
@@ -225,21 +219,6 @@ fun PlaybackError(
         }
     }
 
-    val handleConfirm: () -> Unit = remember(onConfirm, onDismiss, context, recoveryUrl, couldNotOpenYouTubeMusicText) {
-        {
-            if (recoveryUrl != null) {
-                onDismiss()
-                if (onConfirm != null) {
-                    onConfirm(recoveryUrl)
-                } else {
-                    if (!context.openYouTubeMusicUrl(recoveryUrl)) {
-                        Toast.makeText(context, couldNotOpenYouTubeMusicText, Toast.LENGTH_SHORT).show()
-                    }
-                }
-            }
-        }
-    }
-
     val onCopyClick =
         remember(clipboard, context, details, copiedText) {
             {
@@ -280,15 +259,12 @@ fun PlaybackError(
 
         PlaybackErrorActions(
             kind = errorInfo.kind,
-            hasRecoveryUrl = recoveryUrl != null,
             retryText = retryText,
             dismissText = dismissText,
             loginText = loginText,
-            confirmText = openYouTubeMusicText,
             onRetryClick = onRetry,
             onDismissClick = onDismiss,
             onLoginClick = handleLogin,
-            onConfirmClick = handleConfirm,
         )
     }
 }
@@ -412,15 +388,12 @@ private fun PlaybackErrorDetails(
 @Composable
 private fun PlaybackErrorActions(
     kind: PlaybackErrorKind,
-    hasRecoveryUrl: Boolean,
     retryText: String,
     dismissText: String,
     loginText: String,
-    confirmText: String,
     onRetryClick: () -> Unit,
     onDismissClick: () -> Unit,
     onLoginClick: () -> Unit,
-    onConfirmClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -428,45 +401,13 @@ private fun PlaybackErrorActions(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         when {
-            kind == PlaybackErrorKind.LoginRefreshRequired -> {
+            kind == PlaybackErrorKind.LoginRefreshRequired || kind == PlaybackErrorKind.ConfirmationRequired -> {
                 Button(
                     onClick = onLoginClick,
                     modifier = Modifier.fillMaxWidth(),
                     shapes = ButtonDefaults.shapes(),
                 ) {
                     Text(text = loginText)
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    TextButton(onClick = onDismissClick) {
-                        Text(text = dismissText)
-                    }
-                    OutlinedButton(onClick = onRetryClick) {
-                        Text(text = retryText)
-                    }
-                }
-            }
-
-            kind == PlaybackErrorKind.ConfirmationRequired -> {
-                if (hasRecoveryUrl) {
-                    Button(
-                        onClick = onConfirmClick,
-                        modifier = Modifier.fillMaxWidth(),
-                        shapes = ButtonDefaults.shapes(),
-                    ) {
-                        Text(text = confirmText)
-                    }
-                } else {
-                    Button(
-                        onClick = onLoginClick,
-                        modifier = Modifier.fillMaxWidth(),
-                        shapes = ButtonDefaults.shapes(),
-                    ) {
-                        Text(text = loginText)
-                    }
                 }
                 Row(
                     modifier = Modifier.fillMaxWidth(),

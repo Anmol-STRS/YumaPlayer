@@ -31,7 +31,6 @@ import moe.rukamori.archivetune.ui.screens.buildLoginRoute
 import moe.rukamori.archivetune.ui.state.PlayerUiState
 import moe.rukamori.archivetune.ui.state.QueueUiState
 import moe.rukamori.archivetune.ui.state.UpdateState
-import moe.rukamori.archivetune.utils.openYouTubeMusicUrl
 
 @Composable
 internal fun PlayerSheetDialogs(
@@ -88,10 +87,6 @@ internal fun PlayerSheetDialogs(
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                 }
                 runCatching { context.startActivity(intent) }
-            },
-            onConfirm = { url ->
-                playerConnection?.dismissPlaybackError()
-                context.openYouTubeMusicUrl(url)
             },
         )
     }
