@@ -12,29 +12,34 @@ import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -48,16 +53,70 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.media3.common.PlaybackException
 import moe.rukamori.archivetune.MainActivity
 import moe.rukamori.archivetune.R
+import moe.rukamori.archivetune.ui.screens.buildLoginRoute
+import moe.rukamori.archivetune.ui.settings.SettingsDimensions
 import moe.rukamori.archivetune.utils.openYouTubeMusicUrl
+
+@Composable
+fun PlaybackErrorDialog(
+    error: PlaybackException,
+    onDismiss: () -> Unit,
+    onRetry: () -> Unit,
+    onLogin: (() -> Unit)? = null,
+    onConfirm: ((String) -> Unit)? = null,
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnBackPress = true,
+            dismissOnClickOutside = true,
+        ),
+    ) {
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.safeDrawing)
+                .padding(
+                    horizontal = SettingsDimensions.ScreenBottomPadding,
+                    vertical = SettingsDimensions.ScreenBottomPadding,
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            val dialogWidth = minOf(PlaybackErrorDialogMaxWidth, maxWidth)
+            Surface(
+                modifier = Modifier
+                    .width(dialogWidth)
+                    .heightIn(max = maxHeight),
+                shape = RoundedCornerShape(SettingsDimensions.BottomSheetCornerRadius),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                tonalElevation = 6.dp,
+            ) {
+                PlaybackError(
+                    error = error,
+                    onRetry = onRetry,
+                    onDismiss = onDismiss,
+                    onLogin = onLogin,
+                    onConfirm = onConfirm,
+                )
+            }
+        }
+    }
+}
 
 @Composable
 fun PlaybackError(
     error: PlaybackException,
-    retry: () -> Unit,
+    onRetry: () -> Unit,
     modifier: Modifier = Modifier,
+    onDismiss: () -> Unit = {},
+    onLogin: (() -> Unit)? = null,
+    onConfirm: ((String) -> Unit)? = null,
 ) {
     val clipboard = LocalClipboardManager.current
     val context = LocalContext.current
@@ -67,6 +126,7 @@ fun PlaybackError(
     val fallbackNoStream = stringResource(R.string.error_no_stream)
     val fallbackMalformedStream = stringResource(R.string.error_malformed_stream)
     val retryText = stringResource(R.string.retry)
+    val dismissText = stringResource(R.string.dismiss)
     val copyText = stringResource(R.string.copy)
     val copiedText = stringResource(R.string.copied)
     val openYouTubeMusicText = stringResource(R.string.open_youtube_music)
@@ -77,6 +137,7 @@ fun PlaybackError(
     val httpLabel = stringResource(R.string.playback_error_http)
     val messageLabel = stringResource(R.string.playback_error_message)
     val causeLabel = stringResource(R.string.playback_error_cause)
+
     val errorInfo = remember(error) { error.toPlaybackErrorInfo() }
     val httpCode = errorInfo.httpCode
     val title =
@@ -142,42 +203,43 @@ fun PlaybackError(
                 causeLabel = causeLabel,
             )
         }
-    val recoveryUrl = errorInfo.loginRecoveryUrl
-    val recoveryAction = errorInfo.recoveryAction
-    val recoveryActionText =
-        when (recoveryAction) {
-            PlaybackRecoveryAction.RefreshLogin -> loginText
-            PlaybackRecoveryAction.OpenYouTubeMusic -> openYouTubeMusicText
-            null -> null
-        }
-    val onRecoveryClick: (() -> Unit)? =
-        remember(recoveryUrl, recoveryAction, context, couldNotOpenYouTubeMusicText) {
-            if (recoveryUrl == null || recoveryAction == null) {
-                null
-            } else {
-                {
-                    when (recoveryAction) {
-                        PlaybackRecoveryAction.RefreshLogin -> {
-                            val deepLink = Uri.parse("archivetune://login?url=${Uri.encode(recoveryUrl)}")
-                            val loginIntent =
-                                Intent(Intent.ACTION_VIEW, deepLink, context, MainActivity::class.java).apply {
-                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                    addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                                    addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                                }
-                            runCatching { context.startActivity(loginIntent) }
-                        }
 
-                        PlaybackRecoveryAction.OpenYouTubeMusic -> {
-                            if (!context.openYouTubeMusicUrl(recoveryUrl)) {
-                                Toast.makeText(context, couldNotOpenYouTubeMusicText, Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                    }
-                    Unit
+    val recoveryUrl = errorInfo.loginRecoveryUrl
+
+    val handleLogin: () -> Unit = remember(onLogin, onDismiss, context, recoveryUrl) {
+        {
+            onDismiss()
+            if (onLogin != null) {
+                onLogin()
+            } else {
+                val intent = Intent(context, MainActivity::class.java).apply {
+                    action = Intent.ACTION_VIEW
+                    putExtra("navigate_to", buildLoginRoute(recoveryUrl))
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                }
+                try {
+                    context.startActivity(intent)
+                } catch (_: Exception) {
                 }
             }
         }
+    }
+
+    val handleConfirm: () -> Unit = remember(onConfirm, onDismiss, context, recoveryUrl, couldNotOpenYouTubeMusicText) {
+        {
+            if (recoveryUrl != null) {
+                onDismiss()
+                if (onConfirm != null) {
+                    onConfirm(recoveryUrl)
+                } else {
+                    if (!context.openYouTubeMusicUrl(recoveryUrl)) {
+                        Toast.makeText(context, couldNotOpenYouTubeMusicText, Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        }
+    }
+
     val onCopyClick =
         remember(clipboard, context, details, copiedText) {
             {
@@ -186,154 +248,48 @@ fun PlaybackError(
             }
         }
 
-    BoxWithConstraints(
-        modifier =
-            modifier
-                .widthIn(max = PlaybackErrorMaxWidth)
-                .fillMaxWidth(),
-    ) {
-        val useExpandedLayout = maxWidth >= PlaybackErrorExpandedMinWidth && maxHeight >= PlaybackErrorExpandedMinHeight
+    val isAuthError = errorInfo.kind == PlaybackErrorKind.LoginRefreshRequired ||
+        errorInfo.kind == PlaybackErrorKind.ConfirmationRequired
 
-        Surface(
-            shape = MaterialTheme.shapes.extraLarge,
-            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-            tonalElevation = 6.dp,
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = maxHeight),
-        ) {
-            if (useExpandedLayout) {
-                PlaybackErrorExpandedContent(
-                    title = title,
-                    reason = reason,
-                    detailsLabel = detailsText,
-                    details = details,
-                    retryText = retryText,
-                    copyText = copyText,
-                    recoveryActionText = recoveryActionText,
-                    onRetryClick = retry,
-                    onCopyClick = onCopyClick,
-                    onRecoveryClick = onRecoveryClick,
-                )
-            } else {
-                PlaybackErrorCompactContent(
-                    title = title,
-                    reason = reason,
-                    detailsLabel = detailsText,
-                    details = details,
-                    retryText = retryText,
-                    copyText = copyText,
-                    recoveryActionText = recoveryActionText,
-                    onRetryClick = retry,
-                    onCopyClick = onCopyClick,
-                    onRecoveryClick = onRecoveryClick,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun PlaybackErrorCompactContent(
-    title: String,
-    reason: String,
-    detailsLabel: String,
-    details: String,
-    retryText: String,
-    copyText: String,
-    recoveryActionText: String?,
-    onRetryClick: () -> Unit,
-    onCopyClick: () -> Unit,
-    onRecoveryClick: (() -> Unit)?,
-) {
     Column(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         PlaybackErrorHeader(
             title = title,
             reason = reason,
-            modifier = Modifier.fillMaxWidth(),
-        )
-
-        PlaybackErrorDetails(
-            label = detailsLabel,
-            details = details,
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .weight(1f, fill = false),
-        )
-
-        PlaybackErrorActions(
-            retryText = retryText,
-            copyText = copyText,
-            recoveryActionText = recoveryActionText,
-            onRetryClick = onRetryClick,
-            onCopyClick = onCopyClick,
-            onRecoveryClick = onRecoveryClick,
-            modifier = Modifier.fillMaxWidth(),
-        )
-    }
-}
-
-@Composable
-private fun PlaybackErrorExpandedContent(
-    title: String,
-    reason: String,
-    detailsLabel: String,
-    details: String,
-    retryText: String,
-    copyText: String,
-    recoveryActionText: String?,
-    onRetryClick: () -> Unit,
-    onCopyClick: () -> Unit,
-    onRecoveryClick: (() -> Unit)?,
-) {
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(20.dp),
-        horizontalArrangement = Arrangement.spacedBy(20.dp),
-    ) {
-        PlaybackErrorHeader(
-            title = title,
-            reason = reason,
-            modifier =
-                Modifier
-                    .weight(0.42f),
+            isAuthError = isAuthError,
         )
 
         Column(
-            modifier =
-                Modifier
-                    .weight(0.58f),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f, fill = false)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             PlaybackErrorDetails(
-                label = detailsLabel,
+                label = detailsText,
                 details = details,
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .weight(1f, fill = false),
-            )
-
-            PlaybackErrorActions(
-                retryText = retryText,
                 copyText = copyText,
-                recoveryActionText = recoveryActionText,
-                onRetryClick = onRetryClick,
                 onCopyClick = onCopyClick,
-                onRecoveryClick = onRecoveryClick,
-                modifier = Modifier.fillMaxWidth(),
             )
         }
+
+        PlaybackErrorActions(
+            kind = errorInfo.kind,
+            hasRecoveryUrl = recoveryUrl != null,
+            retryText = retryText,
+            dismissText = dismissText,
+            loginText = loginText,
+            confirmText = openYouTubeMusicText,
+            onRetryClick = onRetry,
+            onDismissClick = onDismiss,
+            onLoginClick = handleLogin,
+            onConfirmClick = handleConfirm,
+        )
     }
 }
 
@@ -341,51 +297,59 @@ private fun PlaybackErrorExpandedContent(
 private fun PlaybackErrorHeader(
     title: String,
     reason: String,
+    isAuthError: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    Surface(
-        modifier = modifier,
-        shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.errorContainer,
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalAlignment = Alignment.Top,
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalAlignment = Alignment.Top,
+        Surface(
+            shape = RoundedCornerShape(SettingsDimensions.LibrarySmallRadius),
+            color = if (isAuthError) {
+                MaterialTheme.colorScheme.primaryContainer
+            } else {
+                MaterialTheme.colorScheme.errorContainer
+            },
+            modifier = Modifier.size(SettingsDimensions.BannerIconSize),
         ) {
-            Surface(
-                shape = MaterialTheme.shapes.extraLarge,
-                color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.10f),
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.fillMaxSize(),
             ) {
                 Icon(
-                    painter = painterResource(R.drawable.ic_about),
+                    painter = painterResource(
+                        if (isAuthError) R.drawable.login else R.drawable.ic_about
+                    ),
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onErrorContainer,
-                    modifier =
-                        Modifier
-                            .padding(10.dp)
-                            .size(28.dp),
+                    tint = if (isAuthError) {
+                        MaterialTheme.colorScheme.onPrimaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.onErrorContainer
+                    },
+                    modifier = Modifier.size(SettingsDimensions.BannerIconInnerSize),
                 )
             }
+        }
 
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
-                    color = MaterialTheme.colorScheme.onErrorContainer,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
 
-                Text(
-                    text = reason,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onErrorContainer,
-                )
-            }
+            Text(
+                text = reason,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
@@ -394,26 +358,48 @@ private fun PlaybackErrorHeader(
 private fun PlaybackErrorDetails(
     label: String,
     details: String,
+    copyText: String,
+    onCopyClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Surface(
-        modifier = modifier,
-        shape = MaterialTheme.shapes.large,
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(SettingsDimensions.LibraryCardRadius),
         color = MaterialTheme.colorScheme.surfaceContainerHighest,
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                TextButton(
+                    onClick = onCopyClick,
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.select_all),
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = copyText,
+                        style = MaterialTheme.typography.labelMedium,
+                    )
+                }
+            }
 
             Text(
                 text = details,
-                modifier = Modifier.verticalScroll(rememberScrollState()),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface,
                 softWrap = true,
@@ -425,59 +411,90 @@ private fun PlaybackErrorDetails(
 
 @Composable
 private fun PlaybackErrorActions(
+    kind: PlaybackErrorKind,
+    hasRecoveryUrl: Boolean,
     retryText: String,
-    copyText: String,
-    recoveryActionText: String?,
+    dismissText: String,
+    loginText: String,
+    confirmText: String,
     onRetryClick: () -> Unit,
-    onCopyClick: () -> Unit,
-    onRecoveryClick: (() -> Unit)?,
+    onDismissClick: () -> Unit,
+    onLoginClick: () -> Unit,
+    onConfirmClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = modifier,
+        modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        if (recoveryActionText != null && onRecoveryClick != null) {
-            Button(
-                onClick = onRecoveryClick,
-                modifier = Modifier.fillMaxWidth(),
-                shapes = ButtonDefaults.shapes(),
-            ) {
-                Text(text = recoveryActionText)
-            }
-        }
-
-        FlowRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            if (recoveryActionText == null) {
+        when {
+            kind == PlaybackErrorKind.LoginRefreshRequired -> {
                 Button(
-                    onClick = onRetryClick,
+                    onClick = onLoginClick,
+                    modifier = Modifier.fillMaxWidth(),
                     shapes = ButtonDefaults.shapes(),
                 ) {
-                    Text(text = retryText)
+                    Text(text = loginText)
                 }
-            } else {
-                OutlinedButton(
-                    onClick = onRetryClick,
-                    shapes = ButtonDefaults.shapes(),
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(text = retryText)
+                    TextButton(onClick = onDismissClick) {
+                        Text(text = dismissText)
+                    }
+                    OutlinedButton(onClick = onRetryClick) {
+                        Text(text = retryText)
+                    }
                 }
             }
 
-            FilledTonalButton(
-                onClick = onCopyClick,
-                shapes = ButtonDefaults.shapes(),
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.select_all),
-                    contentDescription = null,
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(text = copyText)
+            kind == PlaybackErrorKind.ConfirmationRequired -> {
+                if (hasRecoveryUrl) {
+                    Button(
+                        onClick = onConfirmClick,
+                        modifier = Modifier.fillMaxWidth(),
+                        shapes = ButtonDefaults.shapes(),
+                    ) {
+                        Text(text = confirmText)
+                    }
+                } else {
+                    Button(
+                        onClick = onLoginClick,
+                        modifier = Modifier.fillMaxWidth(),
+                        shapes = ButtonDefaults.shapes(),
+                    ) {
+                        Text(text = loginText)
+                    }
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    TextButton(onClick = onDismissClick) {
+                        Text(text = dismissText)
+                    }
+                    OutlinedButton(onClick = onRetryClick) {
+                        Text(text = retryText)
+                    }
+                }
+            }
+
+            else -> {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    TextButton(onClick = onDismissClick) {
+                        Text(text = dismissText)
+                    }
+                    Button(onClick = onRetryClick) {
+                        Text(text = retryText)
+                    }
+                }
             }
         }
     }
@@ -515,7 +532,5 @@ private fun buildPlaybackErrorDetails(
         }
     }.trim()
 
-private val PlaybackErrorMaxWidth: Dp = 760.dp
-private val PlaybackErrorExpandedMinWidth: Dp = 600.dp
-private val PlaybackErrorExpandedMinHeight: Dp = 360.dp
+private val PlaybackErrorDialogMaxWidth: Dp = 420.dp
 private const val PlaybackErrorMaxCauseDepth = 6
