@@ -21,8 +21,10 @@ import moe.rukamori.archivetune.innertube.models.response.PlayerResponse
 import moe.rukamori.archivetune.utils.PlaybackErrorMapper
 import moe.rukamori.archivetune.utils.StreamClientUtils
 import moe.rukamori.archivetune.utils.StreamUrlCache
+import moe.rukamori.archivetune.utils.YTPlayerUtils
 import moe.rukamori.archivetune.utils.YTPlayerUtils.BadStreamPlayerResponseException
 import moe.rukamori.archivetune.utils.YTPlayerUtils.BotDetectionPlaybackException
+import moe.rukamori.archivetune.utils.YTPlayerUtils.InvalidPlaybackLoginContextException
 import moe.rukamori.archivetune.utils.YTPlayerUtils.LoginRequiredForPlaybackException
 import moe.rukamori.archivetune.utils.YTPlayerUtils.PlaybackData
 import moe.rukamori.archivetune.utils.getPlaybackPlayerResponseOrNull
@@ -95,7 +97,7 @@ object PlaybackStreamFetcher {
 
             var lastError: Throwable? = null
             var didRefreshIpRotationAfterBotDetection = false
-            for (attempt in attempts) {
+            for ((attemptIndex, attempt) in attempts.withIndex()) {
                 val attemptResult =
                     runCatching {
                         playerResponseForPlaybackOnce(
@@ -128,6 +130,39 @@ object PlaybackStreamFetcher {
                         }
                     if (rotatedAttemptResult.isSuccess) return@runCatching rotatedAttemptResult.getOrThrow()
                     lastError = rotatedAttemptResult.exceptionOrNull()
+                }
+
+                val isTerminalLogin = lastError is LoginRequiredForPlaybackException ||
+                    lastError is YTPlayerUtils.InvalidPlaybackLoginContextException
+
+                if (isTerminalLogin) {
+                    if (attemptIndex < attempts.lastIndex) {
+                        if (moe.rukamori.archivetune.BuildConfig.DEBUG) {
+                            moe.rukamori.archivetune.playback.PlaybackTiming.log(
+                                "FALLBACK_LADDER_TERMINAL_LOGIN",
+                                attemptId = moe.rukamori.archivetune.playback.PlaybackTiming.getAttemptId(videoId),
+                                mediaId = videoId,
+                                extra = "prevented_rerun=${attemptIndex + 1} remaining=${attempts.size - attemptIndex - 1} reason=${lastError.message.orEmpty()}",
+                            )
+                        }
+                    }
+                    break
+                }
+
+                if (lastError is BotDetectionPlaybackException) {
+                    break
+                }
+
+                if (attemptIndex >= 1 && attemptIndex < attempts.lastIndex) {
+                    if (moe.rukamori.archivetune.BuildConfig.DEBUG) {
+                        moe.rukamori.archivetune.playback.PlaybackTiming.log(
+                            "FALLBACK_LADDER_RETRY_BOUNDED",
+                            attemptId = moe.rukamori.archivetune.playback.PlaybackTiming.getAttemptId(videoId),
+                            mediaId = videoId,
+                            extra = "prevented_rerun=${attemptIndex + 1} err=${lastError?.javaClass?.simpleName}",
+                        )
+                    }
+                    break
                 }
             }
             throw lastError ?: IllegalStateException("Failed to resolve stream")
@@ -472,7 +507,7 @@ object PlaybackStreamFetcher {
             var playabilityStatus = streamPlayerResponse.playabilityStatus
             if (playabilityStatus.status != "OK") {
                 var reason = playabilityStatus.reason.orEmpty()
-                var isLoginRecovery = PlaybackErrorMapper.isLoginRecoveryError(reason)
+                var isLoginRecovery = PlaybackErrorMapper.isLoginRecoveryError(playabilityStatus.status, reason)
                 var isBotDetection = PlaybackErrorMapper.isBotDetectionError(reason)
 
                 if (isBotDetection && !didRepairAuthAfterBotDetection) {
@@ -528,7 +563,7 @@ object PlaybackStreamFetcher {
 
                         playabilityStatus = streamPlayerResponse.playabilityStatus
                         reason = playabilityStatus.reason.orEmpty()
-                        isLoginRecovery = PlaybackErrorMapper.isLoginRecoveryError(reason)
+                        isLoginRecovery = PlaybackErrorMapper.isLoginRecoveryError(playabilityStatus.status, reason)
                         isBotDetection = PlaybackErrorMapper.isBotDetectionError(reason)
                     }
                 }
@@ -656,6 +691,13 @@ object PlaybackStreamFetcher {
         }
 
         if (streamPlayerResponse == null) {
+            if (botDetectedClients.isNotEmpty()) {
+                Timber.tag(logTag).e("Bot detection triggered on clients: $botDetectedClients - all clients failed")
+                throw BotDetectionPlaybackException(
+                    videoId = videoId,
+                    clients = botDetectedClients.toSet(),
+                )
+            }
             gateFailure?.let { failure ->
                 Timber.tag(logTag).w(
                     "Playback requires login recovery for $videoId via ${failure.clientName} (${failure.status}): ${failure.reason.orEmpty()}",
@@ -666,20 +708,23 @@ object PlaybackStreamFetcher {
                     reason = failure.reason,
                 )
             }
-            if (botDetectedClients.isNotEmpty()) {
-                Timber.tag(logTag).e("Bot detection triggered on clients: $botDetectedClients - all clients failed")
-                throw BotDetectionPlaybackException(
-                    videoId = videoId,
-                    clients = botDetectedClients.toSet(),
-                )
-            }
             Timber.tag(logTag).e("Bad stream player response - all clients failed")
             throw BadStreamPlayerResponseException(videoId)
         }
 
         if (streamPlayerResponse.playabilityStatus.status != "OK") {
-            val errorReason = streamPlayerResponse.playabilityStatus.reason
-            if (PlaybackErrorMapper.isLoginRecoveryError(errorReason.orEmpty())) {
+            val status = streamPlayerResponse.playabilityStatus.status
+            val errorReason = streamPlayerResponse.playabilityStatus.reason.orEmpty()
+
+            if (PlaybackErrorMapper.isBotDetectionError(errorReason)) {
+                botDetectedClients.add(streamClientUsed?.let { PlaybackClientSelector.describeClient(it) } ?: "last client")
+                throw BotDetectionPlaybackException(
+                    videoId = videoId,
+                    clients = botDetectedClients.toSet(),
+                )
+            }
+
+            if (PlaybackErrorMapper.isLoginRecoveryError(status, errorReason)) {
                 Timber.tag(logTag).w("Playback requires login recovery for $videoId: $errorReason")
                 throw LoginRequiredForPlaybackException(
                     videoId = videoId,
@@ -687,6 +732,26 @@ object PlaybackStreamFetcher {
                     reason = errorReason,
                 )
             }
+
+            if (botDetectedClients.isNotEmpty()) {
+                Timber.tag(logTag).e("Bot detection triggered on clients: $botDetectedClients")
+                throw BotDetectionPlaybackException(
+                    videoId = videoId,
+                    clients = botDetectedClients.toSet(),
+                )
+            }
+
+            gateFailure?.let { failure ->
+                Timber.tag(logTag).w(
+                    "Playback requires login recovery for $videoId via earlier client ${failure.clientName} (${failure.status}): ${failure.reason.orEmpty()}",
+                )
+                throw LoginRequiredForPlaybackException(
+                    videoId = videoId,
+                    targetUrl = "https://music.youtube.com/watch?v=$videoId",
+                    reason = failure.reason,
+                )
+            }
+
             Timber.tag(logTag).e("Playability status not OK: $errorReason")
             throw PlaybackException(
                 errorReason,
