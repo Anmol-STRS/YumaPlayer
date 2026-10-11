@@ -411,7 +411,7 @@
     <string name="eq_virtualizer">Virtualizer</string>
     <string name="storage">Penyimpanan</string>
     <string name="smart_trimmer">Pemangkas Cerdas</string>
-    <string name="smart_trimmer_description">Pemangkas cerdas secara dinamis mengelola cache gambar dan cache lagu, memangkas entri lama untuk menghemat ruang disk.</string>
+    <string name="smart_trimmer_description">Pemangkas cerdas mengelola cache gambar dan cache lagu secara dinamis, memangkas entri lama untuk menghemat ruang penyimpanan.</string>
     <string name="cache">Cache</string>
     <string name="image_cache">Cache Gambar</string>
     <string name="song_cache">Cache Lagu</string>
@@ -442,7 +442,7 @@
     <string name="clear_search_history_confirm">Apakah Anda yakin ingin menghapus semua riwayat pencarian?</string>
     <string name="use_login_for_browse_desc">Hal ini dapat memengaruhi konten apa yang Anda lihat, misalnya menampilkan album premium saja jika Anda masuk dengan akun Premium</string>
     <string name="disable_screenshot">Nonaktifkan tangkapan layar</string>
-    <string name="disable_screenshot_desc">Jika opsi ini aktif, tangkapan layar dan tampilan aplikasi di Terbaru akan dinonaktifkan.</string>
+    <string name="disable_screenshot_desc">Saat opsi ini aktif, tangkapan layar dan tampilan aplikasi di layar Terbaru dinonaktifkan.</string>
     <string name="enable_lrclib">Aktifkan lirik LrcLib</string>
     <string name="enable_kugou">Aktifkan lirik KuGou</string>
     <string name="preload_queue_lyrics">Pramuat lirik antrean</string>
@@ -537,7 +537,7 @@
     <string name="close_dialog">Tutup</string>
     <string name="support_development_title">Dukung pengembangan</string>
     <string name="support_development_message">Jika %1$s adalah pemutar musik andalan Anda, pertimbangkan untuk mendukung pengembangannya. Anda dapat memberi bintang pada proyek ini di GitHub atau memberikan donasi untuk membantu menghadirkan fitur baru dan pembaruan. Terima kasih atas dukungan Anda!</string>
-    <string name="support_development_donate">Donasi untuk mendukung pembangunan</string>
+    <string name="support_development_donate">Donasi untuk mendukung pengembangan</string>
     <string name="support_development_star">Bintangi di GitHub</string>
     <string name="later">Nanti</string>
     <string name="new_update_available">Pembaruan baru tersedia</string>
@@ -556,7 +556,7 @@
     <string name="discord_show_when_paused_desc">Jika diaktifkan, Rich Presence akan tetap terlihat saat dijeda dengan ikon jeda. Jika dinonaktifkan, RPC akan hilang saat dijeda.</string>
     <string name="discord_paused">Dijeda</string>
     <string name="logout_confirm_title">Konfirmasikan logout</string>
-    <string name="logout_confirm_message">Apakah Anda yakin ingin keluar dari Discord?</string>
+    <string name="logout_confirm_message">Apakah Anda yakin ingin keluar dari Discord?.</string>
     <string name="logout_confirm_yes">Keluar</string>
     <string name="logout_confirm_no">Batal</string>
     <string name="experiment_settings">Pengaturan Eksperimental</string>
@@ -846,9 +846,9 @@
     <string name="lyrics_search_still_searching">Masih mencari</string>
     <string name="unsupported_language">Bahasa tidak didukung: %1$s</string>
     <string name="source">Sumber</string>
-    <string name="app_icon_description">Pilih ikon peluncur</string>
+    <string name="app_icon_description">Pilih ikon aplikasi</string>
     <string name="app_icon_default">Bawaan</string>
-    <string name="app_icon_subtitle">Personalisasikan peluncur Anda</string>
+    <string name="app_icon_subtitle">Personalisasikan ikon aplikasi Anda</string>
     <string name="app_icon_current">Ikon saat ini</string>
     <string name="app_icon_available">Ikon tersedia</string>
     <string name="app_icon_community">Ikon komunitas</string>
