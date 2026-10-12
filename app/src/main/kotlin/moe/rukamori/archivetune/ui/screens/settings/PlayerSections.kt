@@ -8,9 +8,12 @@
 
 package moe.rukamori.archivetune.ui.screens.settings
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,7 +32,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Checkbox
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -52,8 +55,10 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import moe.rukamori.archivetune.LocalAnimationsDisabled
 import moe.rukamori.archivetune.R
 import moe.rukamori.archivetune.constants.AudioQuality
 import moe.rukamori.archivetune.constants.AutomixTransitionDuration
@@ -66,8 +71,11 @@ import moe.rukamori.archivetune.ui.component.EnumListPreference
 import moe.rukamori.archivetune.ui.component.PreferenceEntry
 import moe.rukamori.archivetune.ui.component.PreferenceGroup
 import moe.rukamori.archivetune.ui.component.PreferenceGroupScope
+import moe.rukamori.archivetune.ui.component.PreferenceSelectionOption
 import moe.rukamori.archivetune.ui.component.SwitchPreference
 import moe.rukamori.archivetune.ui.settings.SettingsDimensions
+import moe.rukamori.archivetune.ui.theme.yumaClickable
+import moe.rukamori.archivetune.ui.theme.yumaSegmentPosition
 import moe.rukamori.archivetune.viewmodels.SponsorBlockCategoryUiModel
 import moe.rukamori.archivetune.viewmodels.SponsorBlockSettingsScreenState
 
@@ -419,9 +427,19 @@ internal fun PlayerSponsorBlockSection(
         )
     }
 
+    val animationsDisabled = LocalAnimationsDisabled.current
+    val contentAnimationSpec =
+        remember(animationsDisabled) {
+            if (animationsDisabled) {
+                snap<IntSize>()
+            } else {
+                spring<IntSize>(dampingRatio = 0.8f, stiffness = Spring.StiffnessMedium)
+            }
+        }
+
     PreferenceGroup(
         title = stringResource(R.string.sponsor_block_group),
-        modifier = modifier,
+        modifier = modifier.animateContentSize(contentAnimationSpec),
     ) {
         item {
             SwitchPreference(
@@ -433,7 +451,7 @@ internal fun PlayerSponsorBlockSection(
             )
         }
 
-        item {
+        item(visible = configurationEnabled) {
             PreferenceEntry(
                 title = { Text(stringResource(R.string.sponsor_block_categories)) },
                 description = stringResource(R.string.sponsor_block_categories_desc),
@@ -473,7 +491,7 @@ internal fun PlayerSponsorBlockSection(
             )
         }
 
-        item {
+        item(visible = configurationEnabled) {
             PreferenceEntry(
                 title = { Text(stringResource(R.string.sponsor_block_api_url)) },
                 description = data?.apiUrl ?: DEFAULT_SPONSOR_BLOCK_API_URL,
@@ -583,35 +601,21 @@ private fun SponsorBlockCategoryBottomSheet(
                     itemsIndexed(
                         items = values,
                         key = { _, item -> item.category.name },
-                    ) { _, option ->
+                    ) { index, option ->
                         val isChecked = option in checkedValues
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 52.dp)
-                                .clip(RoundedCornerShape(SettingsDimensions.SegmentedCornerSmall))
-                                .background(
-                                    if (isChecked) MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
-                                    else MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
-                                )
-                                .clickable { onValueCheckedChange(option, !isChecked) }
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(
-                                text = stringResource(option.labelRes),
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = if (isChecked) FontWeight.SemiBold else FontWeight.Normal,
-                                color = if (isChecked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.weight(1f),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                            Checkbox(
-                                checked = isChecked,
-                                onCheckedChange = { checked -> onValueCheckedChange(option, checked) },
-                            )
+                        val shape = remember(index, values.size) {
+                            segmentedSettingsItemShape(index, values.size)
                         }
+                        val position = remember(index, values.size) {
+                            yumaSegmentPosition(index, values.size)
+                        }
+                        PreferenceSelectionOption(
+                            text = stringResource(option.labelRes),
+                            selected = isChecked,
+                            shape = shape,
+                            position = position,
+                            onClick = { onValueCheckedChange(option, !isChecked) },
+                        )
                     }
                 }
 
@@ -622,12 +626,33 @@ private fun SponsorBlockCategoryBottomSheet(
                     horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    TextButton(onClick = { hideSheet(onDismiss) }) {
-                        Text(stringResource(android.R.string.cancel))
+                    TextButton(
+                        onClick = { hideSheet(onDismiss) },
+                        shapes = ButtonDefaults.shapes(),
+                        modifier = Modifier.yumaClickable(pressedScale = 0.96f, onClick = { hideSheet(onDismiss) }),
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        ),
+                    ) {
+                        Text(
+                            text = stringResource(android.R.string.cancel),
+                            style = MaterialTheme.typography.labelLarge,
+                        )
                     }
                     Spacer(Modifier.width(8.dp))
-                    TextButton(onClick = { hideSheet(onConfirm) }) {
-                        Text(stringResource(android.R.string.ok))
+                    TextButton(
+                        onClick = { hideSheet(onConfirm) },
+                        shapes = ButtonDefaults.shapes(),
+                        modifier = Modifier.yumaClickable(pressedScale = 0.96f, onClick = { hideSheet(onConfirm) }),
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.primary,
+                        ),
+                    ) {
+                        Text(
+                            text = stringResource(android.R.string.ok),
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                        )
                     }
                 }
             }

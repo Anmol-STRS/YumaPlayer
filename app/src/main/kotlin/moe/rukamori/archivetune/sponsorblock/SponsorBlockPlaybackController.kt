@@ -36,7 +36,7 @@ class SponsorBlockPlaybackController
         private val currentMediaId = MutableStateFlow<String?>(null)
         private var attachedPlayer: Player? = null
         private var observationJob: Job? = null
-        private var playbackSourceProvider: (String) -> PlaybackSource = { PlaybackSource.YT_MUSIC }
+        private var playbackSourceProvider: (String) -> PlaybackSource = { PlaybackSource.FLAC }
         private var isTransitionActive: () -> Boolean = { false }
         internal var clock: () -> Long = System::currentTimeMillis
 
@@ -88,7 +88,7 @@ class SponsorBlockPlaybackController
         fun attach(
             player: Player,
             scope: CoroutineScope,
-            playbackSourceProvider: (mediaId: String) -> PlaybackSource = { PlaybackSource.YT_MUSIC },
+            playbackSourceProvider: (mediaId: String) -> PlaybackSource,
             isTransitionActive: () -> Boolean = { false },
         ) {
             if (attachedPlayer === player && observationJob?.isActive == true) return
@@ -219,8 +219,15 @@ class SponsorBlockPlaybackController
                         knownDuration?.let { duration -> activeSegment.endMs.coerceAtMost(duration) }
                             ?: activeSegment.endMs
                     if (targetPositionMs - positionMs >= MIN_SEEK_DISTANCE_MILLIS) {
-                        isInternalSeek = true
-                        player.seekTo(targetPositionMs)
+                        if (
+                            attachedPlayer === player &&
+                            player.currentMediaItem.normalizedMediaId() == mediaId &&
+                            playbackSourceProvider(mediaId) == PlaybackSource.YT_MUSIC &&
+                            !isTransitionActive()
+                        ) {
+                            isInternalSeek = true
+                            player.seekTo(targetPositionMs)
+                        }
                     }
                 }
                 delay(ACTIVE_POLL_INTERVAL_MILLIS)

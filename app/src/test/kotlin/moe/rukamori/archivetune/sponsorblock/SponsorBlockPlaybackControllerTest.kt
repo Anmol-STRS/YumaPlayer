@@ -209,4 +209,74 @@ class SponsorBlockPlaybackControllerTest {
 
         controller.detach()
     }
+
+    @Test
+    fun staleResponse_afterTrackChange_doesNotSeekOldTrack() = runTest {
+        val oldVideoId = "dQw4w9WgXcQ"
+        val newVideoId = "9bZkp7q19f0"
+        val player = mockk<Player>(relaxed = true)
+        val listenerSlot = slot<Player.Listener>()
+        every { player.addListener(capture(listenerSlot)) } returns Unit
+
+        val oldItem = MediaItem.Builder().setMediaId(oldVideoId).build()
+        val newItem = MediaItem.Builder().setMediaId(newVideoId).build()
+        every { player.currentMediaItem } returns oldItem
+        every { player.isPlaying } returns true
+        every { player.playbackState } returns Player.STATE_READY
+        every { player.currentPosition } returns 10_000L
+        every { player.duration } returns 120_000L
+
+        coEvery { observeSettings() } returns flowOf(defaultSettings)
+        coEvery {
+            getSegments(oldVideoId, defaultSettings, PlaybackSource.YT_MUSIC)
+        } coAnswers {
+            every { player.currentMediaItem } returns newItem
+            listenerSlot.captured.onMediaItemTransition(newItem, Player.MEDIA_ITEM_TRANSITION_REASON_AUTO)
+            listOf(SponsorBlockSegment(startMs = 5_000L, endMs = 25_000L))
+        }
+        coEvery {
+            getSegments(newVideoId, defaultSettings, PlaybackSource.YT_MUSIC)
+        } returns emptyList()
+
+        controller.attach(
+            player = player,
+            scope = this,
+            playbackSourceProvider = { PlaybackSource.YT_MUSIC },
+            isTransitionActive = { false },
+        )
+
+        advanceTimeBy(500)
+        verify(exactly = 0) { player.seekTo(25_000L) }
+
+        controller.detach()
+    }
+
+    @Test
+    fun detach_cancelsObservationAndSeeking() = runTest {
+        val videoId = "dQw4w9WgXcQ"
+        val player = mockk<Player>(relaxed = true)
+        val item = MediaItem.Builder().setMediaId(videoId).build()
+        every { player.currentMediaItem } returns item
+        every { player.isPlaying } returns true
+        every { player.playbackState } returns Player.STATE_READY
+        every { player.currentPosition } returns 10_000L
+        every { player.duration } returns 120_000L
+
+        coEvery { observeSettings() } returns flowOf(defaultSettings)
+        coEvery {
+            getSegments(videoId, defaultSettings, PlaybackSource.YT_MUSIC)
+        } returns listOf(SponsorBlockSegment(startMs = 5_000L, endMs = 25_000L))
+
+        controller.attach(
+            player = player,
+            scope = this,
+            playbackSourceProvider = { PlaybackSource.YT_MUSIC },
+            isTransitionActive = { false },
+        )
+
+        controller.detach()
+
+        advanceTimeBy(500)
+        verify(exactly = 0) { player.seekTo(any()) }
+    }
 }

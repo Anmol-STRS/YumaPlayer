@@ -150,6 +150,11 @@ class SponsorBlockSettingsViewModel
             apiUrlUpdateJob = launchUpdate { setApiUrl(apiUrlDraft) }
         }
 
+        fun onApiUrlConfirmWith(url: String) {
+            onApiUrlDraftChange(url)
+            onApiUrlConfirm()
+        }
+
         private fun observe() {
             if (observeJob?.isActive == true) return
             observeJob =
