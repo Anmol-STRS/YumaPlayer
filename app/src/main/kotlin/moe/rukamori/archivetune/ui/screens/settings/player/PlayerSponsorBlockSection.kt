@@ -23,7 +23,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import moe.rukamori.archivetune.R
 import moe.rukamori.archivetune.sponsorblock.DEFAULT_SPONSOR_BLOCK_API_URL
 import moe.rukamori.archivetune.ui.component.PreferenceEntry
@@ -84,13 +83,16 @@ internal fun PlayerSponsorBlockSection(
                 description = stringResource(R.string.sponsor_block_categories_desc),
                 icon = { Icon(painterResource(R.drawable.fast_forward), null) },
                 content = {
-                    Spacer(Modifier.height(SettingsDimensions.SegmentedBadgeSpacing))
+                    Spacer(Modifier.height(SettingsDimensions.PreferenceChipTopSpacing))
                     Box(
                         modifier = Modifier
-                            .height(38.dp)
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(MaterialTheme.colorScheme.primary.copy(alpha = SettingsDimensions.RowIconBgAlpha))
-                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                            .height(SettingsDimensions.PreferenceChipHeight)
+                            .clip(RoundedCornerShape(SettingsDimensions.PreferenceChipCornerRadius))
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = SettingsDimensions.PreferenceChipBgAlpha))
+                            .padding(
+                                horizontal = SettingsDimensions.PreferenceChipPaddingH,
+                                vertical = SettingsDimensions.PreferenceChipPaddingV,
+                            ),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(

@@ -94,8 +94,8 @@ internal fun SponsorBlockCategoryBottomSheet(
                 width = SettingsDimensions.GlassBorderThickness,
                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
             ),
-            tonalElevation = SettingsDimensions.SectionHeaderBottomPadding,
-            shadowElevation = SettingsDimensions.SegmentedBadgeSpacing,
+            tonalElevation = SettingsDimensions.BottomSheetTonalElevation,
+            shadowElevation = SettingsDimensions.BottomSheetShadowElevation,
         ) {
             Column(
                 modifier = Modifier
@@ -157,7 +157,7 @@ internal fun SponsorBlockCategoryBottomSheet(
                     }
                 }
 
-                Spacer(Modifier.height(SettingsDimensions.ScreenHorizontalPadding))
+                Spacer(Modifier.height(SettingsDimensions.BottomSheetActionRowSpacing))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -176,7 +176,7 @@ internal fun SponsorBlockCategoryBottomSheet(
                             style = MaterialTheme.typography.labelLarge,
                         )
                     }
-                    Spacer(Modifier.width(SettingsDimensions.FloatingBarBottomSpacing))
+                    Spacer(Modifier.width(SettingsDimensions.BottomSheetActionButtonSpacing))
                     TextButton(
                         onClick = { hideSheet(onConfirm) },
                         shapes = ButtonDefaults.shapes(),

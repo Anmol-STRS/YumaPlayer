@@ -63,7 +63,7 @@ All dimensions, paddings, and radii must be referenced directly from design toke
 * **`glassBackground`:** Static translucent matte fill for dark and light themes (no runtime blur shaders).
 * **`glassBorder`:** 0.5dp subtle translucent outline (`SettingsDimensions.GlassBorderThickness`) for crisp hairline edge definition.
 * **`primaryContainer` / `primary`:** Dynamic accent color for active toggle pills, badges, and switch thumbs.
-
+* **`Semantic Token Integrity`:** Design tokens must be selected by semantic purpose, not numerical equivalence. A token describing padding must not be reused for elevation, or a horizontal spacing token for an unrelated vertical gap, solely because their values match. Introduce a properly named token when no suitable semantic token exists. Avoid unnecessary global tokens for isolated component-specific values.
 ---
 
 ## 5. Settings & Preferences (Pattern: Glass Segmented Rows)
