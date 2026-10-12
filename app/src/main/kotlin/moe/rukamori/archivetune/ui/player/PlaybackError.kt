@@ -31,6 +31,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialogDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -51,7 +52,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -86,14 +86,14 @@ fun PlaybackErrorDialog(
                 ),
             contentAlignment = Alignment.Center,
         ) {
-            val dialogWidth = minOf(PlaybackErrorDialogMaxWidth, maxWidth)
+            val dialogWidth = minOf(420.dp, maxWidth)
             Surface(
                 modifier = Modifier
                     .width(dialogWidth)
                     .heightIn(max = maxHeight),
                 shape = RoundedCornerShape(SettingsDimensions.BottomSheetCornerRadius),
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                tonalElevation = 6.dp,
+                tonalElevation = AlertDialogDefaults.TonalElevation,
             ) {
                 PlaybackError(
                     error = error,
@@ -233,8 +233,8 @@ fun PlaybackError(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+            .padding(SettingsDimensions.BottomSheetContentPaddingH),
+        verticalArrangement = Arrangement.spacedBy(SettingsDimensions.ScreenHorizontalPadding),
     ) {
         PlaybackErrorHeader(
             title = title,
@@ -247,7 +247,7 @@ fun PlaybackError(
                 .fillMaxWidth()
                 .weight(1f, fill = false)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(SettingsDimensions.SectionSpacing),
         ) {
             PlaybackErrorDetails(
                 label = detailsText,
@@ -278,7 +278,7 @@ private fun PlaybackErrorHeader(
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(SettingsDimensions.ScreenHorizontalPadding),
         verticalAlignment = Alignment.Top,
     ) {
         Surface(
@@ -288,7 +288,7 @@ private fun PlaybackErrorHeader(
             } else {
                 MaterialTheme.colorScheme.errorContainer
             },
-            modifier = Modifier.size(SettingsDimensions.BannerIconSize),
+            modifier = Modifier.size(SettingsDimensions.SegmentedIconBoxSize),
         ) {
             Box(
                 contentAlignment = Alignment.Center,
@@ -311,7 +311,7 @@ private fun PlaybackErrorHeader(
 
         Column(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+            verticalArrangement = Arrangement.spacedBy(SettingsDimensions.BadgePaddingV),
         ) {
             Text(
                 text = title,
@@ -344,8 +344,8 @@ private fun PlaybackErrorDetails(
         color = MaterialTheme.colorScheme.surfaceContainerHighest,
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(SettingsDimensions.ScreenHorizontalPadding),
+            verticalArrangement = Arrangement.spacedBy(SettingsDimensions.FloatingBarBottomSpacing),
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -359,14 +359,17 @@ private fun PlaybackErrorDetails(
                 )
                 TextButton(
                     onClick = onCopyClick,
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                    contentPadding = PaddingValues(
+                        horizontal = SettingsDimensions.BadgePaddingH,
+                        vertical = SettingsDimensions.BadgePaddingV,
+                    ),
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.select_all),
                         contentDescription = null,
-                        modifier = Modifier.size(16.dp),
+                        modifier = Modifier.size(SettingsDimensions.ScreenHorizontalPadding),
                     )
-                    Spacer(Modifier.width(4.dp))
+                    Spacer(Modifier.width(SettingsDimensions.BadgePaddingV))
                     Text(
                         text = copyText,
                         style = MaterialTheme.typography.labelMedium,
@@ -398,7 +401,7 @@ private fun PlaybackErrorActions(
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(SettingsDimensions.FloatingBarBottomSpacing),
     ) {
         when {
             kind == PlaybackErrorKind.LoginRefreshRequired || kind == PlaybackErrorKind.ConfirmationRequired -> {
@@ -411,7 +414,10 @@ private fun PlaybackErrorActions(
                 }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                    horizontalArrangement = Arrangement.spacedBy(
+                        SettingsDimensions.FloatingBarBottomSpacing,
+                        Alignment.End,
+                    ),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     TextButton(onClick = onDismissClick) {
@@ -426,7 +432,10 @@ private fun PlaybackErrorActions(
             else -> {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                    horizontalArrangement = Arrangement.spacedBy(
+                        SettingsDimensions.FloatingBarBottomSpacing,
+                        Alignment.End,
+                    ),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     TextButton(onClick = onDismissClick) {
@@ -473,5 +482,4 @@ private fun buildPlaybackErrorDetails(
         }
     }.trim()
 
-private val PlaybackErrorDialogMaxWidth: Dp = 420.dp
 private const val PlaybackErrorMaxCauseDepth = 6
