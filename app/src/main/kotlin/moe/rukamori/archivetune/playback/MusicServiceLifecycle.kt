@@ -446,9 +446,13 @@ class MusicServiceLifecycle(
         delegate.dataStore.data
             .map { it[SkipSilenceKey] ?: false }
             .distinctUntilChanged()
-            .collectLatest(scope) {
-                delegate.localPlayer.skipSilenceEnabled = it
-                delegate.secondaryCrossfadePlayer?.skipSilenceEnabled = it
+            .collectLatest(scope) { requestedSkip ->
+                delegate.localPlayer.skipSilenceEnabled = requestedSkip
+                delegate.secondaryCrossfadePlayer?.skipSilenceEnabled = requestedSkip
+                PlaybackTiming.log(
+                    event = "SKIP_SILENCE_SETTING_CHANGED",
+                    extra = "requestedSkip=$requestedSkip primary=${delegate.localPlayer.skipSilenceEnabled} secondary=${delegate.secondaryCrossfadePlayer?.skipSilenceEnabled}",
+                )
             }
 
         delegate.dataStore.data
@@ -486,19 +490,17 @@ class MusicServiceLifecycle(
         combine(
             delegate.dataStore.data.map { it[AudioOffload] ?: false },
             delegate.dataStore.data.map { it[CrossfadeEnabledKey] ?: false },
-        ) { offloadEnabled, crossfadeEnabled ->
-            offloadEnabled to crossfadeEnabled
+            delegate.dataStore.data.map { it[SkipSilenceKey] ?: false },
+        ) { offloadEnabled, crossfadeEnabled, skipSilenceEnabled ->
+            Triple(offloadEnabled, crossfadeEnabled, skipSilenceEnabled)
         }.distinctUntilChanged()
-            .collectLatest(scope) { (offloadEnabled, crossfadeEnabled) ->
-                val effectiveOffload = offloadEnabled && !crossfadeEnabled
+            .collectLatest(scope) { (offloadEnabled, crossfadeEnabled, skipSilenceEnabled) ->
+                val effectiveOffload = offloadEnabled && !crossfadeEnabled && !skipSilenceEnabled
                 delegate.updateAudioOffload(effectiveOffload)
-                if (effectiveOffload) {
-                    val skipSilenceEnabled = delegate.dataStore.get(SkipSilenceKey, false)
-                    if (skipSilenceEnabled) {
-                        delegate.dataStore.edit { it[SkipSilenceKey] = false }
-                        delegate.localPlayer.skipSilenceEnabled = false
-                    }
-                }
+                PlaybackTiming.log(
+                    event = "AUDIO_OFFLOAD_CONFIG_CHANGED",
+                    extra = "requestedOffload=$offloadEnabled crossfadeEnabled=$crossfadeEnabled skipSilenceEnabled=$skipSilenceEnabled effectiveOffload=$effectiveOffload",
+                )
             }
 
         combine(delegate.dataStore.data, delegate.togetherSessionState) { prefs, togetherState ->

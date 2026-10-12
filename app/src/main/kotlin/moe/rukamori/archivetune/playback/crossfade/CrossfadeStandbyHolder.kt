@@ -22,6 +22,7 @@ import moe.rukamori.archivetune.extensions.setOffloadEnabled
 import moe.rukamori.archivetune.playback.ExoDeckController
 import moe.rukamori.archivetune.playback.MusicService
 import moe.rukamori.archivetune.playback.SafeTrackSelectionFactory
+import moe.rukamori.archivetune.playback.SkipSilenceAudioDiagnostics
 import moe.rukamori.archivetune.playback.applyEffectiveVolumeImmediately
 import moe.rukamori.archivetune.playback.bumpCrossfadePlanGeneration
 import moe.rukamori.archivetune.playback.createMediaSourceFactory
@@ -60,6 +61,9 @@ internal fun MusicService.createSecondaryCrossfadePlayer(): ExoPlayer {
         .setSeekForwardIncrementMs(5000)
         .build()
         .apply {
+            if (moe.rukamori.archivetune.BuildConfig.DEBUG) {
+                addAnalyticsListener(SkipSilenceAudioDiagnostics())
+            }
             djFilterByPlayer[this] = djFilter
             addListener(secondaryCrossfadeListener)
             setOffloadEnabled(false)

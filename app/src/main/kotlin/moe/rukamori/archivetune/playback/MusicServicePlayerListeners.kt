@@ -312,6 +312,17 @@ internal class MusicServicePlayerListeners(
         playerStateHandler.onPlayerError(error)
     }
 
+    override fun onSkipSilenceEnabledChanged(skipSilenceEnabled: Boolean) {
+        super.onSkipSilenceEnabledChanged(skipSilenceEnabled)
+        val mediaId = runCatching { playerDelegate.localPlayer.currentMediaItem?.mediaId }.getOrNull()
+            ?: runCatching { playerDelegate.player.currentMediaItem?.mediaId }.getOrNull()
+        PlaybackTiming.log(
+            event = "SKIP_SILENCE_EFFECTIVE",
+            mediaId = mediaId,
+            extra = "skipSilenceEnabled=$skipSilenceEnabled role=primary",
+        )
+    }
+
     companion object {
         private const val TAG = "MusicServicePlayerListeners"
     }

@@ -10,7 +10,6 @@ package moe.rukamori.archivetune.playback.engine
 
 import android.content.Context
 import androidx.media3.common.Player
-import androidx.media3.common.audio.SonicAudioProcessor
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
@@ -229,10 +228,7 @@ class PlayerEngineHolder {
                 .setEnableFloatOutput(false)
                 .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
                 .setAudioProcessorChain(
-                    DefaultAudioSink.DefaultAudioProcessorChain(
-                        SonicAudioProcessor(),
-                        djFilter,
-                    ),
+                    DefaultAudioSink.DefaultAudioProcessorChain(djFilter),
                 ).build()
         }
 
