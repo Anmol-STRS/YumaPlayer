@@ -449,10 +449,6 @@ class MusicServiceLifecycle(
             .collectLatest(scope) { requestedSkip ->
                 delegate.localPlayer.skipSilenceEnabled = requestedSkip
                 delegate.secondaryCrossfadePlayer?.skipSilenceEnabled = requestedSkip
-                PlaybackTiming.log(
-                    event = "SKIP_SILENCE_SETTING_CHANGED",
-                    extra = "requestedSkip=$requestedSkip primary=${delegate.localPlayer.skipSilenceEnabled} secondary=${delegate.secondaryCrossfadePlayer?.skipSilenceEnabled}",
-                )
             }
 
         delegate.dataStore.data

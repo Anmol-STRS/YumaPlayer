@@ -492,9 +492,6 @@ class MusicService :
                 .setDeviceVolumeControlEnabled(true)
                 .build()
                 .apply {
-                    if (moe.rukamori.archivetune.BuildConfig.DEBUG) {
-                        addAnalyticsListener(SkipSilenceAudioDiagnostics())
-                    }
                     addAnalyticsListener(PlaybackStatsListener(false, playerListeners))
                     addListener(playerListeners.audioEffectPlayerListener)
                     setOffloadEnabled(false)

@@ -10,11 +10,13 @@ package moe.rukamori.archivetune.playback.engine
 
 import android.content.Context
 import androidx.media3.common.Player
+import androidx.media3.common.audio.SonicAudioProcessor
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.audio.DefaultAudioSink
+import androidx.media3.exoplayer.audio.SilenceSkippingAudioProcessor
 import moe.rukamori.archivetune.audiodsp.AudioDeck
 import moe.rukamori.archivetune.audiodsp.CrossfadeTarget
 import moe.rukamori.archivetune.audiodsp.DeckController
@@ -228,7 +230,11 @@ class PlayerEngineHolder {
                 .setEnableFloatOutput(false)
                 .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
                 .setAudioProcessorChain(
-                    DefaultAudioSink.DefaultAudioProcessorChain(djFilter),
+                    DefaultAudioSink.DefaultAudioProcessorChain(
+                        arrayOf(djFilter),
+                        SilenceSkippingAudioProcessor(1_500_000L, 0.35f, 500_000L, 10, 150),
+                        SonicAudioProcessor(),
+                    ),
                 ).build()
         }
 
