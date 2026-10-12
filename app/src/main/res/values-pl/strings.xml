@@ -127,7 +127,6 @@
     <string name="change_playlist_cover">Zmień okładkę playlisty</string>
     <string name="retry">Spróbuj ponownie</string>
     <string name="radio">Radio</string>
-    <string name="cast"></string>
     <string name="cast_sheet_subtitle">Wybierz, gdzie YumaPlayer odtwarza</string>
     <string name="cast_available_devices">Dostępne urzadzenia</string>
     <string name="cast_searching_devices">Szukanie urządzeń</string>
