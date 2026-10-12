@@ -1203,4 +1203,18 @@
     <string name="lastfm_login_api_key_suspended">Kunci API ditangguhkan.</string>
     <string name="lastfm_login_network_error">Kesalahan jaringan. Periksa koneksi Anda.</string>
     <string name="lastfm_login_failed">Gagal masuk. Coba lagi.</string>
+    <string name="sponsor_block_group">SponsorBlock</string>
+    <string name="sponsor_block_use">Gunakan SponsorBlock</string>
+    <string name="sponsor_block_categories">Kategori</string>
+    <string name="sponsor_block_categories_desc">Pilih filter SponsorBlock</string>
+    <string name="sponsor_block_api_url">URL API SponsorBlock</string>
+    <string name="sponsor_block_music_off_topic">Bagian non-musik dan di luar topik</string>
+    <string name="sponsor_block_sponsors">Sponsors</string>
+    <string name="sponsor_block_intro">Intro</string>
+    <string name="sponsor_block_outro">Outro</string>
+    <string name="sponsor_block_self_promotions">Promosi diri</string>
+    <string name="sponsor_block_previews">Pratinjau</string>
+    <string name="sponsor_block_fillers">Bagian pengisi</string>
+    <string name="sponsor_block_subscription_reminders">Pengingat subscribe</string>
+    <string name="sponsor_block_hooks">Pembuka/Salam</string>
 </resources>
