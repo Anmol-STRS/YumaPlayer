@@ -144,6 +144,9 @@ class MusicService :
     @Inject
     internal lateinit var loadWidgetInsightsUseCase: LoadWidgetInsightsUseCase
 
+    @Inject
+    lateinit var sponsorBlockPlaybackController: moe.rukamori.archivetune.sponsorblock.SponsorBlockPlaybackController
+
     internal var scopeJob = Job()
     internal var scope = CoroutineScope(Dispatchers.Main + scopeJob)
     internal var ioScope = CoroutineScope(Dispatchers.IO + scopeJob)
@@ -531,6 +534,17 @@ class MusicService :
                 loadWidgetInsights = loadWidgetInsightsUseCase,
             )
 
+        sponsorBlockPlaybackController.attach(
+            player = player,
+            scope = scope,
+            playbackSourceProvider = { mediaId ->
+                actualPlaybackSources.value[mediaId] ?: currentPlaybackSource
+            },
+            isTransitionActive = {
+                isCrossfading || crossfadeHandoffInProgress || (isControllerInitialized && controller.transitionDeck != null)
+            },
+        )
+
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             audioManager.setAllowedCapturePolicy(android.media.AudioAttributes.ALLOW_CAPTURE_BY_ALL)
@@ -699,6 +713,7 @@ class MusicService :
         moe.rukamori.archivetune.playback.createTransientSongFromMedia(media)
 
     override fun onDestroy() {
+        sponsorBlockPlaybackController.detach()
         serviceLifecycle.onDestroy {
             super.onDestroy()
         }

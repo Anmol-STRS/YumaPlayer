@@ -493,10 +493,6 @@ class MusicServiceLifecycle(
             .collectLatest(scope) { (offloadEnabled, crossfadeEnabled, skipSilenceEnabled) ->
                 val effectiveOffload = offloadEnabled && !crossfadeEnabled && !skipSilenceEnabled
                 delegate.updateAudioOffload(effectiveOffload)
-                PlaybackTiming.log(
-                    event = "AUDIO_OFFLOAD_CONFIG_CHANGED",
-                    extra = "requestedOffload=$offloadEnabled crossfadeEnabled=$crossfadeEnabled skipSilenceEnabled=$skipSilenceEnabled effectiveOffload=$effectiveOffload",
-                )
             }
 
         combine(delegate.dataStore.data, delegate.togetherSessionState) { prefs, togetherState ->

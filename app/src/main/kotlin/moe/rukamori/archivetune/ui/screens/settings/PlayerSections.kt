@@ -8,23 +8,58 @@
 
 package moe.rukamori.archivetune.ui.screens.settings
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.ProvideTextStyle
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import moe.rukamori.archivetune.R
 import moe.rukamori.archivetune.constants.AudioQuality
 import moe.rukamori.archivetune.constants.AutomixTransitionDuration
 import moe.rukamori.archivetune.constants.FlacQuality
 import moe.rukamori.archivetune.constants.PlaybackSource
+import moe.rukamori.archivetune.sponsorblock.DEFAULT_SPONSOR_BLOCK_API_URL
 import moe.rukamori.archivetune.ui.component.CrossfadeSliderPreference
 import moe.rukamori.archivetune.ui.component.EditTextPreference
 import moe.rukamori.archivetune.ui.component.EnumListPreference
@@ -33,6 +68,8 @@ import moe.rukamori.archivetune.ui.component.PreferenceGroup
 import moe.rukamori.archivetune.ui.component.PreferenceGroupScope
 import moe.rukamori.archivetune.ui.component.SwitchPreference
 import moe.rukamori.archivetune.ui.settings.SettingsDimensions
+import moe.rukamori.archivetune.viewmodels.SponsorBlockCategoryUiModel
+import moe.rukamori.archivetune.viewmodels.SponsorBlockSettingsScreenState
 
 @Composable
 fun PlaybackSourceSelector(
@@ -353,10 +390,264 @@ internal fun PlayerBehaviorSection(
 }
 
 @Composable
+internal fun PlayerSponsorBlockSection(
+    state: SponsorBlockSettingsScreenState,
+    onEnabledChange: (Boolean) -> Unit,
+    onCategorySheetOpen: () -> Unit,
+    onCategorySheetDismiss: () -> Unit,
+    onCategoryCheckedChange: (SponsorBlockCategoryUiModel, Boolean) -> Unit,
+    onCategorySelectionConfirm: () -> Unit,
+    onApiUrlEditorOpen: () -> Unit,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val data = (state as? SponsorBlockSettingsScreenState.Success)?.data
+    val controlsEnabled = data != null
+    val configurationEnabled = data != null && data.enabled
+    val categoryOptions = data?.categoryOptions.orEmpty()
+    val draftCategoryOptions = data?.draftCategoryOptions.orEmpty()
+    val selectedCount = data?.selectedCategoryOptions?.size ?: 0
+
+    if (data?.isCategorySheetVisible == true) {
+        SponsorBlockCategoryBottomSheet(
+            title = { Text(stringResource(R.string.sponsor_block_categories)) },
+            values = categoryOptions,
+            checkedValues = draftCategoryOptions,
+            onDismiss = onCategorySheetDismiss,
+            onValueCheckedChange = onCategoryCheckedChange,
+            onConfirm = onCategorySelectionConfirm,
+        )
+    }
+
+    PreferenceGroup(
+        title = stringResource(R.string.sponsor_block_group),
+        modifier = modifier,
+    ) {
+        item {
+            SwitchPreference(
+                title = { Text(stringResource(R.string.sponsor_block_use)) },
+                icon = { Icon(painterResource(R.drawable.block), null) },
+                checked = data?.enabled ?: false,
+                onCheckedChange = onEnabledChange,
+                isEnabled = controlsEnabled,
+            )
+        }
+
+        item {
+            PreferenceEntry(
+                title = { Text(stringResource(R.string.sponsor_block_categories)) },
+                description = stringResource(R.string.sponsor_block_categories_desc),
+                icon = { Icon(painterResource(R.drawable.fast_forward), null) },
+                content = {
+                    Spacer(Modifier.height(10.dp))
+                    Box(
+                        modifier = Modifier
+                            .height(38.dp)
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
+                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = pluralStringResource(
+                                R.plurals.n_selected,
+                                selectedCount,
+                                selectedCount,
+                            ),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary,
+                            maxLines = 1,
+                        )
+                    }
+                },
+                trailingContent = {
+                    Icon(
+                        painter = painterResource(R.drawable.arrow_forward),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(22.dp),
+                    )
+                },
+                onClick = onCategorySheetOpen,
+                isEnabled = configurationEnabled,
+            )
+        }
+
+        item {
+            PreferenceEntry(
+                title = { Text(stringResource(R.string.sponsor_block_api_url)) },
+                description = data?.apiUrl ?: DEFAULT_SPONSOR_BLOCK_API_URL,
+                icon = { Icon(painterResource(R.drawable.link), null) },
+                onClick = onApiUrlEditorOpen,
+                isEnabled = configurationEnabled,
+            )
+        }
+
+        if (state is SponsorBlockSettingsScreenState.Error) {
+            item {
+                PreferenceEntry(
+                    title = { Text(stringResource(R.string.retry)) },
+                    description = stringResource(state.messageRes),
+                    onClick = onRetry,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SponsorBlockCategoryBottomSheet(
+    title: @Composable () -> Unit,
+    values: List<SponsorBlockCategoryUiModel>,
+    checkedValues: List<SponsorBlockCategoryUiModel>,
+    onDismiss: () -> Unit,
+    onValueCheckedChange: (SponsorBlockCategoryUiModel, Boolean) -> Unit,
+    onConfirm: () -> Unit,
+) {
+    @Suppress("DEPRECATION")
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val coroutineScope = rememberCoroutineScope()
+    val hideSheet: (() -> Unit) -> Unit =
+        remember(coroutineScope, sheetState) {
+            { completion ->
+                coroutineScope
+                    .launch {
+                        sheetState.hide()
+                    }.invokeOnCompletion {
+                        completion()
+                    }
+            }
+        }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = Color.Transparent,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        dragHandle = null,
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = SettingsDimensions.BottomSheetHorizontalPadding)
+                .padding(bottom = SettingsDimensions.BottomSheetBottomPadding)
+                .navigationBarsPadding(),
+            shape = RoundedCornerShape(SettingsDimensions.BottomSheetCornerRadius),
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            border = BorderStroke(
+                width = SettingsDimensions.GlassBorderThickness,
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
+            ),
+            tonalElevation = 6.dp,
+            shadowElevation = 10.dp,
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = SettingsDimensions.BottomSheetContentPaddingH)
+                    .padding(
+                        top = SettingsDimensions.BottomSheetContentPaddingTop,
+                        bottom = SettingsDimensions.BottomSheetContentPaddingBottom,
+                    ),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .padding(bottom = SettingsDimensions.BottomSheetDragHandleBottomPadding)
+                        .size(
+                            width = SettingsDimensions.BottomSheetDragHandleWidth,
+                            height = SettingsDimensions.BottomSheetDragHandleHeight,
+                        )
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)),
+                )
+
+                ProvideTextStyle(
+                    MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = SettingsDimensions.BottomSheetTitleBottomPadding),
+                    ) {
+                        title()
+                    }
+                }
+
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = SettingsDimensions.BottomSheetListMaxHeight),
+                    verticalArrangement = Arrangement.spacedBy(SettingsDimensions.SegmentedItemGap),
+                ) {
+                    itemsIndexed(
+                        items = values,
+                        key = { _, item -> item.category.name },
+                    ) { _, option ->
+                        val isChecked = option in checkedValues
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 52.dp)
+                                .clip(RoundedCornerShape(SettingsDimensions.SegmentedCornerSmall))
+                                .background(
+                                    if (isChecked) MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
+                                    else MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
+                                )
+                                .clickable { onValueCheckedChange(option, !isChecked) }
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = stringResource(option.labelRes),
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = if (isChecked) FontWeight.SemiBold else FontWeight.Normal,
+                                color = if (isChecked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.weight(1f),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            Checkbox(
+                                checked = isChecked,
+                                onCheckedChange = { checked -> onValueCheckedChange(option, checked) },
+                            )
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    TextButton(onClick = { hideSheet(onDismiss) }) {
+                        Text(stringResource(android.R.string.cancel))
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    TextButton(onClick = { hideSheet(onConfirm) }) {
+                        Text(stringResource(android.R.string.ok))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 internal fun PlayerSettingsContent(
     state: PlayerSettingsUiState,
     actions: PlayerSettingsUiActions,
     modifier: Modifier = Modifier,
+    sponsorBlockState: SponsorBlockSettingsScreenState = SponsorBlockSettingsScreenState.Loading,
+    onSponsorBlockEnabledChange: (Boolean) -> Unit = {},
+    onCategorySheetOpen: () -> Unit = {},
+    onCategorySheetDismiss: () -> Unit = {},
+    onCategoryCheckedChange: (SponsorBlockCategoryUiModel, Boolean) -> Unit = { _, _ -> },
+    onCategorySelectionConfirm: () -> Unit = {},
+    onApiUrlEditorOpen: () -> Unit = {},
+    onRetry: () -> Unit = {},
 ) {
     Column(
         modifier = modifier
@@ -367,6 +658,16 @@ internal fun PlayerSettingsContent(
         PlayerLosslessSection(state = state, actions = actions)
         PlayerAudioSection(state = state, actions = actions)
         PlayerCrossfadeSection(state = state, actions = actions)
+        PlayerSponsorBlockSection(
+            state = sponsorBlockState,
+            onEnabledChange = onSponsorBlockEnabledChange,
+            onCategorySheetOpen = onCategorySheetOpen,
+            onCategorySheetDismiss = onCategorySheetDismiss,
+            onCategoryCheckedChange = onCategoryCheckedChange,
+            onCategorySelectionConfirm = onCategorySelectionConfirm,
+            onApiUrlEditorOpen = onApiUrlEditorOpen,
+            onRetry = onRetry,
+        )
         PlayerBehaviorSection(state = state, actions = actions)
     }
 }

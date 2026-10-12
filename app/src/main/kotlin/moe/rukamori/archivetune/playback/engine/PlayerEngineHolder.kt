@@ -230,11 +230,7 @@ class PlayerEngineHolder {
                 .setEnableFloatOutput(false)
                 .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
                 .setAudioProcessorChain(
-                    DefaultAudioSink.DefaultAudioProcessorChain(
-                        arrayOf(djFilter),
-                        SilenceSkippingAudioProcessor(1_500_000L, 0.35f, 500_000L, 10, 150),
-                        SonicAudioProcessor(),
-                    ),
+                    DefaultAudioSink.DefaultAudioProcessorChain(djFilter),
                 ).build()
         }
 
