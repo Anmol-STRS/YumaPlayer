@@ -108,4 +108,27 @@
     <string name="top_artist_badge">TOP WYKONAWCY</string>
     <string name="no_artist_yet">Brak wykonawców</string>
     <string name="total_label">razem</string>
+    <string name="play_time">Czas odtwarzania</string>
+    <string name="all_artists_filter">Wszyscy wykonawcy</string>
+    <string name="artist_subtitle">Wykonawca</string>
+    <string name="recently_played_artists">Ostatnio słuchani wykonawcy</string>
+    <string name="newest_year">Najnowszy rok</string>
+    <string name="oldest_year">Najstarszy rok</string>
+    <string name="longest_duration">Najdłuższy</string>
+    <string name="shortest_duration">Najkrótszy</string>
+    <string name="year_sort">Rok</string>
+    <string name="duration_sort">Długość trwania</string>
+    <string name="featured_album_badge">WYRÓŻNIONY ALBUM</string>
+    <string name="other_versions">Inne wersje</string>
+    <string name="liked_songs">Polubione utwory</string>
+    <string name="downloaded_songs">Pobrane utwory</string>
+    <string name="playlist_is_empty">Playlista jest pusta</string>
+    <string name="delete_playlist_confirm">Czy na pewno chcesz usunąć playlistę \"%s\"?</string>
+    <string name="change_playlist_cover">Zmień okładkę playlisty</string>
+    <string name="retry">Spróbuj ponownie</string>
+    <string name="radio">Radio</string>
+    <string name="cast"></string>
+    <string name="cast_sheet_subtitle">Wybierz, gdzie YumaPlayer odtwarza</string>
+    <string name="cast_available_devices">Dostępne urzadzenia</string>
+    <string name="cast_searching_devices">Szukanie urządzeń</string>
 </resources>
