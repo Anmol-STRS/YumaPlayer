@@ -6,7 +6,7 @@
 
 @file:OptIn(ExperimentalMaterial3ExpressiveApi::class, ExperimentalMaterial3Api::class)
 
-package moe.rukamori.archivetune.ui.screens.settings
+package moe.rukamori.archivetune.ui.screens.settings.player
 
 import android.content.Context
 import android.content.Intent

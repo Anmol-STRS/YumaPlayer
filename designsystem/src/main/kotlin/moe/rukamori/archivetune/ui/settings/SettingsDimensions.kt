@@ -189,11 +189,22 @@ object SettingsAnimations {
     val PressDampingRatio = 0.6f
     val PressStiffness = Spring.StiffnessMedium
 
+    val ResizeDampingRatio = 0.8f
+    val ResizeStiffness = Spring.StiffnessMedium
+
     @Composable
     fun <T> pressSpring(): FiniteAnimationSpec<T> =
         if (LocalAnimationsDisabled.current) {
             snap()
         } else {
             spring(dampingRatio = PressDampingRatio, stiffness = PressStiffness)
+        }
+
+    @Composable
+    fun <T> resizeSpring(): FiniteAnimationSpec<T> =
+        if (LocalAnimationsDisabled.current) {
+            snap()
+        } else {
+            spring(dampingRatio = ResizeDampingRatio, stiffness = ResizeStiffness)
         }
 }
