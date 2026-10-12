@@ -11,23 +11,25 @@ package moe.rukamori.archivetune.ui.player
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -37,7 +39,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -50,7 +51,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -67,23 +68,18 @@ fun PlaybackErrorDialog(
     onDismiss: () -> Unit,
     onRetry: () -> Unit,
     onLogin: (() -> Unit)? = null,
+    onConfirm: ((String) -> Unit)? = null,
 ) {
     Dialog(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            dismissOnBackPress = true,
-            dismissOnClickOutside = true,
-        ),
+        properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
-                .windowInsetsPadding(WindowInsets.safeDrawing)
-                .padding(
-                    horizontal = SettingsDimensions.ScreenBottomPadding,
-                    vertical = SettingsDimensions.ScreenBottomPadding,
-                ),
+                .padding(SettingsDimensions.ScreenBottomPadding)
+                .imePadding()
+                .navigationBarsPadding(),
             contentAlignment = Alignment.Center,
         ) {
             val dialogWidth = minOf(420.dp, maxWidth)
@@ -92,7 +88,11 @@ fun PlaybackErrorDialog(
                     .width(dialogWidth)
                     .heightIn(max = maxHeight),
                 shape = RoundedCornerShape(SettingsDimensions.BottomSheetCornerRadius),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                color = AlertDialogDefaults.containerColor,
+                border = BorderStroke(
+                    width = SettingsDimensions.GlassBorderThickness,
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
+                ),
                 tonalElevation = AlertDialogDefaults.TonalElevation,
             ) {
                 PlaybackError(
@@ -100,6 +100,7 @@ fun PlaybackErrorDialog(
                     onRetry = onRetry,
                     onDismiss = onDismiss,
                     onLogin = onLogin,
+                    onConfirm = onConfirm,
                 )
             }
         }
@@ -113,6 +114,7 @@ fun PlaybackError(
     modifier: Modifier = Modifier,
     onDismiss: () -> Unit = {},
     onLogin: (() -> Unit)? = null,
+    onConfirm: ((String) -> Unit)? = null,
 ) {
     val clipboard = LocalClipboardManager.current
     val context = LocalContext.current
@@ -233,14 +235,39 @@ fun PlaybackError(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(SettingsDimensions.BottomSheetContentPaddingH),
-        verticalArrangement = Arrangement.spacedBy(SettingsDimensions.ScreenHorizontalPadding),
+            .padding(SettingsDimensions.ScreenBottomPadding),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        PlaybackErrorHeader(
-            title = title,
-            reason = reason,
-            isAuthError = isAuthError,
+        Box(
+            modifier = Modifier.align(Alignment.CenterHorizontally),
+        ) {
+            Icon(
+                painter = painterResource(
+                    if (isAuthError) R.drawable.login else R.drawable.ic_about
+                ),
+                contentDescription = null,
+                tint = if (isAuthError) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    AlertDialogDefaults.iconContentColor
+                },
+                modifier = Modifier.size(SettingsDimensions.BannerIconInnerSize),
+            )
+        }
+
+        Spacer(Modifier.height(SettingsDimensions.ScreenHorizontalPadding))
+
+        Text(
+            text = title,
+            style = MaterialTheme.typography.headlineSmall,
+            color = AlertDialogDefaults.titleContentColor,
+            textAlign = TextAlign.Center,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.align(Alignment.CenterHorizontally),
         )
+
+        Spacer(Modifier.height(SettingsDimensions.ScreenHorizontalPadding))
 
         Column(
             modifier = Modifier
@@ -249,6 +276,12 @@ fun PlaybackError(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(SettingsDimensions.SectionSpacing),
         ) {
+            Text(
+                text = reason,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
             PlaybackErrorDetails(
                 label = detailsText,
                 details = details,
@@ -257,75 +290,41 @@ fun PlaybackError(
             )
         }
 
-        PlaybackErrorActions(
-            kind = errorInfo.kind,
-            retryText = retryText,
-            dismissText = dismissText,
-            loginText = loginText,
-            onRetryClick = onRetry,
-            onDismissClick = onDismiss,
-            onLoginClick = handleLogin,
-        )
-    }
-}
+        Spacer(Modifier.height(SettingsDimensions.ScreenBottomPadding))
 
-@Composable
-private fun PlaybackErrorHeader(
-    title: String,
-    reason: String,
-    isAuthError: Boolean,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(SettingsDimensions.ScreenHorizontalPadding),
-        verticalAlignment = Alignment.Top,
-    ) {
-        Surface(
-            shape = RoundedCornerShape(SettingsDimensions.LibrarySmallRadius),
-            color = if (isAuthError) {
-                MaterialTheme.colorScheme.primaryContainer
-            } else {
-                MaterialTheme.colorScheme.errorContainer
-            },
-            modifier = Modifier.size(SettingsDimensions.SegmentedIconBoxSize),
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(SettingsDimensions.FloatingBarBottomSpacing, Alignment.End),
+            verticalArrangement = Arrangement.spacedBy(SettingsDimensions.FloatingBarBottomSpacing),
+            modifier = Modifier.fillMaxWidth(),
         ) {
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier.fillMaxSize(),
+            TextButton(
+                onClick = onDismiss,
+                shapes = ButtonDefaults.shapes(),
             ) {
-                Icon(
-                    painter = painterResource(
-                        if (isAuthError) R.drawable.login else R.drawable.ic_about
-                    ),
-                    contentDescription = null,
-                    tint = if (isAuthError) {
-                        MaterialTheme.colorScheme.onPrimaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.onErrorContainer
-                    },
-                    modifier = Modifier.size(SettingsDimensions.BannerIconInnerSize),
-                )
+                Text(text = dismissText)
             }
-        }
 
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(SettingsDimensions.BadgePaddingV),
-        ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-
-            Text(
-                text = reason,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            if (isAuthError) {
+                TextButton(
+                    onClick = onRetry,
+                    shapes = ButtonDefaults.shapes(),
+                ) {
+                    Text(text = retryText)
+                }
+                Button(
+                    onClick = handleLogin,
+                    shapes = ButtonDefaults.shapes(),
+                ) {
+                    Text(text = loginText)
+                }
+            } else {
+                Button(
+                    onClick = onRetry,
+                    shapes = ButtonDefaults.shapes(),
+                ) {
+                    Text(text = retryText)
+                }
+            }
         }
     }
 }
@@ -363,6 +362,7 @@ private fun PlaybackErrorDetails(
                         horizontal = SettingsDimensions.BadgePaddingH,
                         vertical = SettingsDimensions.BadgePaddingV,
                     ),
+                    shapes = ButtonDefaults.shapes(),
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.select_all),
@@ -384,68 +384,6 @@ private fun PlaybackErrorDetails(
                 softWrap = true,
                 overflow = TextOverflow.Clip,
             )
-        }
-    }
-}
-
-@Composable
-private fun PlaybackErrorActions(
-    kind: PlaybackErrorKind,
-    retryText: String,
-    dismissText: String,
-    loginText: String,
-    onRetryClick: () -> Unit,
-    onDismissClick: () -> Unit,
-    onLoginClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Column(
-        modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(SettingsDimensions.FloatingBarBottomSpacing),
-    ) {
-        when {
-            kind == PlaybackErrorKind.LoginRefreshRequired || kind == PlaybackErrorKind.ConfirmationRequired -> {
-                Button(
-                    onClick = onLoginClick,
-                    modifier = Modifier.fillMaxWidth(),
-                    shapes = ButtonDefaults.shapes(),
-                ) {
-                    Text(text = loginText)
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(
-                        SettingsDimensions.FloatingBarBottomSpacing,
-                        Alignment.End,
-                    ),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    TextButton(onClick = onDismissClick) {
-                        Text(text = dismissText)
-                    }
-                    OutlinedButton(onClick = onRetryClick) {
-                        Text(text = retryText)
-                    }
-                }
-            }
-
-            else -> {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(
-                        SettingsDimensions.FloatingBarBottomSpacing,
-                        Alignment.End,
-                    ),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    TextButton(onClick = onDismissClick) {
-                        Text(text = dismissText)
-                    }
-                    Button(onClick = onRetryClick) {
-                        Text(text = retryText)
-                    }
-                }
-            }
         }
     }
 }
