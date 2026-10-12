@@ -289,7 +289,7 @@
     <string name="added_n_songs_to_n_playlists">%1$d曲を%2$d個のプレイリストに追加した</string>
     <string name="playlist_synced">プレイリストを同期した</string>
     <string name="undo">元に戻す</string>
-    <string name="lyrics_not_found">歌詞が見つからない</string>
+    <string name="lyrics_not_found">歌詞が見つかりません</string>
     <string name="lyrics_word_sync">単語同期</string>
     <string name="sleep_timer">スリープタイマー</string>
     <string name="end_of_song">曲の終わり</string>
@@ -745,7 +745,7 @@
     <string name="discord_show_when_paused">一時停止中もRPCを表示</string>
     <string name="discord_show_when_paused_desc">有効にすると、一時停止中も一時停止アイコン付きでRich Presenceが表示される。無効にすると、一時停止中はRPCが消える。</string>
     <string name="discord_paused">一時停止中</string>
-    <string name="logout_confirm_title">ログアウト確認</string>
+    <string name="logout_confirm_title">ログアウトを確認</string>
     <string name="logout_confirm_message">本当にDiscordからログアウトしますか？</string>
     <string name="logout_confirm_yes">ログアウト</string>
     <string name="logout_confirm_no">キャンセル</string>
@@ -771,8 +771,8 @@
     <string name="unknown_bitrate">不明なビットレート</string>
     <string name="sample_rate_label">サンプルレート</string>
     <string name="unknown_sample_rate">不明なサンプルレート</string>
-    <string name="content_length_label">コンテンツ長</string>
-    <string name="unknown_content_length">不明なコンテンツ長</string>
+    <string name="content_length_label">コンテンツの長さ</string>
+    <string name="unknown_content_length">不明なコンテンツの長さ</string>
     <string name="loading_format">フォーマットを読み込み中</string>
     <string name="buffer_health_label">バッファ状態</string>
     <string name="playback_speed_label">再生速度</string>
@@ -1157,4 +1157,24 @@
     <string name="customization">カスタマイズ</string>
     <string name="theme_blur_desc">現在：ブラー\n高性能なブラー効果</string>
     <string name="theme_gradient_desc">現在: グラデーション\nすっきりとしたグラデーション背景.</string>
+    <string name="theme_immersive_desc">現在: ブラー\nフルスクリーンカバーの背景</string>
+    <string name="target_language_label">対象言語:</string>
+    <string name="select_language">言語を選択</string>
+    <string name="search_refresh_lyrics">歌詞の検索/更新</string>
+    <string name="search_refresh_lyrics_desc">オンラインで歌詞を検索し、強制的にキャッシュを更新する</string>
+    <string name="lossless_flac">Lossless FLAC</string>
+    <string name="lossless_flac_desc">最高品質のFLACをダウンロードする</string>
+    <string name="lyrics_auto_download">自動ダウンロード</string>
+    <string name="lyrics_auto_download_desc">新しい曲の再生が始まると、自動的に歌詞を検索してキャッシュします</string>
+    <string name="lyrics_options">歌詞のオプション</string>
+    <string name="lyrics_player_controls">プレイヤーコントロール</string>
+    <string name="lyrics_player_controls_desc">再生コントロールパネルを歌詞の上に表示します</string>
+    <string name="edit_lyrics">歌詞を編集</string>
+    <string name="edit_lyrics_desc">このトラックの歌詞行を手動で変更する</string>
+    <string name="translate_lyrics">歌詞を翻訳</string>
+    <string name="translate_lyrics_desc">AIや翻訳ツールを使ってキャッシュされた歌詞を翻訳する</string>
+    <string name="sync_offset">同期オフセット</string>
+    <string name="sync_offset_desc">歌詞のタイミングを前後にずらす</string>
+    <string name="external_downloader_row_desc">外部ダウンロードマネージャで開く</string>
+    <string name="automix_transition_length">トランジション長</string>
 </resources>
