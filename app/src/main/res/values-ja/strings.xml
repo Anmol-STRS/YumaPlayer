@@ -514,8 +514,8 @@
     <string name="player_and_audio">プレイヤーと音声</string>
     <string name="audio_quality">音質</string>
     <string name="audio_quality_auto">自動</string>
-    <string name="audio_quality_high">高</string>
-    <string name="audio_quality_low">低</string>
+    <string name="audio_quality_high">高 (128 kbps)</string>
+    <string name="audio_quality_low">低 (48 kbps)</string>
     <string name="low_data_mode_title">低データモード</string>
     <string name="low_data_mode_description">従量制ネットワークで低品質ストリームを使い、再生キャッシュ、Canvas、バックグラウンド歌詞プリロードを無効化してモバイルデータ使用量を減らす</string>
     <string name="queue">キュー</string>
@@ -524,8 +524,8 @@
     <string name="permanent_shuffle">常時シャッフルモード</string>
     <string name="permanent_shuffle_desc">新しい曲を開始してもシャッフルを有効のままにする</string>
     <string name="skip_silence">無音をスキップ</string>
-    <string name="audio_normalization">音量正規化</string>
-    <string name="audio_offload">オーディオオフロード</string>
+    <string name="audio_normalization">オーディオの正規化</string>
+    <string name="audio_offload">オーディオのオフロード</string>
     <string name="audio_offload_desc">対応端末で低消費電力のハードウェアデコードを使って音声を再生。一部の音声処理機能は無効になる。</string>
     <string name="pause_on_device_mute">端末音量が0なら一時停止</string>
     <string name="pause_on_device_mute_desc">音量0で一時停止し、再生操作の理由を表示して、音量が上がると再開</string>
@@ -1203,4 +1203,18 @@
     <string name="automix_duration_4s">4s</string>
     <string name="automix_duration_8s">8s</string>
     <string name="automix_duration_12s">12s</string>
+    <string name="sponsor_block_group">スポンサーブロック</string>
+    <string name="sponsor_block_use">スポンサーブロックを使用</string>
+    <string name="sponsor_block_categories">カテゴリ</string>
+    <string name="sponsor_block_categories_desc">スポンサーブロックフィルタリングを選択</string>
+    <string name="sponsor_block_api_url">スポンサーブロック API URL</string>
+    <string name="sponsor_block_music_off_topic">音楽と無関係な、または本題から外れた部分</string>
+    <string name="sponsor_block_sponsors">スポンサー</string>
+    <string name="sponsor_block_intro">イントロ</string>
+    <string name="sponsor_block_outro">アウトロ</string>
+    <string name="sponsor_block_self_promotions">セルフプロモーション</string>
+    <string name="sponsor_block_previews">プレビュー</string>
+    <string name="sponsor_block_fillers">フィラー</string>
+    <string name="sponsor_block_subscription_reminders">サブスクリプションリマインダー</string>
+    <string name="sponsor_block_hooks">フック/グリーティング</string>
 </resources>
