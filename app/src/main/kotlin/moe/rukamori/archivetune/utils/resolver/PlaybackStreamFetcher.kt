@@ -253,9 +253,6 @@ object PlaybackStreamFetcher {
         val fetchStartNanos = if (moe.rukamori.archivetune.BuildConfig.DEBUG) {
             moe.rukamori.archivetune.playback.PlaybackTiming.nowNanos()
         } else 0L
-        val signatureTimestamp = PlaybackStreamUrlDecipher.getSignatureTimestampOrNull(videoId)
-        Timber.tag(logTag).v("Signature timestamp: $signatureTimestamp")
-
         var authState = YouTube.currentPlaybackAuthState()
         val hasLoginCookie = authState.hasLoginCookie
         var canUseLoggedInPlayback = authState.hasPlaybackLoginContext
@@ -282,7 +279,7 @@ object PlaybackStreamFetcher {
             }
         Timber.tag(logTag).v("Session authentication status: $authStatus (sessionId=${sessionId.orEmpty()})")
 
-        if (moe.rukamori.archivetune.BuildConfig.DEBUG && canUseLoggedInPlayback) {
+        if (canUseLoggedInPlayback) {
             val fastPathData =
                 tryVisionOsFastPath(
                     videoId = videoId,
@@ -290,7 +287,7 @@ object PlaybackStreamFetcher {
                     audioQuality = audioQuality,
                     connectivityManager = connectivityManager,
                     networkMetered = networkMetered,
-                    signatureTimestamp = signatureTimestamp,
+                    signatureTimestamp = null,
                     authState = authState,
                     canUseLoggedInPlayback = canUseLoggedInPlayback,
                     fetchAttemptId = fetchAttemptId,
@@ -300,6 +297,9 @@ object PlaybackStreamFetcher {
                 return fastPathData
             }
         }
+
+        val signatureTimestamp = PlaybackStreamUrlDecipher.getSignatureTimestampOrNull(videoId)
+        Timber.tag(logTag).v("Signature timestamp: $signatureTimestamp")
 
         var format: PlayerResponse.StreamingData.Format? = null
         var streamUrl: String? = null
@@ -341,6 +341,7 @@ object PlaybackStreamFetcher {
                     poTokenPlayer = cachedToken.playerToken,
                     webClientPoTokenEnabled = true,
                 )
+                authState = YouTube.authState
             } else {
                 try {
                     Timber.tag(logTag).i("Generating NEW PoToken for metadata (heavy operation)")
@@ -353,6 +354,7 @@ object PlaybackStreamFetcher {
                             poTokenPlayer = it.playerToken,
                             webClientPoTokenEnabled = true,
                         )
+                        authState = YouTube.authState
                     }
                 } catch (e: kotlinx.coroutines.CancellationException) {
                     throw e
