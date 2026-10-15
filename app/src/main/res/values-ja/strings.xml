@@ -1058,8 +1058,8 @@
     <string name="flac_download_failed">FLACのダウンロードに失敗しました</string>
     <string name="flac_download_saved">セーブ: %1$s</string>
     <string name="flac_download_deleted">削除: %1$s</string>
-    <string name="blur_nav_bar">インターフェイス ブル</string>
-    <string name="blur_nav_bar_desc">フローティングナビゲーションバー、検索、パネルの後ろにリアルタイムのブラーを適用</string>
+    <string name="blur_nav_bar">インターフェースのぼかし</string>
+    <string name="blur_nav_bar_desc">フローティングナビゲーションバー、検索、パネルの背景にリアルタイムのぼかし効果を適用する</string>
     <string name="blur_radius">ぼかし強度</string>
     <string name="blur_radius_desc">浮遊パネルの背景の毛の強度を調節して下さい</string>
     <string name="splash_overlay_enabled">スプラッシュスクリーンアニメーション</string>
@@ -1157,7 +1157,7 @@
     <string name="customization">カスタマイズ</string>
     <string name="theme_blur_desc">現在：ブラー\n高性能なブラー効果</string>
     <string name="theme_gradient_desc">現在: グラデーション\nすっきりとしたグラデーション背景.</string>
-    <string name="theme_immersive_desc">現在: ブラー\nフルスクリーンカバーの背景</string>
+    <string name="theme_immersive_desc">現在: イマーシブ\nフルスクリーンカバーの背景</string>
     <string name="target_language_label">対象言語:</string>
     <string name="select_language">言語を選択</string>
     <string name="search_refresh_lyrics">歌詞の検索/更新</string>
