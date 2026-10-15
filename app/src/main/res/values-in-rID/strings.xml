@@ -214,7 +214,7 @@
     <string name="palette_sage_green">Sage</string>
     <string name="palette_sunset_orange">Sunset</string>
     <string name="palette_golden_hour">Emas</string>
-    <string name="palette_warm_amber">kuning</string>
+    <string name="palette_warm_amber">Kuning</string>
     <string name="palette_tangerine_blast">Tangerine</string>
     <string name="palette_peach">Persik</string>
     <string name="palette_mango">Mangga</string>
@@ -1007,7 +1007,7 @@
     <string name="theme_immersive_desc">Saat ini: Imersif\nLatar belakang sampul lagu layar penuh.</string>
     <string name="theme_standard_desc">Saat ini: Standar\nSampul lagu ukuran standar.</string>
     <string name="codec_info">Informasi Codec</string>
-    <string name="codec_info_desc">Tampilkan format audio dan sample rate di atas seekbar</string>
+    <string name="codec_info_desc">Tampilkan format audio dan sample rate di atas kontrol pemutaran</string>
     <string name="together_activity_error">Kesalahan: %1$s</string>
     <string name="album_art_large">Sampul Album Ukuran Besar</string>
     <string name="ambient_glow">Cahaya Sekitar</string>
