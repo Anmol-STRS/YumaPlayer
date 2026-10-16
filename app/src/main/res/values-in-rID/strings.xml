@@ -45,7 +45,7 @@
     <string name="liked_songs">Lagu yang disukai</string>
     <string name="downloaded_songs">Lagu yang diunduh</string>
     <string name="playlist_is_empty">Playlist ini kosong</string>
-    <string name="remove_download_playlist_confirm">Apakah Anda yakin ingin menghapus semua lagu playlist \"%s\" dari penyimpanan Lagu Unduhan?</string>
+    <string name="remove_download_playlist_confirm">Apakah Anda yakin ingin menghapus semua lagu hasil unduhan di playlist \"%s\"?</string>
     <string name="delete_playlist_confirm">Apakah Anda yakin ingin menghapus playlist \"%s\"?</string>
     <string name="change_playlist_cover">Ubah sampul playlist</string>
     <string name="retry">Coba lagi</string>
