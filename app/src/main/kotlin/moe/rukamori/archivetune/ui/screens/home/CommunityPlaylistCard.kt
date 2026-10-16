@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -62,7 +63,8 @@ import moe.rukamori.archivetune.ui.component.PlaylistThumbnail
 import moe.rukamori.archivetune.ui.component.YouTubeListItem
 import moe.rukamori.archivetune.ui.menu.YouTubePlaylistMenu
 import moe.rukamori.archivetune.ui.menu.YouTubeSongMenu
-import moe.rukamori.archivetune.ui.settings.SettingsDimensions
+import moe.rukamori.archivetune.ui.theme.TestThemeWrapper
+import moe.rukamori.archivetune.ui.theme.ThemePreviews
 
 @Composable
 internal fun CommunityPlaylistSection(
@@ -94,10 +96,70 @@ internal fun CommunityPlaylistSection(
                 val songs = remember(card.itemIds, songsById) {
                     card.itemIds.mapNotNull(songsById::get).take(3)
                 }
+                val playlist = remember(card) { card.toPlaylistItem() }
+                val openPlaylist = remember(playlist.id, mediaContext.navController) {
+                    { mediaContext.navController.navigate("online_playlist/${playlist.id}") }
+                }
+                val sequentialEndpoint = remember(card.playEndpoint, card.id) {
+                    card.playEndpoint ?: WatchEndpoint(playlistId = card.id)
+                }
+                val playPlaylist = remember(sequentialEndpoint, mediaContext.playerConnection) {
+                    { mediaContext.playerConnection.playQueue(YouTubeQueue.playlist(sequentialEndpoint)) }
+                }
+                val secondaryEndpoint = card.radioEndpoint ?: card.shuffleEndpoint
+                val playSecondary = remember(secondaryEndpoint, mediaContext.playerConnection) {
+                    secondaryEndpoint?.let { endpoint ->
+                        { mediaContext.playerConnection.playQueue(YouTubeQueue.playlist(endpoint)) }
+                    }
+                }
+                val showPlaylistMenu = remember(playlist, songs, mediaContext.menuState, mediaContext.scope) {
+                    {
+                        mediaContext.menuState.show {
+                            YouTubePlaylistMenu(
+                                playlist = playlist,
+                                songs = songs,
+                                coroutineScope = mediaContext.scope,
+                                onDismiss = mediaContext.menuState::dismiss,
+                            )
+                        }
+                    }
+                }
+                val onPlaySong: (SongItem, Int) -> Unit = remember(card.id, mediaContext.playerConnection, mediaContext.mediaMetadata?.id) {
+                    { song, index ->
+                        if (song.id == mediaContext.mediaMetadata?.id) {
+                            mediaContext.playerConnection.player.togglePlayPause()
+                        } else {
+                            val songEndpoint = song.endpoint?.let { endpoint ->
+                                endpoint.copy(playlistId = endpoint.playlistId ?: card.id, index = endpoint.index ?: index)
+                            } ?: WatchEndpoint(videoId = song.id, playlistId = card.id, index = index)
+                            mediaContext.playerConnection.playQueue(YouTubeQueue.playlist(songEndpoint))
+                        }
+                    }
+                }
+                val onSongMenu: (SongItem) -> Unit = remember(mediaContext.menuState, mediaContext.navController) {
+                    { song ->
+                        mediaContext.menuState.show {
+                            YouTubeSongMenu(
+                                song = song,
+                                navController = mediaContext.navController,
+                                onDismiss = mediaContext.menuState::dismiss,
+                            )
+                        }
+                    }
+                }
+
                 CommunityPlaylistCard(
                     card = card,
                     songs = songs,
-                    mediaContext = mediaContext,
+                    isPlaying = mediaContext.isPlaying,
+                    activeSongId = mediaContext.mediaMetadata?.id,
+                    onOpen = openPlaylist,
+                    onPlay = playPlaylist,
+                    onSecondaryPlay = playSecondary,
+                    isSecondaryRadio = card.radioEndpoint != null,
+                    onMore = showPlaylistMenu,
+                    onPlaySong = onPlaySong,
+                    onSongMenu = onSongMenu,
                     modifier = Modifier.width(cardWidth),
                 )
             }
@@ -110,74 +172,58 @@ internal fun CommunityPlaylistSection(
 internal fun CommunityPlaylistCard(
     card: HomePage.Section.FeaturedCard,
     songs: List<SongItem>,
-    mediaContext: HomeFeedMediaContext,
+    isPlaying: Boolean,
+    activeSongId: String?,
+    onOpen: () -> Unit,
+    onPlay: () -> Unit,
+    onSecondaryPlay: (() -> Unit)?,
+    isSecondaryRadio: Boolean,
+    onMore: () -> Unit,
+    onPlaySong: (SongItem, Int) -> Unit,
+    onSongMenu: (SongItem) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val playlist = remember(card) { card.toPlaylistItem() }
-    val openPlaylist = remember(playlist.id, mediaContext.navController) {
-        { mediaContext.navController.navigate("online_playlist/${playlist.id}") }
-    }
-    val sequentialEndpoint = remember(card.playEndpoint, card.id) {
-        card.playEndpoint ?: WatchEndpoint(playlistId = card.id)
-    }
-    val playPlaylist = remember(sequentialEndpoint, mediaContext.playerConnection) {
-        { mediaContext.playerConnection.playQueue(YouTubeQueue.playlist(sequentialEndpoint)) }
-    }
-    val onRadioPlay = remember(card.radioEndpoint, mediaContext.playerConnection) {
-        card.radioEndpoint?.let { endpoint ->
-            { mediaContext.playerConnection.playQueue(YouTubeQueue.playlist(endpoint)) }
-        }
-    }
-    val onShufflePlay = remember(card.shuffleEndpoint, mediaContext.playerConnection) {
-        card.shuffleEndpoint?.let { endpoint ->
-            { mediaContext.playerConnection.playQueue(YouTubeQueue.playlist(endpoint)) }
-        }
-    }
-    val showPlaylistMenu = remember(playlist, songs, mediaContext.menuState, mediaContext.scope) {
-        {
-            mediaContext.menuState.show {
-                YouTubePlaylistMenu(
-                    playlist = playlist,
-                    songs = songs,
-                    coroutineScope = mediaContext.scope,
-                    onDismiss = mediaContext.menuState::dismiss,
-                )
-            }
-        }
-    }
-
     Surface(
-        shape = RoundedCornerShape(20.dp),
+        shape = MaterialTheme.shapes.extraLarge,
         color = MaterialTheme.colorScheme.surfaceContainerLow,
-        border = BorderStroke(SettingsDimensions.GlassBorderThickness, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.58f)),
         modifier = modifier,
     ) {
         Column(
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.padding(16.dp),
         ) {
             CommunityPlaylistCardHeader(
                 card = card,
                 songs = songs,
-                onOpen = openPlaylist,
-                onLongClick = showPlaylistMenu,
+                onOpen = onOpen,
+                onLongClick = onMore,
             )
 
             if (songs.isNotEmpty()) {
-                CommunityPlaylistCardTrackRows(
-                    card = card,
-                    songs = songs,
-                    mediaContext = mediaContext,
-                )
+                songs.forEachIndexed { index, song ->
+                    YouTubeListItem(
+                        item = song,
+                        isActive = song.id == activeSongId,
+                        isPlaying = isPlaying,
+                        isSwipeable = false,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .combinedClickable(
+                                onClick = { onPlaySong(song, index) },
+                                onLongClick = { onSongMenu(song) },
+                            ),
+                    )
+                }
             } else if (card.itemIds.isEmpty()) {
                 CommunityPlaylistCardPlaceholderRows()
             }
 
             CommunityPlaylistCardActionsRow(
-                onPlay = playPlaylist,
-                onRadio = onRadioPlay,
-                onShuffle = onShufflePlay,
-                onMore = showPlaylistMenu,
+                onPlay = onPlay,
+                onSecondaryPlay = onSecondaryPlay,
+                isSecondaryRadio = isSecondaryRadio,
+                onMore = onMore,
             )
         }
     }
@@ -205,13 +251,17 @@ private fun CommunityPlaylistCardHeader(
     }
 
     Row(
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .combinedClickable(onClick = onOpen, onLongClick = onLongClick)
-            .padding(2.dp),
+            .heightIn(min = 96.dp)
+            .then(
+                Modifier.combinedClickable(
+                    onClick = onOpen,
+                    onLongClick = onLongClick,
+                ),
+            ),
     ) {
         PlaylistThumbnail(
             thumbnails = coverThumbnails,
@@ -224,7 +274,7 @@ private fun CommunityPlaylistCardHeader(
                     modifier = Modifier.size(36.dp),
                 )
             },
-            shape = RoundedCornerShape(ThumbnailCornerRadius),
+            shape = MaterialTheme.shapes.medium,
         )
 
         Column(
@@ -252,83 +302,43 @@ private fun CommunityPlaylistCardHeader(
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun CommunityPlaylistCardTrackRows(
-    card: HomePage.Section.FeaturedCard,
-    songs: List<SongItem>,
-    mediaContext: HomeFeedMediaContext,
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.fillMaxWidth()) {
-        songs.forEachIndexed { index, song ->
-            val songEndpoint = remember(song.endpoint, song.id, card.id, index) {
-                song.endpoint?.let { endpoint ->
-                    endpoint.copy(playlistId = endpoint.playlistId ?: card.id, index = endpoint.index ?: index)
-                } ?: WatchEndpoint(videoId = song.id, playlistId = card.id, index = index)
-            }
-            YouTubeListItem(
-                item = song,
-                isActive = song.id == mediaContext.mediaMetadata?.id,
-                isPlaying = mediaContext.isPlaying,
-                isSwipeable = false,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .combinedClickable(
-                        onClick = {
-                            if (song.id == mediaContext.mediaMetadata?.id) {
-                                mediaContext.playerConnection.player.togglePlayPause()
-                            } else {
-                                mediaContext.playerConnection.playQueue(YouTubeQueue.playlist(songEndpoint))
-                            }
-                        },
-                        onLongClick = {
-                            mediaContext.menuState.show {
-                                YouTubeSongMenu(
-                                    song = song,
-                                    navController = mediaContext.navController,
-                                    onDismiss = mediaContext.menuState::dismiss,
-                                )
-                            }
-                        },
-                    ),
-            )
-        }
-    }
-}
-
 @Composable
 private fun CommunityPlaylistCardPlaceholderRows() {
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.fillMaxWidth()) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
         repeat(3) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth().height(ListItemHeight).padding(horizontal = 8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(ListItemHeight)
+                    .padding(horizontal = 8.dp),
             ) {
                 Box(
                     modifier = Modifier
                         .padding(8.dp)
                         .size(ListThumbnailSize)
                         .clip(RoundedCornerShape(ThumbnailCornerRadius))
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                        .background(MaterialTheme.colorScheme.surfaceContainerHigh),
                 )
                 Column(
                     verticalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier.weight(1f).padding(horizontal = 6.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(horizontal = 6.dp),
                 ) {
                     Box(
                         Modifier
                             .fillMaxWidth(0.65f)
                             .height(14.dp)
                             .clip(RoundedCornerShape(4.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)),
+                            .background(MaterialTheme.colorScheme.surfaceContainerHigh),
                     )
                     Box(
                         Modifier
-                            .fillMaxWidth(0.4f)
+                            .fillMaxWidth(0.38f)
                             .height(11.dp)
                             .clip(RoundedCornerShape(4.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
+                            .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.7f)),
                     )
                 }
             }
@@ -339,30 +349,85 @@ private fun CommunityPlaylistCardPlaceholderRows() {
 @Composable
 private fun CommunityPlaylistCardActionsRow(
     onPlay: () -> Unit,
-    onRadio: (() -> Unit)?,
-    onShuffle: (() -> Unit)?,
+    onSecondaryPlay: (() -> Unit)?,
+    isSecondaryRadio: Boolean,
     onMore: () -> Unit,
 ) {
     Row(
         horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 4.dp),
     ) {
-        FilledIconButton(onClick = onPlay, modifier = Modifier.size(48.dp)) {
-            Icon(painter = painterResource(R.drawable.play), contentDescription = stringResource(R.string.play))
+        FilledIconButton(
+            onClick = onPlay,
+            modifier = Modifier.size(56.dp),
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.play),
+                contentDescription = stringResource(R.string.play),
+            )
         }
-        if (onRadio != null) {
-            FilledTonalIconButton(onClick = onRadio, modifier = Modifier.size(48.dp)) {
-                Icon(painter = painterResource(R.drawable.radio), contentDescription = stringResource(R.string.start_radio))
+
+        if (onSecondaryPlay != null) {
+            FilledTonalIconButton(
+                onClick = onSecondaryPlay,
+                modifier = Modifier.size(56.dp),
+            ) {
+                Icon(
+                    painter = painterResource(if (isSecondaryRadio) R.drawable.radio else R.drawable.shuffle),
+                    contentDescription = stringResource(if (isSecondaryRadio) R.string.start_radio else R.string.shuffle),
+                )
             }
         }
-        if (onShuffle != null) {
-            FilledTonalIconButton(onClick = onShuffle, modifier = Modifier.size(48.dp)) {
-                Icon(painter = painterResource(R.drawable.shuffle), contentDescription = stringResource(R.string.shuffle))
-            }
+
+        FilledTonalIconButton(
+            onClick = onMore,
+            modifier = Modifier.size(56.dp),
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.more_horiz),
+                contentDescription = stringResource(R.string.more_label),
+            )
         }
-        FilledTonalIconButton(onClick = onMore, modifier = Modifier.size(48.dp)) {
-            Icon(painter = painterResource(R.drawable.more_horiz), contentDescription = stringResource(R.string.more_label))
+    }
+}
+
+@ThemePreviews
+@Composable
+private fun CommunityPlaylistCardPreview() {
+    TestThemeWrapper {
+        val sampleCard = HomePage.Section.FeaturedCard(
+            id = "sample_playlist",
+            title = "Late Night Lo-Fi Beats",
+            subtitle = "Chillhop Music • 48 songs",
+            thumbnail = null,
+            endpoint = null,
+            playEndpoint = null,
+            shuffleEndpoint = null,
+            radioEndpoint = null,
+            itemIds = listOf("s1", "s2"),
+        )
+        val sampleSongs = listOf(
+            SongItem(id = "s1", title = "Midnight Coffee", artists = emptyList(), thumbnail = "thumb1"),
+            SongItem(id = "s2", title = "Rainy Window", artists = emptyList(), thumbnail = "thumb2"),
+        )
+        Box(modifier = Modifier.padding(16.dp)) {
+            CommunityPlaylistCard(
+                card = sampleCard,
+                songs = sampleSongs,
+                isPlaying = false,
+                activeSongId = null,
+                onOpen = {},
+                onPlay = {},
+                onSecondaryPlay = {},
+                isSecondaryRadio = false,
+                onMore = {},
+                onPlaySong = { _, _ -> },
+                onSongMenu = {},
+                modifier = Modifier.width(360.dp),
+            )
         }
     }
 }
