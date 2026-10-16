@@ -25,12 +25,14 @@ import coil3.compose.AsyncImage
 import kotlinx.coroutines.CoroutineScope
 import moe.rukamori.archivetune.constants.ListThumbnailSize
 import moe.rukamori.archivetune.constants.ThumbnailCornerRadius
+import moe.rukamori.archivetune.innertube.models.BrowseEndpoint
 import moe.rukamori.archivetune.innertube.pages.HomePage
 import moe.rukamori.archivetune.models.MediaMetadata
 import moe.rukamori.archivetune.playback.PlayerConnection
 import moe.rukamori.archivetune.ui.component.MenuState
 import moe.rukamori.archivetune.ui.screens.HomeSectionHeader
 import moe.rukamori.archivetune.ui.screens.Screens
+import moe.rukamori.archivetune.ui.screens.buildBrowseRoute
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -72,6 +74,15 @@ fun HomePageSectionContent(
     }
 }
 
+internal fun resolveHomeSectionRoute(endpoint: BrowseEndpoint?): String? {
+    val browseId = endpoint?.browseId ?: return null
+    return if (browseId == "FEmusic_moods_and_genres") {
+        Screens.MoodAndGenres.route
+    } else {
+        buildBrowseRoute(browseId, endpoint.params)
+    }
+}
+
 @Composable
 fun HomePageSectionTitle(
     section: HomePage.Section,
@@ -101,14 +112,8 @@ fun HomePageSectionTitle(
                 }
             },
         onClick =
-            section.endpoint?.browseId?.let { browseId ->
-                {
-                    if (browseId == "FEmusic_moods_and_genres") {
-                        navController.navigate(Screens.MoodAndGenres.route)
-                    } else {
-                        navController.navigate("browse/$browseId")
-                    }
-                }
+            resolveHomeSectionRoute(section.endpoint)?.let { route ->
+                { navController.navigate(route) }
             },
         modifier = modifier,
     )
