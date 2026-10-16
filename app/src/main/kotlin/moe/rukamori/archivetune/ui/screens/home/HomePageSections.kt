@@ -46,6 +46,23 @@ fun HomePageSectionContent(
     scope: CoroutineScope,
     modifier: Modifier = Modifier,
 ) {
+    if (section.featuredCards.isNotEmpty()) {
+        CommunityPlaylistSection(
+            section = section,
+            mediaContext =
+                HomeFeedMediaContext(
+                    mediaMetadata = mediaMetadata,
+                    isPlaying = isPlaying,
+                    navController = navController,
+                    playerConnection = playerConnection,
+                    menuState = menuState,
+                    scope = scope,
+                ),
+            modifier = modifier,
+        )
+        return
+    }
+
     LazyRow(
         contentPadding =
             WindowInsets.systemBars
