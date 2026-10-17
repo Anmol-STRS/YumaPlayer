@@ -39,7 +39,6 @@ import moe.rukamori.archivetune.models.MediaMetadata
 import moe.rukamori.archivetune.playback.PlayerConnection
 import moe.rukamori.archivetune.ui.component.ExpressivePullToRefreshBox
 import moe.rukamori.archivetune.ui.component.MenuState
-import moe.rukamori.archivetune.ui.screens.HomeCategoryChips
 import moe.rukamori.archivetune.ui.screens.HomeSectionHeader
 import moe.rukamori.archivetune.ui.screens.QuickPicksSection
 import moe.rukamori.archivetune.ui.screens.SpeedDialSection
@@ -105,19 +104,10 @@ internal fun HomeContent(
                             .fillMaxWidth()
                             .align(Alignment.TopCenter),
                 ) {
-                    if (uiState.showCategoryChips && !uiState.homePage?.chips.isNullOrEmpty()) {
-                        item(
-                            key = "home_category_chips",
-                            contentType = "category_chips",
-                        ) {
-                            HomeCategoryChips(
-                                chips = uiState.homePage?.chips.orEmpty(),
-                                selectedChip = uiState.selectedChip,
-                                onChipSelected = { onAction(HomeAction.SelectChip(it)) },
-                                modifier = Modifier.animateItem(),
-                            )
-                        }
-                    }
+                    homeCategoryChipsSection(
+                        uiState = uiState,
+                        onAction = onAction,
+                    )
 
                     if (!isFilterActive && uiState.quickPicks.isNotEmpty()) {
                         item(
@@ -251,5 +241,3 @@ internal fun HomeContent(
         }
     }
 }
-
-
