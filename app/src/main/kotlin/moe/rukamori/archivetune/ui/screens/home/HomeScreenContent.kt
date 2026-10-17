@@ -94,6 +94,8 @@ internal fun HomeContent(
                         )
                     }
 
+                val isFilterActive = uiState.selectedChip != null
+
                 LazyColumn(
                     state = lazyListState,
                     contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
@@ -117,7 +119,7 @@ internal fun HomeContent(
                         }
                     }
 
-                    if (uiState.quickPicks.isNotEmpty()) {
+                    if (!isFilterActive && uiState.quickPicks.isNotEmpty()) {
                         item(
                             key = "home_quick_picks",
                             contentType = "quick_picks",
@@ -135,96 +137,108 @@ internal fun HomeContent(
                         }
                     }
 
-                    if (uiState.speedDialItems.isNotEmpty()) {
-                        sectionSpacer("speed_dial")
-                        item(
-                            key = "home_speed_dial_header",
-                            contentType = "section_header",
-                        ) {
-                            HomeSectionHeader(
-                                title = stringResource(R.string.speed_dial),
-                                modifier = Modifier.animateItem(),
-                            )
-                        }
-                        item(
-                            key = "home_speed_dial",
-                            contentType = "speed_dial",
-                        ) {
-                            SpeedDialSection(
-                                speedDialItems = uiState.speedDialItems,
-                                mediaMetadata = mediaMetadata,
-                                isPlaying = isPlaying,
-                                navController = navController,
-                                playerConnection = playerConnection,
-                                menuState = menuState,
-                                scope = scope,
-                                modifier = Modifier.animateItem(),
-                            )
-                        }
-                    }
+                    homeCommunitySection(
+                        uiState = uiState,
+                        mediaContext = mediaContext,
+                    )
 
-                    if (uiState.keepListening.isNotEmpty()) {
-                        sectionSpacer("keep_listening")
-                        item(
-                            key = "home_keep_listening_header",
-                            contentType = "section_header",
-                        ) {
-                            HomeSectionHeader(
-                                title = stringResource(R.string.keep_listening),
-                                modifier = Modifier.animateItem(),
-                            )
-                        }
-                        item(
-                            key = "home_keep_listening",
-                            contentType = "media_shelf",
-                        ) {
-                            KeepListeningSection(
-                                keepListening = uiState.keepListening,
-                                mediaMetadata = mediaMetadata,
-                                isPlaying = isPlaying,
-                                navController = navController,
-                                playerConnection = playerConnection,
-                                menuState = menuState,
-                                scope = scope,
-                                modifier = Modifier.animateItem(),
-                            )
-                        }
-                    }
-
-                    if (uiState.accountPlaylists.isNotEmpty()) {
-                        sectionSpacer("account_playlists")
-                        item(
-                            key = "home_account_playlists",
-                            contentType = "media_shelf",
-                        ) {
-                            Column(modifier = Modifier.animateItem()) {
-                                AccountPlaylistsTitle(
-                                    accountName = uiState.accountName,
-                                    accountImageUrl = uiState.accountImageUrl,
-                                    onClick = { navController.navigate("account") },
+                    if (!isFilterActive) {
+                        if (uiState.speedDialItems.isNotEmpty()) {
+                            sectionSpacer("speed_dial")
+                            item(
+                                key = "home_speed_dial_header",
+                                contentType = "section_header",
+                            ) {
+                                HomeSectionHeader(
+                                    title = stringResource(R.string.speed_dial),
+                                    modifier = Modifier.animateItem(),
                                 )
-                                AccountPlaylistsSection(
-                                    accountPlaylists = uiState.accountPlaylists,
+                            }
+                            item(
+                                key = "home_speed_dial",
+                                contentType = "speed_dial",
+                            ) {
+                                SpeedDialSection(
+                                    speedDialItems = uiState.speedDialItems,
                                     mediaMetadata = mediaMetadata,
                                     isPlaying = isPlaying,
                                     navController = navController,
                                     playerConnection = playerConnection,
                                     menuState = menuState,
                                     scope = scope,
+                                    modifier = Modifier.animateItem(),
                                 )
                             }
                         }
+
+                        if (uiState.keepListening.isNotEmpty()) {
+                            sectionSpacer("keep_listening")
+                            item(
+                                key = "home_keep_listening_header",
+                                contentType = "section_header",
+                            ) {
+                                HomeSectionHeader(
+                                    title = stringResource(R.string.keep_listening),
+                                    modifier = Modifier.animateItem(),
+                                )
+                            }
+                            item(
+                                key = "home_keep_listening",
+                                contentType = "media_shelf",
+                            ) {
+                                KeepListeningSection(
+                                    keepListening = uiState.keepListening,
+                                    mediaMetadata = mediaMetadata,
+                                    isPlaying = isPlaying,
+                                    navController = navController,
+                                    playerConnection = playerConnection,
+                                    menuState = menuState,
+                                    scope = scope,
+                                    modifier = Modifier.animateItem(),
+                                )
+                            }
+                        }
+
+                        if (uiState.accountPlaylists.isNotEmpty()) {
+                            sectionSpacer("account_playlists")
+                            item(
+                                key = "home_account_playlists",
+                                contentType = "media_shelf",
+                            ) {
+                                Column(modifier = Modifier.animateItem()) {
+                                    AccountPlaylistsTitle(
+                                        accountName = uiState.accountName,
+                                        accountImageUrl = uiState.accountImageUrl,
+                                        onClick = { navController.navigate("account") },
+                                    )
+                                    AccountPlaylistsSection(
+                                        accountPlaylists = uiState.accountPlaylists,
+                                        mediaMetadata = mediaMetadata,
+                                        isPlaying = isPlaying,
+                                        navController = navController,
+                                        playerConnection = playerConnection,
+                                        menuState = menuState,
+                                        scope = scope,
+                                    )
+                                }
+                            }
+                        }
+
+                        homeForgottenFavoritesSection(
+                            uiState = uiState,
+                            mediaContext = mediaContext,
+                            forgottenItemWidth = forgottenItemWidth,
+                            forgottenFavoritesGridState = forgottenFavoritesGridState,
+                            forgottenSnapLayoutInfoProvider = forgottenSnapLayoutInfoProvider,
+                        )
+
+                        homeSimilarRecommendationsSection(
+                            uiState = uiState,
+                            mediaContext = mediaContext,
+                        )
                     }
 
-                    homeForgottenFavoritesSection(
-                        uiState = uiState,
-                        mediaContext = mediaContext,
-                        forgottenItemWidth = forgottenItemWidth,
-                        forgottenFavoritesGridState = forgottenFavoritesGridState,
-                        forgottenSnapLayoutInfoProvider = forgottenSnapLayoutInfoProvider,
-                    )
-
-                    homeSimilarAndRemoteSections(
+                    homeRemoteSections(
                         uiState = uiState,
                         mediaContext = mediaContext,
                     )
