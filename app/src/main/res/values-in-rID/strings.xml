@@ -814,7 +814,7 @@
     <string name="tracks_count_label">Jumlah lagu</string>
     <string name="custom_order">Urutan kustom</string>
     <string name="list_view">Tampilan Daftar</string>
-    <string name="grid_view">Tampilan Grid</string>
+    <string name="grid_view">Tampilan Petak</string>
     <string name="personal_label">Pribadi</string>
     <string name="youtube_synced">YouTube tersinkronisasi</string>
     <string name="options_label">Pilihan</string>
@@ -1217,4 +1217,20 @@
     <string name="sponsor_block_fillers">Bagian pengisi</string>
     <string name="sponsor_block_subscription_reminders">Pengingat subscribe</string>
     <string name="sponsor_block_hooks">Pembuka/Salam</string>
+    <string name="stats_axis_12am">00.00</string>
+    <string name="stats_axis_6am">06.00</string>
+    <string name="stats_axis_12pm">12.00</string>
+    <string name="stats_axis_6pm">18.00</string>
+    <string name="import_complete_title">Impor Selesai</string>
+    <string name="partially_cached">Sebagian</string>
+    <string name="import_total_processed">Total Diproses: %1$d</string>
+    <string name="import_success_count">Berhasil Diimpor: %1$d</string>
+    <string name="import_failed_count">Gagal: %1$d</string>
+    <string name="import_failed_items_title">Item Gagal:</string>
+    <string name="queue_mix_from_playlist">Mix dari Playlist</string>
+    <string name="selection_title">Pilihan</string>
+    <string name="debug_share_logs">Bagikan Log</string>
+    <string name="debug_restart">Mulai ulang</string>
+    <string name="debug_close">Tutup</string>
+    <string name="together_invalid_server_url">Koneksi gagal: URL websocket server tidak valid</string>
 </resources>
