@@ -43,6 +43,7 @@ import moe.rukamori.archivetune.ui.component.YouTubeGridItem
 import moe.rukamori.archivetune.ui.component.YouTubeListItem
 import moe.rukamori.archivetune.ui.haptics.YumaHaptics
 import moe.rukamori.archivetune.ui.screens.home.HomeLayoutConfig
+import timber.log.Timber
 
 @OptIn(ExperimentalFoundationApi::class)
 fun LazyListScope.artistOnlineSections(
@@ -65,9 +66,18 @@ fun LazyListScope.artistOnlineSections(
                 NavigationTitle(
                     title = section.title,
                     onClick =
-                        section.moreEndpoint?.let {
+                        section.moreEndpoint?.let { endpoint ->
                             {
-                                navController.navigate(buildArtistItemsRoute(artistId, it))
+                                val route = buildArtistItemsRoute(artistId, endpoint)
+                                val safeRoute =
+                                    "artist/${Uri.encode(artistId)}/items?browseId=${Uri.encode(endpoint.browseId)}" +
+                                        if (endpoint.params.isNullOrBlank()) "" else "&params=<masked_len_${endpoint.params?.length}>"
+                                Timber.tag("ArtistItemsTrace").d(
+                                    "HeaderClick: sectionTitle=\"${section.title}\", browseId=${endpoint.browseId}, " +
+                                        "paramsPresent=${!endpoint.params.isNullOrEmpty()}, paramsLength=${endpoint.params?.length ?: 0}, " +
+                                        "safeRoute=$safeRoute"
+                                )
+                                navController.navigate(route)
                             }
                         },
                 )
