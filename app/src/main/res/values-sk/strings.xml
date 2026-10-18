@@ -355,4 +355,10 @@
     <string name="most_tracks">Väčšina trackov</string>
     <string name="least_tracks">Najmenej trackov</string>
     <string name="play_time">Doba prehravania</string>
+    <string name="tempo_and_pitch">Tempo a Pitch</string>
+    <string name="sort_by_create_date">Dátum pridania</string>
+    <string name="sort_by_name">Meno</string>
+    <string name="sort_by_artist">Umelec</string>
+    <string name="sort_by_play_time">Doba prehravania</string>
+    <string name="sort_by_most_played">Najviac prehratí</string>
 </resources>
