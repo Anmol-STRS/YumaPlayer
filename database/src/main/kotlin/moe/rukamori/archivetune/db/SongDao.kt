@@ -599,7 +599,7 @@ interface SongDao {
                 FROM event
                 WHERE songId = song.id
                   AND timestamp > :fromTimeStamp AND timestamp <= :toTimeStamp) AS songCountListened,
-               (SELECT SUM(event.playTime)
+               (SELECT COALESCE(SUM(event.playTime), 0)
                 FROM event
                 WHERE songId = song.id
                   AND timestamp > :fromTimeStamp AND timestamp <= :toTimeStamp) AS timeListened
