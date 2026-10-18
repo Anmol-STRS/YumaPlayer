@@ -81,6 +81,7 @@ internal fun LazyListScope.statsSongsSection(
                 else -> null
             }
         val progressBarColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+        val songEntity = mostPlayedSongs.firstOrNull { it.id == song.id }
 
         ListItem(
             title = "${index + 1}. ${song.title}",
@@ -134,16 +135,17 @@ internal fun LazyListScope.statsSongsSection(
                                 playerConnection.playQueue(
                                     YouTubeQueue(
                                         endpoint = WatchEndpoint(song.id),
-                                        preloadItem = mostPlayedSongs[index].toMediaMetadata(),
+                                        preloadItem = songEntity?.toMediaMetadata(),
                                     ),
                                 )
                             }
                         },
                         onLongClick = {
+                            val targetSong = songEntity ?: return@combinedClickable
                             haptics.longPress()
                             menuState.show {
                                 SongMenu(
-                                    originalSong = mostPlayedSongs[index],
+                                    originalSong = targetSong,
                                     navController = navController,
                                     onDismiss = menuState::dismiss,
                                 )
