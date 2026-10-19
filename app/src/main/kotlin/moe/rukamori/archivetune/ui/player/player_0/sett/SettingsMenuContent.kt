@@ -62,15 +62,6 @@ fun SettingsMenuContent(
     }
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = stringResource(R.string.player_settings),
-            color = Color.White,
-            fontSize = 19.sp,
-            fontWeight = FontWeight.Bold,
-            fontFamily = LocalArchiveTuneFontFamily.current,
-            modifier = Modifier.padding(start = 4.dp, bottom = 16.dp)
-        )
-
         Row(
             modifier = Modifier
                 .fillMaxWidth()
