@@ -7,6 +7,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
@@ -35,6 +37,8 @@ import moe.rukamori.archivetune.ui.utils.ShowMediaInfo
 
 enum class PlayerMenuScreen { SETTINGS, CUSTOMIZATION, SLEEP_TIMER, ABOUT, DETAILS, DOWNLOAD }
 
+private val OptionsMenuMaxWidth = 560.dp
+
 @Composable
 fun FullPlayerOptionsMenu(
     expanded: Boolean,
@@ -47,6 +51,8 @@ fun FullPlayerOptionsMenu(
     onOpenEqualizer: () -> Unit = {},
     onOpenPlaybackSpeed: () -> Unit = {},
     onOpenAddToPlaylist: () -> Unit = {},
+    hasArtistId: Boolean = false,
+    hasAlbumId: Boolean = false,
     modifier: Modifier = Modifier,
     initialScreen: PlayerMenuScreen = PlayerMenuScreen.SETTINGS
 ) {
@@ -83,6 +89,8 @@ fun FullPlayerOptionsMenu(
         label = "MenuSlide"
     )
 
+    val panelShape = remember { RoundedCornerShape(SettingsDimensions.BottomSheetCornerRadius) }
+
     if (alpha > 0f) {
         Box(
             modifier = modifier
@@ -92,122 +100,172 @@ fun FullPlayerOptionsMenu(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
                     onClick = onDismissRequest
-                ),
-            contentAlignment = Alignment.Center
+                )
         ) {
             Box(
                 modifier = Modifier
-                    .width(340.dp)
-                    .graphicsLayer {
-                        this.translationY = translateY
-                        this.alpha = alpha
-                    }
-                    .yumaGlassCard(
-                        shape = RoundedCornerShape(28.dp),
-                        backgroundColor = Color(state.darkMutedColor).copy(alpha = 1f),
-                        borderColor = LocalYumaColors.current.glassBorder,
-                        strokeWidth = SettingsDimensions.GlassBorderThickness,
-                    )
-                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = {})
-                    .padding(20.dp)
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .windowInsetsPadding(WindowInsets.safeDrawing)
+                    .padding(horizontal = SettingsDimensions.BottomSheetHorizontalPadding)
+                    .padding(bottom = SettingsDimensions.BottomSheetBottomPadding),
+                contentAlignment = Alignment.BottomCenter
             ) {
-                val darkScheme = darkColorScheme()
-                MaterialTheme(colorScheme = darkScheme) {
-                    CompositionLocalProvider(
-                        LocalContentColor provides Color.White,
-                        LocalYumaColors provides darkYumaColorScheme(darkScheme),
-                    ) {
-                        Column {
-                            AnimatedContent(
-                                targetState = currentScreen,
-                                transitionSpec = {
-                                    if (targetState != PlayerMenuScreen.SETTINGS) {
-                                        (slideInHorizontally { it } + fadeIn()) togetherWith (slideOutHorizontally { -it } + fadeOut())
-                                    } else {
-                                        (slideInHorizontally { -it } + fadeIn()) togetherWith (slideOutHorizontally { it } + fadeOut())
-                                    }.using(SizeTransform(clip = false))
-                                },
-                                label = "MenuScreenTransition"
-                            ) { screen ->
-                                when (screen) {
-                                    PlayerMenuScreen.SETTINGS -> {
-                                        SettingsMenuContent(
-                                            state = state,
-                                            updateState = updateState,
-                                            onNavigateToAbout = { currentScreen = PlayerMenuScreen.ABOUT },
-                                            onNavigateToCustomization = { currentScreen = PlayerMenuScreen.CUSTOMIZATION },
-                                            onNavigateToSleepTimer = { currentScreen = PlayerMenuScreen.SLEEP_TIMER },
-                                            onNavigateToDetails = { currentScreen = PlayerMenuScreen.DETAILS },
-                                            onNavigateToDownload = { currentScreen = PlayerMenuScreen.DOWNLOAD },
-                                            onOpenEqualizer = onOpenEqualizer,
-                                            onOpenPlaybackSpeed = onOpenPlaybackSpeed,
-                                            onOpenAddToPlaylist = onOpenAddToPlaylist,
-                                            onAction = onAction
-                                        )
-                                    }
-
-                                    PlayerMenuScreen.CUSTOMIZATION -> {
-                                        CustomizationMenuContent(
-                                            state = state,
-                                            onBackgroundStyleChanged = onBackgroundStyleChanged,
-                                            onImmersiveChanged = onImmersiveChanged,
-                                            onAction = onAction
-                                        )
-                                    }
-                                    PlayerMenuScreen.SLEEP_TIMER -> {
-                                        SleepTimerMenuContent(
-                                            state = state,
-                                            onAction = onAction,
-                                            onBackClick = { currentScreen = PlayerMenuScreen.SETTINGS }
-                                        )
-                                    }
-                                    PlayerMenuScreen.ABOUT -> {
-                                        AboutMenuSection(
-                                            state = state,
-                                            updateState = updateState,
-                                            onAction = onAction,
-                                            onDismissRequest = onDismissRequest
-                                        )
-                                    }
-                                    PlayerMenuScreen.DOWNLOAD -> {
-                                        DownloadMenuContent(
-                                            state = state,
-                                            onDismissRequest = onDismissRequest
-                                        )
-                                    }
-                                    PlayerMenuScreen.DETAILS -> {
-                                        val songId = state.trackUrl
-                                        if (songId.isNotBlank()) {
-                                            Box(
+                Box(
+                    modifier = Modifier
+                        .widthIn(max = OptionsMenuMaxWidth)
+                        .fillMaxWidth()
+                        .graphicsLayer {
+                            this.translationY = translateY
+                            this.alpha = alpha
+                        }
+                        .yumaGlassCard(
+                            shape = panelShape,
+                            backgroundColor = Color(state.darkMutedColor).copy(alpha = 1f),
+                            borderColor = LocalYumaColors.current.glassBorder,
+                            strokeWidth = SettingsDimensions.GlassBorderThickness,
+                        )
+                        .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = {})
+                        .padding(horizontal = SettingsDimensions.BottomSheetContentPaddingH)
+                        .padding(
+                            top = SettingsDimensions.BottomSheetContentPaddingTop,
+                            bottom = SettingsDimensions.BottomSheetContentPaddingBottom,
+                        )
+                ) {
+                    val darkScheme = darkColorScheme()
+                    MaterialTheme(colorScheme = darkScheme) {
+                        CompositionLocalProvider(
+                            LocalContentColor provides Color.White,
+                            LocalYumaColors provides darkYumaColorScheme(darkScheme),
+                        ) {
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                AnimatedContent(
+                                    targetState = currentScreen,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .weight(1f, fill = false),
+                                    transitionSpec = {
+                                        if (targetState != PlayerMenuScreen.SETTINGS) {
+                                            (slideInHorizontally { it } + fadeIn()) togetherWith (slideOutHorizontally { -it } + fadeOut())
+                                        } else {
+                                            (slideInHorizontally { -it } + fadeIn()) togetherWith (slideOutHorizontally { it } + fadeOut())
+                                        }.using(SizeTransform(clip = true))
+                                    },
+                                    label = "MenuScreenTransition"
+                                ) { screen ->
+                                    when (screen) {
+                                        PlayerMenuScreen.SETTINGS -> {
+                                            Column(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
-                                                    .height(460.dp)
+                                                    .verticalScroll(rememberScrollState())
                                             ) {
-                                                ShowMediaInfo(videoId = songId)
+                                                SettingsMenuContent(
+                                                    state = state,
+                                                    updateState = updateState,
+                                                    onNavigateToAbout = { currentScreen = PlayerMenuScreen.ABOUT },
+                                                    onNavigateToCustomization = { currentScreen = PlayerMenuScreen.CUSTOMIZATION },
+                                                    onNavigateToSleepTimer = { currentScreen = PlayerMenuScreen.SLEEP_TIMER },
+                                                    onNavigateToDetails = { currentScreen = PlayerMenuScreen.DETAILS },
+                                                    onNavigateToDownload = { currentScreen = PlayerMenuScreen.DOWNLOAD },
+                                                    onOpenEqualizer = onOpenEqualizer,
+                                                    onOpenPlaybackSpeed = onOpenPlaybackSpeed,
+                                                    onOpenAddToPlaylist = onOpenAddToPlaylist,
+                                                    onDismissRequest = onDismissRequest,
+                                                    hasArtistId = hasArtistId,
+                                                    hasAlbumId = hasAlbumId,
+                                                    onAction = onAction
+                                                )
+                                            }
+                                        }
+
+                                        PlayerMenuScreen.CUSTOMIZATION -> {
+                                            Column(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .verticalScroll(rememberScrollState())
+                                            ) {
+                                                CustomizationMenuContent(
+                                                    state = state,
+                                                    onBackgroundStyleChanged = onBackgroundStyleChanged,
+                                                    onImmersiveChanged = onImmersiveChanged,
+                                                    onAction = onAction
+                                                )
+                                            }
+                                        }
+                                        PlayerMenuScreen.SLEEP_TIMER -> {
+                                            Column(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .verticalScroll(rememberScrollState())
+                                            ) {
+                                                SleepTimerMenuContent(
+                                                    state = state,
+                                                    onAction = onAction,
+                                                    onBackClick = { currentScreen = PlayerMenuScreen.SETTINGS }
+                                                )
+                                            }
+                                        }
+                                        PlayerMenuScreen.ABOUT -> {
+                                            Column(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .verticalScroll(rememberScrollState())
+                                            ) {
+                                                AboutMenuSection(
+                                                    state = state,
+                                                    updateState = updateState,
+                                                    onAction = onAction,
+                                                    onDismissRequest = onDismissRequest
+                                                )
+                                            }
+                                        }
+                                        PlayerMenuScreen.DOWNLOAD -> {
+                                            Column(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .verticalScroll(rememberScrollState())
+                                            ) {
+                                                DownloadMenuContent(
+                                                    state = state,
+                                                    onDismissRequest = onDismissRequest
+                                                )
+                                            }
+                                        }
+                                        PlayerMenuScreen.DETAILS -> {
+                                            val songId = state.trackUrl
+                                            if (songId.isNotBlank()) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .heightIn(max = 460.dp)
+                                                ) {
+                                                    ShowMediaInfo(videoId = songId)
+                                                }
                                             }
                                         }
                                     }
                                 }
-                            }
 
-                            Spacer(modifier = Modifier.height(20.dp))
+                                Spacer(modifier = Modifier.height(20.dp))
 
-                            Text(
-                                text = if (currentScreen == PlayerMenuScreen.SETTINGS) stringResource(R.string.close) else stringResource(R.string.back_button_desc),
-                                color = Color.White.copy(alpha = SettingsDimensions.YumaRowSubtitleAlpha),
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = LocalArchiveTuneFontFamily.current,
-                                modifier = Modifier
-                                    .align(Alignment.CenterHorizontally)
-                                    .yumaClickable {
-                                        when {
-                                            currentScreen != PlayerMenuScreen.SETTINGS -> currentScreen = PlayerMenuScreen.SETTINGS
-                                            else -> onDismissRequest()
+                                Text(
+                                    text = if (currentScreen == PlayerMenuScreen.SETTINGS) stringResource(R.string.close) else stringResource(R.string.back_button_desc),
+                                    color = Color.White.copy(alpha = SettingsDimensions.YumaRowSubtitleAlpha),
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = LocalArchiveTuneFontFamily.current,
+                                    modifier = Modifier
+                                        .align(Alignment.CenterHorizontally)
+                                        .yumaClickable {
+                                            when {
+                                                currentScreen != PlayerMenuScreen.SETTINGS -> currentScreen = PlayerMenuScreen.SETTINGS
+                                                else -> onDismissRequest()
+                                            }
                                         }
-                                    }
-                                    .padding(6.dp)
-                            )
+                                        .padding(6.dp)
+                                )
+                            }
                         }
                     }
                 }

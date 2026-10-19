@@ -46,6 +46,9 @@ fun SettingsMenuContent(
     onOpenEqualizer: () -> Unit,
     onOpenPlaybackSpeed: () -> Unit,
     onOpenAddToPlaylist: () -> Unit,
+    onDismissRequest: () -> Unit,
+    hasArtistId: Boolean,
+    hasAlbumId: Boolean,
     onAction: (PlayerAction) -> Unit
 ) {
     val uriHandler = LocalUriHandler.current
@@ -137,7 +140,10 @@ fun SettingsMenuContent(
         val castAction = rememberCastPlayerMenuAction()
         val hasCast = castAction != null
 
-        val totalRowCount = 8 + (if (hasCast) 1 else 0)
+        val totalRowCount = 8 +
+            (if (hasCast) 1 else 0) +
+            (if (hasArtistId) 1 else 0) +
+            (if (hasAlbumId) 1 else 0)
         var currentRow = 0
 
         Spacer(modifier = Modifier.height(SettingsDimensions.SegmentedItemGap))
@@ -214,6 +220,40 @@ fun SettingsMenuContent(
         )
 
         Spacer(modifier = Modifier.height(SettingsDimensions.SegmentedItemGap))
+
+        if (hasArtistId) {
+            CompactMenuRow(
+                title = stringResource(R.string.view_artist),
+                subtitle = state.artist,
+                iconResId = R.drawable.artist,
+                onClick = {
+                    onDismissRequest()
+                    onAction(PlayerAction.OpenArtist)
+                },
+                showArrow = true,
+                index = currentRow++,
+                count = totalRowCount,
+            )
+
+            Spacer(modifier = Modifier.height(SettingsDimensions.SegmentedItemGap))
+        }
+
+        if (hasAlbumId) {
+            CompactMenuRow(
+                title = stringResource(R.string.view_album),
+                subtitle = state.album.orEmpty(),
+                iconResId = R.drawable.album,
+                onClick = {
+                    onDismissRequest()
+                    onAction(PlayerAction.OpenAlbum)
+                },
+                showArrow = true,
+                index = currentRow++,
+                count = totalRowCount,
+            )
+
+            Spacer(modifier = Modifier.height(SettingsDimensions.SegmentedItemGap))
+        }
 
         CompactMenuRow(
             title = stringResource(R.string.equalizer),
