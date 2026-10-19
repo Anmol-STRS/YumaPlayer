@@ -361,4 +361,27 @@
     <string name="sort_by_artist">Umelec</string>
     <string name="sort_by_play_time">Doba prehravania</string>
     <string name="sort_by_most_played">Najviac prehratí</string>
+    <string name="loudness">Hlasitosť</string>
+    <string name="volume">Hlasitosť</string>
+    <string name="file_size">Veľkosť súboru</string>
+    <string name="undo">Naspäť</string>
+    <string name="lyrics_not_found">Text piesne nebol nájdený</string>
+    <string name="sleep_timer">Časovač spánku</string>
+    <string name="end_of_song">Koniec skladby</string>
+    <string name="action_remove_like">Odstrániť ako</string>
+    <string name="action_shuffle_on">Shuffle zapnutý</string>
+    <string name="action_shuffle_off">Shuffle vypnutý</string>
+    <string name="repeat_mode_off">Opakovaný režim vypnutý</string>
+    <string name="repeat_mode_one">Opakujte aktuálnu pieseň</string>
+    <string name="repeat_mode_all">Opakujte fronty</string>
+    <string name="queue_all_songs">Všetky piesne</string>
+    <string name="queue_searched_songs">Vyhľadávanie skladieb</string>
+    <string name="queue_continue_playing">Pokračovať v hraní</string>
+    <string name="queue_autoplaying_similar">Autoplaying podobnu hudbu</string>
+    <string name="queue_mix_from_playlist">Mix z playlistu</string>
+    <string name="selection_title">Výber</string>
+    <string name="music_player">Hudobný prehrávač</string>
+    <string name="settings">Nastavenia</string>
+    <string name="appearance">Vzhľad</string>
+    <string name="app_icon_description">Vyberte ikonu spúšťača</string>
 </resources>
