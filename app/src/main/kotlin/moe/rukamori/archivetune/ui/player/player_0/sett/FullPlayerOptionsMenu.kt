@@ -46,7 +46,7 @@ enum class PlayerMenuScreen { SETTINGS, CUSTOMIZATION, SLEEP_TIMER, ABOUT, DETAI
 
 private val OptionsMenuMaxWidth = 560.dp
 private val MenuDismissThreshold = 64.dp
-private val MenuHandleTouchTarget = 48.dp
+private val MenuHeaderDragHeight = 24.dp
 private const val MenuExitTranslatePx = 300f
 
 @Composable
@@ -188,11 +188,8 @@ fun FullPlayerOptionsMenu(
                             Column(modifier = Modifier.fillMaxWidth()) {
                                 Box(
                                     modifier = Modifier
-                                        .align(Alignment.CenterHorizontally)
-                                        .sizeIn(
-                                            minWidth = MenuHandleTouchTarget,
-                                            minHeight = MenuHandleTouchTarget,
-                                        )
+                                        .fillMaxWidth()
+                                        .height(MenuHeaderDragHeight)
                                         .pointerInput(expanded, dismissThresholdPx) {
                                             if (!currentExpanded) return@pointerInput
                                             detectVerticalDragGestures(
@@ -220,8 +217,7 @@ fun FullPlayerOptionsMenu(
                                                     }
                                                 },
                                             )
-                                        }
-                                        .padding(bottom = SettingsDimensions.BottomSheetDragHandleBottomPadding),
+                                        },
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Box(
@@ -311,6 +307,7 @@ fun FullPlayerOptionsMenu(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
                                                     .verticalScroll(rememberScrollState())
+                                                    .padding(vertical = SettingsDimensions.SectionSpacing)
                                             ) {
                                                 AboutMenuSection(
                                                     state = state,
@@ -346,25 +343,6 @@ fun FullPlayerOptionsMenu(
                                         }
                                     }
                                 }
-
-                                Spacer(modifier = Modifier.height(20.dp))
-
-                                Text(
-                                    text = if (currentScreen == PlayerMenuScreen.SETTINGS) stringResource(R.string.close) else stringResource(R.string.back_button_desc),
-                                    color = Color.White.copy(alpha = SettingsDimensions.YumaRowSubtitleAlpha),
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = LocalArchiveTuneFontFamily.current,
-                                    modifier = Modifier
-                                        .align(Alignment.CenterHorizontally)
-                                        .yumaClickable {
-                                            when {
-                                                currentScreen != PlayerMenuScreen.SETTINGS -> currentScreen = PlayerMenuScreen.SETTINGS
-                                                else -> requestDismiss()
-                                            }
-                                        }
-                                        .padding(6.dp)
-                                )
                             }
                         }
                     }
