@@ -19,7 +19,7 @@
     </plurals>
     <string name="history">Historial</string>
     <string name="stats">Estadísticas</string>
-    <string name="mood_and_genres">Géneros</string>
+    <string name="mood_and_genres">Ambientes y Géneros</string>
     <string name="account">Cuenta</string>
     <string name="quick_picks">Selecciones rápidas</string>
     <string name="forgotten_favorites">Tus favoritos del pasado</string>
@@ -223,7 +223,7 @@
     <string name="palette_golden_hour">Dorado</string>
     <string name="palette_warm_amber">Ámbar</string>
     <string name="palette_tangerine_blast">Mandarina</string>
-    <string name="palette_peach">Durazno</string>
+    <string name="palette_peach">Melocotón</string>
     <string name="palette_mango">Naranja Mango</string>
     <string name="palette_royal_purple">Púrpura Real</string>
     <string name="palette_lavender_dream">Lavanda</string>
@@ -1077,4 +1077,16 @@
     <string name="together_participants_empty">Aún no hay participantes</string>
     <string name="together_participants_empty_body">Las personas que se unan a esta sesión aparecerán aquí.</string>
     <string name="together_activity_log">Registro de actividad</string>
+    <string name="stats_axis_12am">12AM</string>
+    <string name="stats_axis_6am">6AM</string>
+    <string name="stats_axis_12pm">12PM</string>
+    <string name="stats_axis_6pm">6PM</string>
+    <string name="partially_cached">Parcialmente</string>
+    <string name="import_complete_title">Importación completada</string>
+    <string name="import_total_processed">Total procesado: %1$d</string>
+    <string name="import_success_count">Importado correctamente: %1$d</string>
+    <string name="import_failed_count">Error: %1$d</string>
+    <string name="import_failed_items_title">Elementos no importados:</string>
+    <string name="queue_mix_from_playlist">Mezcla a partir de una lista de reproducción</string>
+    <string name="selection_title">Selección</string>
 </resources>
