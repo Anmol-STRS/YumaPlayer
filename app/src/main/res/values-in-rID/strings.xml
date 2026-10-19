@@ -822,7 +822,7 @@
     <string name="no_artist_yet">Belum Ada Artis</string>
     <string name="total_label">total</string>
     <string name="play_time">Waktu putar</string>
-    <string name="subscribed_only">Hanya Langganan</string>
+    <string name="subscribed_only">Hanya yang Di-subscribe</string>
     <string name="cast_available_devices">Perangkat tersedia</string>
     <string name="most_tracks">Sering diputar</string>
     <string name="least_tracks">Jarang diputar</string>
@@ -1006,7 +1006,7 @@
     <string name="theme_gradient_desc">Saat ini: Gradien\nLatar belakang gradien yang bersih.</string>
     <string name="theme_immersive_desc">Saat ini: Imersif\nLatar belakang sampul lagu layar penuh.</string>
     <string name="theme_standard_desc">Saat ini: Standar\nSampul lagu ukuran standar.</string>
-    <string name="codec_info">Informasi Codec</string>
+    <string name="codec_info">Info Codec</string>
     <string name="codec_info_desc">Tampilkan format audio dan sample rate di atas kontrol pemutaran</string>
     <string name="together_activity_error">Kesalahan: %1$s</string>
     <string name="album_art_large">Sampul Album Ukuran Besar</string>
@@ -1022,7 +1022,7 @@
     <string name="spotify_integration">Spotify</string>
     <string name="spotify_your_playlists">Playlist Anda</string>
     <string name="start_radio_title">Mulai Radio</string>
-    <string name="spotify_new_releases">Rilisan Baru</string>
+    <string name="spotify_new_releases">Rilis Baru</string>
     <string name="standard_download_desc">Cache offline Opus / AAC</string>
     <string name="spotify_sync_likes">Sinkronisasikan Spotify Likes</string>
     <string name="spotify_made_for_you">Dibuat Untuk Anda</string>
@@ -1044,7 +1044,7 @@
     <string name="onboarding_customization_subtitle">Pilih tema, latar belakang, dan sumber musik utama Anda.</string>
     <string name="unsaved_account_dialog_title">Akun belum disimpan</string>
     <string name="unsaved_account_dialog_text">Akun Anda saat ini belum disimpan. Apakah Anda ingin menyimpannya sebelum menambahkan akun lain?</string>
-    <string name="unsaved_account_dialog_cancel">Batalkan login</string>
+    <string name="unsaved_account_dialog_cancel">Batalkan masuk</string>
     <string name="unsaved_account_dialog_no_thanks">Tidak, terima kasih</string>
     <string name="unsaved_account_dialog_save_yes">Ya, simpan akun saat ini</string>
     <string name="pin_to_speed_dial_title">Sematkan ke Pintasan Cepat</string>
@@ -1121,9 +1121,9 @@
     <string name="together_playback_empty">Tidak ada yang diputar</string>
     <string name="together_playback_playing">Memutar</string>
     <string name="together_playback_paused">Dijeda</string>
-    <string name="together_repeat_mode">Ulang %1$d</string>
+    <string name="together_repeat_mode">Ulangi %1$d</string>
     <string name="together_participants_empty">Belum ada peserta</string>
-    <string name="together_participants_empty_body">Orang-orang yang bergabung dalam sesi ini akan muncul di sini.</string>
+    <string name="together_participants_empty_body">Orang yang bergabung ke sesi ini akan muncul di sini.</string>
     <string name="together_activity_log">Log aktivitas</string>
     <string name="together_activity_log_subtitle">Sesi dan aktivitas pemutaran</string>
     <string name="together_activity_log_empty">Belum ada aktivitas</string>
@@ -1237,4 +1237,6 @@
     <string name="good_afternoon">Selamat siang</string>
     <string name="good_evening">Selamat sore</string>
     <string name="good_night">Selamat malam</string>
+    <string name="marquee_enabled">Teks bergulir</string>
+    <string name="marquee_enabled_desc">Aktifkan pengguliran otomatis untuk judul panjang</string>
 </resources>
