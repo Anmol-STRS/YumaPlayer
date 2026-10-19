@@ -1265,4 +1265,6 @@
     <string name="good_afternoon">Buon pomeriggio</string>
     <string name="good_evening">Buonasera</string>
     <string name="good_night">Buonanotte</string>
+    <string name="marquee_enabled">Testo scorrevole</string>
+    <string name="marquee_enabled_desc">Abilita testo scorrevole per titoli lunghi</string>
 </resources>
