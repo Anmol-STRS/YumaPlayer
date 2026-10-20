@@ -100,10 +100,21 @@ class SpotifyPlaylistQueue(
                             startIndex.coerceIn(allTracks.indices)
                         }
 
-                    val resolvedEntries = resolveTrackEntries(allTracks, targetIndex, preloadItem)
+                    val windowStart = (targetIndex - INITIAL_BEFORE).coerceAtLeast(0)
+                    val windowEnd = (targetIndex + INITIAL_AFTER + 1)
+                        .coerceAtMost(allTracks.size)
+
+                    val initialWindow = allTracks.subList(windowStart, windowEnd)
+
+                    val resolvedEntries = resolveTrackEntries(
+                        tracks = initialWindow,
+                        targetIndex = targetIndex - windowStart,
+                        preloadedItem = preloadItem,
+                    )
+
                     val resolvedItems = resolvedEntries.map { it.second }
 
-                    resolveOffset = allTracks.size
+                    resolveOffset = windowEnd
                     if (resolvedItems.isEmpty()) {
                         isLoadFailed = true
                         return@withContext Queue.Status(title = title, items = emptyList(), mediaItemIndex = 0)
@@ -138,6 +149,12 @@ class SpotifyPlaylistQueue(
     override suspend fun nextPage(): List<MediaItem> =
         withContext(Dispatchers.IO) {
             pagingMutex.withLock {
+
+                Timber.tag("SpotifyPipeline").d(
+                    "nextPage CALLED: initialized=$isInitialized, failed=$isLoadFailed, " +
+                            "resolveOffset=$resolveOffset, allTracks=${allTracks.size}, apiHasMore=$apiHasMore"
+                )
+
                 if (isLoadFailed || !isInitialized) return@withContext emptyList()
                 isContextLoading = true
                 try {
@@ -150,6 +167,12 @@ class SpotifyPlaylistQueue(
                     val batch = allTracks.subList(resolveOffset, end)
                     val resolved = resolveTracks(batch)
                     resolveOffset = end
+
+                    Timber.tag("SpotifyPipeline").d(
+                        "nextPage RESULT: resolved=${resolved.size}, resolveOffset=$resolveOffset, " +
+                                "remaining=${allTracks.size - resolveOffset}"
+                    )
+
                     resolved
                 } catch (e: Exception) {
                     if (e is CancellationException) throw e
@@ -223,5 +246,8 @@ class SpotifyPlaylistQueue(
     companion object {
         private const val SPOTIFY_PAGE_SIZE = 50
         private const val RESOLVE_BATCH_SIZE = 20
+
+        private const val INITIAL_BEFORE = 5
+        private const val INITIAL_AFTER = 10
     }
 }
