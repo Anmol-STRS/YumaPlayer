@@ -64,6 +64,16 @@ To keep the codebase maintainable as it grows, all modules and layers must stric
   - Queue management is decoupled into `QueuePlayOrchestrator`, `QueueMutationCommands`, and `TogetherGuestCoordinator`.
   - External integrations are isolated in `playback/discord/` and `playback/history/`.
 
+#### Spotify Queue Lazy Matching (v1)
+
+`SpotifyTracksQueue`, `SpotifyLikedSongsQueue`, and `SpotifyPlaylistQueue` share `SpotifyLazyTrackMatcher` for resolving Spotify entries into Media3 items. Source adapters still own their transport (liked-tracks pages, playlist GraphQL pages, or a caller-provided custom order) and retain their public constructors.
+
+- **Initial window:** the first `Queue.Status` resolves at most 5 loaded entries before the selected index, the selected entry, and 10 entries after it (11–16 items). The selected entry reuses the caller's `preloadItem` when present; the rest of the loaded collection is not resolved before the first status. The 5/10 split matches the existing playlist window and keeps more than the orchestrator's 5-remaining pagination trigger available ahead of playback.
+- **Forward batches:** each `nextPage()` resolves at most 20 already-loaded entries. When no unmatched loaded entries remain, the queue fetches one source page of 50 entries first, then resolves its next batch. Both counts reuse the existing playlist resolve batch and Spotify page size.
+- **Separate cursors:** the source fetch offset advances over raw API entries (including local entries filtered out of the queue), while the matching cursor advances only over loaded Spotify entries. Appending a source page never rewinds the matching cursor or duplicates already returned entries.
+- **Pagination contract:** `hasNextPage()`/`hasPendingContextItems` are true while unmatched loaded entries or source continuation remain. Unresolvable entries are skipped deterministically with the matching cursor advanced and a warning logged; an initial window with no resolvable entry sets `isLoadFailed`, while a fully unresolvable forward batch returns an empty page and still advances the cursor, so pagination terminates.
+- **v1 limitations:** `Previous` works only inside the initial before-window; earlier entries are not hydrated backwards. Shuffle applies to the ordering supplied by the caller or the loaded subset, not to the complete remote collection, and a full-source shuffle of a 1300-track collection is not provided. The `QueuePlayOrchestrator` preload fast-path contract is unchanged.
+
 ---
 
 ## 3. Request & Data Flow Lifecycle
