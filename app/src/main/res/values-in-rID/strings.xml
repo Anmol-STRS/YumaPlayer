@@ -76,7 +76,7 @@
     <string name="view_artist">Lihat artis</string>
     <string name="view_album">Lihat album</string>
     <string name="view_all">Lihat semua</string>
-    <string name="more">lebih</string>
+    <string name="more">lainnya</string>
     <string name="refetch">Muat ulang</string>
     <string name="share">Bagikan</string>
     <string name="delete">Hapus</string>
@@ -164,7 +164,7 @@
     <string name="added_n_songs_to_playlist">Menambahkan %1$d lagu ke %2$s</string>
     <string name="added_to_n_playlists">Ditambahkan ke %d playlist</string>
     <string name="added_n_songs_to_n_playlists">Menambahkan %1$d lagu ke %2$d playlist</string>
-    <string name="playlist_synced">Playlist disinkronkan</string>
+    <string name="playlist_synced">Playlist tersinkronisasi</string>
     <string name="undo">Urungkan</string>
     <string name="lyrics_not_found">Lirik tidak ditemukan</string>
     <string name="lyrics_word_sync">Sinkronisasi Kata</string>
@@ -703,7 +703,7 @@
     <string name="got_it">Mengerti</string>
     <string name="together_dont_show_again">Jangan tampilkan ini lagi</string>
     <string name="together_welcome_title">Selamat datang di Yuma Musik Bersama</string>
-    <string name="together_welcome_body">Music Bersama memungkinkan beberapa perangkat berbagi sesi langsung dengan antrean dan pemutaran yang disinkronkan.</string>
+    <string name="together_welcome_body">Music Bersama memungkinkan beberapa perangkat berbagi sesi langsung dengan antrean dan pemutaran yang tersinkronisasi.</string>
     <string name="together_welcome_host_title">Selenggarakan sesi</string>
     <string name="together_welcome_host_body">Ketuk Mulai sesi, lalu bagikan tautan sesi. Biarkan YumaPlayer tetap terbuka di latar belakang selama menjadi host.</string>
     <string name="together_welcome_join_title">Gabung dari perangkat lain</string>
