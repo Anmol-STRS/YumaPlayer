@@ -137,4 +137,8 @@
     <string name="liked_songs">Căntece apreciate</string>
     <string name="downloaded_songs">Căntece descărcate</string>
     <string name="playlist_is_empty">Playlistul este gol</string>
+    <string name="remove_download_playlist_confirm">Chiar doriți să eliminați toate melodiile din playlistul „%s” din „Melodii descărcate”?</string>
+    <string name="delete_playlist_confirm">Chiar dorești să ștergi playlistul „%s”?</string>
+    <string name="change_playlist_cover">Schimbă copertina playlistului</string>
+    <string name="retry">Reîncearcă</string>
 </resources>
