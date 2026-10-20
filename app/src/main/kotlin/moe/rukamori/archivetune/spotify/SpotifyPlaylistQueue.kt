@@ -162,6 +162,42 @@ open class SpotifyPlaylistQueue(
             }
         }
 
+    override fun hasPreviousPage(): Boolean =
+        isInitialized &&
+            !isLoadFailed &&
+            matcher.hasUnmatchedPreviousTracks
+
+    override val contextGeneration: Long
+        get() = matcher.contextGeneration
+
+    override suspend fun previousPage(): SpotifyQueue.PreviousPage =
+        withContext(Dispatchers.IO) {
+            pagingMutex.withLock {
+                if (!hasPreviousPage()) {
+                    return@withContext SpotifyQueue.PreviousPage(emptyList(), matcher.contextGeneration)
+                }
+
+                try {
+                    val batch = matcher.matchPrevious()
+                    if (batch.failedCount > 0) {
+                        Timber.tag("SpotifyPipeline").w(
+                            "previousPage skipped ${batch.failedCount} unresolved tracks"
+                        )
+                    }
+                    Timber.tag("SpotifyPipeline").d(
+                        "previousPage resolved ${batch.items.size} tracks " +
+                            "(loaded=${matcher.loadedTrackCount})"
+                    )
+                    SpotifyQueue.PreviousPage(batch.items, matcher.contextGeneration)
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    isLoadFailed = true
+                    Timber.tag("SpotifyPipeline").e(e, "Failed previousPage in SpotifyPlaylistQueue")
+                    SpotifyQueue.PreviousPage(emptyList(), matcher.contextGeneration)
+                }
+            }
+        }
+
     private fun hasUnmatchedWork(): Boolean =
         !isLoadFailed && (matcher.hasUnmatchedLoadedTracks || apiHasMore)
 

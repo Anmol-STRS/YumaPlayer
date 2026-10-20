@@ -288,6 +288,157 @@ class SpotifyQueueLazyPagingTest {
         assertFalse(queue.isContextLoading)
     }
 
+    @Test
+    fun tracksQueue_previousPageWalksBackwardWithoutFetchingSource() = runTest {
+        val source = (0 until 100).map(::track)
+        var fetches = 0
+        val queue =
+            TestTracksQueue(
+                initialTracks = source,
+                startIndex = 60,
+                totalCount = source.size,
+                hasCustomOrder = true,
+                pageProvider = { _, _ ->
+                    fetches += 1
+                    SpotifyTracksQueue.PageResult(emptyList(), 0, 0)
+                },
+            )
+
+        val status = queue.getInitialStatus()
+
+        assertEquals((55..70).map { "yt-sp-$it" }, status.items.map(MediaItem::mediaId))
+        assertTrue(queue.hasPreviousPage())
+
+        assertEquals((35..54).map { "yt-sp-$it" }, queue.previousPage().items.map(MediaItem::mediaId))
+        assertEquals((15..34).map { "yt-sp-$it" }, queue.previousPage().items.map(MediaItem::mediaId))
+        assertEquals((0..14).map { "yt-sp-$it" }, queue.previousPage().items.map(MediaItem::mediaId))
+
+        assertFalse(queue.hasPreviousPage())
+        assertTrue(queue.previousPage().items.isEmpty())
+        assertFalse(queue.isLoadFailed)
+        assertEquals(0, fetches)
+    }
+
+    @Test
+    fun tracksQueue_previousPageDoesNotConsumeForwardTail() = runTest {
+        val source = (0 until 100).map(::track)
+        val queue =
+            TestTracksQueue(
+                initialTracks = source,
+                startIndex = 60,
+                totalCount = source.size,
+                hasCustomOrder = true,
+            )
+
+        assertEquals(16, queue.getInitialStatus().items.size)
+        assertEquals((35..54).map { "yt-sp-$it" }, queue.previousPage().items.map(MediaItem::mediaId))
+        assertEquals((71..90).map { "yt-sp-$it" }, queue.nextPage().map(MediaItem::mediaId))
+    }
+
+    @Test
+    fun tracksQueue_previousPageNullTailAdvancesCursorAndTerminates() = runTest {
+        var failTail = false
+        val queue =
+            TestTracksQueue(
+                initialTracks = (0 until 41).map(::track),
+                startIndex = 30,
+                totalCount = 41,
+                hasCustomOrder = true,
+                resolver = { track ->
+                    val index = track.id.removePrefix("sp-").toInt()
+                    if (failTail && index < 25) null else mediaItem(track)
+                },
+            )
+
+        assertEquals(16, queue.getInitialStatus().items.size)
+        failTail = true
+
+        assertTrue(queue.previousPage().items.isEmpty())
+        assertTrue(queue.previousPage().items.isEmpty())
+        assertFalse(queue.hasPreviousPage())
+        assertFalse(queue.isLoadFailed)
+    }
+
+    @Test
+    fun tracksQueue_previousPageCancellationKeepsCursor() = runTest {
+        val started = CompletableDeferred<Unit>()
+        var blockResolution = false
+        val queue =
+            TestTracksQueue(
+                initialTracks = (0 until 41).map(::track),
+                startIndex = 30,
+                totalCount = 41,
+                hasCustomOrder = true,
+                resolver = { track ->
+                    if (blockResolution) {
+                        started.complete(Unit)
+                        awaitCancellation()
+                    } else {
+                        mediaItem(track)
+                    }
+                },
+            )
+
+        assertEquals(16, queue.getInitialStatus().items.size)
+        blockResolution = true
+
+        val job = launch(Dispatchers.Default) { queue.previousPage() }
+        started.await()
+        job.cancelAndJoin()
+
+        assertFalse(job.isActive)
+        assertTrue(queue.hasPreviousPage())
+        assertFalse(queue.isLoadFailed)
+
+        blockResolution = false
+        assertEquals((5..24).map { "yt-sp-$it" }, queue.previousPage().items.map(MediaItem::mediaId))
+    }
+
+    @Test
+    fun playlistQueue_previousPageContinuesBackwardFromInitialWindow() = runTest {
+        val source = (0 until 60).map(::track)
+        val queue =
+            TestPlaylistQueue(
+                initialTracks = source,
+                startIndex = 20,
+                totalCount = source.size,
+                hasCustomOrder = true,
+                pageProvider = { _, _ ->
+                    SpotifyPaging(items = emptyList(), total = source.size, limit = 0, offset = 0)
+                },
+            )
+
+        val status = queue.getInitialStatus()
+
+        assertEquals((15..30).map { "yt-sp-$it" }, status.items.map(MediaItem::mediaId))
+        assertTrue(queue.hasPreviousPage())
+        assertEquals((0..14).map { "yt-sp-$it" }, queue.previousPage().items.map(MediaItem::mediaId))
+        assertFalse(queue.hasPreviousPage())
+        assertTrue(queue.previousPage().items.isEmpty())
+    }
+
+    @Test
+    fun tracksQueue_previousPageAfterReinitializationUsesFreshWindow() = runTest {
+        val queue =
+            TestTracksQueue(
+                initialTracks = (0 until 60).map(::track),
+                startIndex = 20,
+                totalCount = 60,
+                hasCustomOrder = true,
+            )
+
+        queue.getInitialStatus()
+        val firstGeneration = queue.contextGeneration
+        assertEquals((0..14).map { "yt-sp-$it" }, queue.previousPage().items.map(MediaItem::mediaId))
+        assertFalse(queue.hasPreviousPage())
+
+        queue.getInitialStatus()
+        val secondGeneration = queue.contextGeneration
+        assertTrue(secondGeneration > firstGeneration)
+        assertTrue(queue.hasPreviousPage())
+        assertEquals((0..14).map { "yt-sp-$it" }, queue.previousPage().items.map(MediaItem::mediaId))
+    }
+
     private class TestTracksQueue(
         initialTracks: List<SpotifyTrack>,
         startIndex: Int = 0,

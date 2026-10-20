@@ -22,10 +22,11 @@ internal object SpotifyQueuePolicy {
 }
 
 /**
- * Owns the loaded Spotify source order and the forward matching cursor.
+ * Owns the loaded Spotify source order and both matching cursors.
  *
  * Source pagination is intentionally outside this class: queues append fetched pages via [append],
- * while [cursor] only tracks which loaded entries have been resolved to MediaItems.
+ * while [cursor] and [backwardCursor] track which loaded entries have been resolved to MediaItems
+ * ahead of and behind the initial window.
  */
 internal class SpotifyLazyTrackMatcher(
     private val resolveTrack: suspend (SpotifyTrack) -> MediaItem?,
@@ -52,6 +53,18 @@ internal class SpotifyLazyTrackMatcher(
     @Volatile
     private var cursor = 0
 
+    @Volatile
+    private var backwardCursor = 0
+
+    @Volatile
+    private var generation = 0L
+
+    val contextGeneration: Long
+        get() = generation
+
+    val hasUnmatchedPreviousTracks: Boolean
+        get() = backwardCursor > 0
+
     val loadedTrackCount: Int
         get() = loadedCount
 
@@ -63,6 +76,8 @@ internal class SpotifyLazyTrackMatcher(
         tracks.forEach { track -> if (!track.isLocal) loaded += track }
         loadedCount = loaded.size
         cursor = 0
+        backwardCursor = 0
+        generation += 1
     }
 
     fun append(tracks: List<SpotifyTrack>) {
@@ -95,6 +110,7 @@ internal class SpotifyLazyTrackMatcher(
         val resolved = resolveRange(windowStart, windowEnd, target, preloadedItem)
 
         cursor = windowEnd
+        backwardCursor = windowStart
 
         if (resolved.isEmpty()) {
             return InitialMatch(emptyList(), 0, windowEnd - windowStart)
@@ -120,6 +136,21 @@ internal class SpotifyLazyTrackMatcher(
         val end = (start + batchSize).coerceAtMost(loaded.size)
         val resolved = resolveRange(start, end, null, null)
         cursor = end
+
+        return BatchMatch(
+            items = resolved.map { it.second },
+            failedCount = (end - start) - resolved.size,
+        )
+    }
+
+    suspend fun matchPrevious(): BatchMatch {
+        val end = backwardCursor
+        if (end <= 0) return BatchMatch(emptyList(), 0)
+
+        val start = (end - batchSize).coerceAtLeast(0)
+        val resolved = resolveRange(start, end, null, null)
+
+        backwardCursor = start
 
         return BatchMatch(
             items = resolved.map { it.second },
