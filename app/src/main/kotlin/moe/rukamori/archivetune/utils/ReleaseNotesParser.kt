@@ -62,6 +62,7 @@ object ReleaseNotesParser {
 
     private val canonicalHeadings: Map<String, ReleaseNoteCategory> =
         mapOf(
+            // Features / New
             "features" to ReleaseNoteCategory.FEATURES,
             "feature" to ReleaseNoteCategory.FEATURES,
             "new" to ReleaseNoteCategory.FEATURES,
@@ -69,24 +70,36 @@ object ReleaseNotesParser {
             "new features" to ReleaseNoteCategory.FEATURES,
             "added" to ReleaseNoteCategory.FEATURES,
             "additions" to ReleaseNoteCategory.FEATURES,
+
+            // Fixes / Bugs
             "fixes" to ReleaseNoteCategory.FIXES,
             "fix" to ReleaseNoteCategory.FIXES,
             "bug fixes" to ReleaseNoteCategory.FIXES,
             "bug fix" to ReleaseNoteCategory.FIXES,
             "bugs" to ReleaseNoteCategory.FIXES,
             "fixed" to ReleaseNoteCategory.FIXES,
+
+            // Performance
             "performance" to ReleaseNoteCategory.PERFORMANCE,
             "performance improvement" to ReleaseNoteCategory.PERFORMANCE,
             "performance improvements" to ReleaseNoteCategory.PERFORMANCE,
             "perf" to ReleaseNoteCategory.PERFORMANCE,
+
+            // Improvements
             "improvements" to ReleaseNoteCategory.IMPROVEMENTS,
             "improvement" to ReleaseNoteCategory.IMPROVEMENTS,
             "improved" to ReleaseNoteCategory.IMPROVEMENTS,
+
+            // Refactors
             "refactors" to ReleaseNoteCategory.REFACTORS,
             "refactor" to ReleaseNoteCategory.REFACTORS,
             "refactoring" to ReleaseNoteCategory.REFACTORS,
+
+            // Documentation
             "documentation" to ReleaseNoteCategory.DOCUMENTATION,
             "docs" to ReleaseNoteCategory.DOCUMENTATION,
+
+            // Build / CI
             "build / ci" to ReleaseNoteCategory.BUILD_CI,
             "build/ci" to ReleaseNoteCategory.BUILD_CI,
             "build ci" to ReleaseNoteCategory.BUILD_CI,
@@ -94,6 +107,12 @@ object ReleaseNotesParser {
             "build and ci" to ReleaseNoteCategory.BUILD_CI,
             "build" to ReleaseNoteCategory.BUILD_CI,
             "ci" to ReleaseNoteCategory.BUILD_CI,
+
+            // GitHub Auto-generated defaults & Others
+            "what's changed" to ReleaseNoteCategory.OTHER,
+            "whats changed" to ReleaseNoteCategory.OTHER,
+            "new contributors" to ReleaseNoteCategory.DOCUMENTATION,
+            "contributors" to ReleaseNoteCategory.DOCUMENTATION,
             "other" to ReleaseNoteCategory.OTHER,
             "others" to ReleaseNoteCategory.OTHER,
             "other changes" to ReleaseNoteCategory.OTHER,
@@ -310,15 +329,19 @@ object ReleaseNotesParser {
             .replace(headingPrefixPattern, "")
             .trim()
 
+    private val emojiPattern = Regex("""[\p{So}\p{Sk}\p{Cs}\uFE0F]""")
+
     private fun normalizeHeading(text: String): String =
         text
             .trim()
             .trimEnd('#')
             .trim()
+            .replace(emojiPattern, "")
             .replace("*", "")
             .replace("_", "")
             .replace("`", "")
             .trimEnd(':')
+            .trim()
             .lowercase(Locale.ROOT)
             .replace(Regex("""\s+"""), " ")
 
