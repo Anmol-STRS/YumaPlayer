@@ -51,13 +51,11 @@ sealed interface ReleaseNotes {
 }
 
 object ReleaseNotesParser {
-    private const val DocumentWrapperHeading = "Changelog"
 
     private val headingPattern = Regex("""^(#{1,6})\s+(.*?)\s*#*\s*$""")
     private val headingPrefixPattern = Regex("""^(?:>\s*|[-*+]\s+)+""")
     private val listPattern = Regex("""^(\s*)([-*+]|\d{1,3}[.)])\s+(.*)$""")
     private val fenceOpenPattern = Regex("""^\s{0,3}(`{3,}|~{3,})(.*)$""")
-    private val standaloneBlockPattern = Regex("""^(?:\|.*|<[/!A-Za-z][^>]*>|>.*|[-*_]{3,}\s*)$""")
     private val detailsOpenPattern = Regex("""^<details(?:\s[^>]*)?>\s*$""", RegexOption.IGNORE_CASE)
     private val detailsClosePattern = Regex("""^</details>\s*$""", RegexOption.IGNORE_CASE)
     private val summaryPattern = Regex("""^<summary>(.*?)</summary>\s*$""", RegexOption.IGNORE_CASE)
@@ -119,7 +117,6 @@ object ReleaseNotesParser {
         var fenceMarker = '`'
         var fenceLength = 0
         var detailsDepth = 0
-        var unsupported = false
 
         fun nextSectionId(base: String): String {
             val count = (sectionIdCounts[base] ?: 0) + 1
@@ -140,24 +137,17 @@ object ReleaseNotesParser {
         fun flushSection() {
             flushItem()
             val section = currentSection ?: return
-            val sectionTitle = section.title
             if (section.items.isNotEmpty()) {
                 sections += section.build()
-            } else if (sectionTitle != null &&
-                !(section.level == 1 && sectionTitle.equals(DocumentWrapperHeading, ignoreCase = true))
-            ) {
-                unsupported = true
             }
             currentSection = null
         }
 
-        fun beginSection(rawTitle: String, level: Int? = null) {
+        fun beginSection(rawTitle: String) {
             flushSection()
             val cleanedTitle = cleanHeadingTitle(rawTitle)
-            if (cleanedTitle.isBlank()) {
-                unsupported = true
-                return
-            }
+            if (cleanedTitle.isBlank()) return
+
             val normalizedTitle = normalizeHeading(cleanedTitle)
             val category = canonicalHeadings[normalizedTitle]
             val title = if (category == null) cleanedTitle else null
@@ -167,7 +157,6 @@ object ReleaseNotesParser {
                     category = category ?: ReleaseNoteCategory.OTHER,
                     title = title,
                     id = nextSectionId(baseId.ifBlank { "section" }),
-                    level = level,
                 )
         }
 
@@ -192,31 +181,22 @@ object ReleaseNotesParser {
             if (detailsOpenPattern.matches(line)) {
                 flushSection()
                 detailsDepth += 1
-                if (detailsDepth > 1) {
-                    unsupported = true
-                }
                 pendingBlankLine = false
                 return true
             }
 
             if (detailsClosePattern.matches(line)) {
-                if (detailsDepth == 0) {
-                    unsupported = true
-                    return true
+                if (detailsDepth > 0) {
+                    flushSection()
+                    detailsDepth -= 1
                 }
-                flushSection()
-                detailsDepth -= 1
                 pendingBlankLine = false
                 return true
             }
 
             val summary = summaryPattern.matchEntire(line)
             if (summary != null) {
-                if (detailsDepth == 0) {
-                    unsupported = true
-                } else {
-                    beginSection(summary.groupValues[1].trim())
-                }
+                beginSection(summary.groupValues[1].trim())
                 pendingBlankLine = false
                 return true
             }
@@ -228,8 +208,6 @@ object ReleaseNotesParser {
             if (inFence) {
                 if (currentItem != null) {
                     currentItem?.add(line)
-                } else {
-                    unsupported = true
                 }
                 if (isClosingFence(line, fenceMarker, fenceLength)) {
                     inFence = false
@@ -238,6 +216,7 @@ object ReleaseNotesParser {
                 continue
             }
 
+            if (handleStructuralWrapper(line)) continue
             if (line.trim().matches(Regex("""^[-*_]{3,}\s*$"""))) continue
 
             val fence = fenceOpenPattern.matchEntire(line)
@@ -246,9 +225,7 @@ object ReleaseNotesParser {
                 fenceMarker = fenceRun.first()
                 fenceLength = fenceRun.length
                 inFence = true
-                if (currentItem == null || line.first().isWhitespace().not()) {
-                    unsupported = true
-                } else {
+                if (currentItem != null) {
                     if (pendingBlankLine) {
                         currentItem?.add("")
                         pendingBlankLine = false
@@ -261,26 +238,27 @@ object ReleaseNotesParser {
             val heading = headingPattern.matchEntire(line)
             if (heading != null && line == line.trimStart()) {
                 val title = heading.groupValues[2].trim()
-                if (title.isBlank()) {
-                    unsupported = true
-                } else {
-                    beginSection(title, level = heading.groupValues[1].length)
+                if (title.isNotBlank()) {
+                    beginSection(title)
                 }
                 continue
             }
 
             val listItem = listPattern.matchEntire(line)
             if (listItem != null) {
+                val indent = listItem.groupValues[1].length
                 val activeItem = currentItem
                 if (activeItem == null) {
                     beginUncategorizedSection()
-                    beginItem(line, indent = 0)
-                } else {
+                    beginItem(line, indent)
+                } else if (indent > activeItem.indent) {
                     if (pendingBlankLine) {
                         activeItem.add("")
                         pendingBlankLine = false
                     }
                     activeItem.add(line)
+                } else {
+                    beginItem(line, indent)
                 }
                 continue
             }
@@ -294,11 +272,8 @@ object ReleaseNotesParser {
 
             val activeItem = currentItem
             if (activeItem == null) {
-                unsupported = true
-            } else if (line.first().isWhitespace().not() &&
-                (pendingBlankLine || standaloneBlockPattern.matches(line))
-            ) {
-                unsupported = true
+                beginUncategorizedSection()
+                beginItem(line, indent = 0)
             } else {
                 if (pendingBlankLine) {
                     activeItem.add("")
@@ -369,7 +344,6 @@ object ReleaseNotesParser {
         val category: ReleaseNoteCategory,
         val title: String?,
         val id: String,
-        val level: Int? = null,
     ) {
         val items = mutableListOf<ReleaseNoteItem>()
 
