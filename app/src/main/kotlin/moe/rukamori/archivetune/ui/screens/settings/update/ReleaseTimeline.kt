@@ -31,6 +31,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import moe.rukamori.archivetune.LocalAnimationsDisabled
@@ -158,7 +159,7 @@ private fun ReleaseTimelineRail(
     modifier: Modifier = Modifier,
 ) {
     val lineColor = MaterialTheme.colorScheme.outlineVariant
-    val installedColor = MaterialTheme.colorScheme.tertiary
+    val installedColor = Color(0xFF81C784)
     val nodeColor =
         when {
             isInstalled -> installedColor

@@ -238,7 +238,7 @@ object ReleaseNotesParser {
                 continue
             }
 
-            if (handleStructuralWrapper(line)) continue
+            if (line.trim().matches(Regex("""^[-*_]{3,}\s*$"""))) continue
 
             val fence = fenceOpenPattern.matchEntire(line)
             if (fence != null) {
@@ -271,19 +271,16 @@ object ReleaseNotesParser {
 
             val listItem = listPattern.matchEntire(line)
             if (listItem != null) {
-                val indent = listItem.groupValues[1].length
                 val activeItem = currentItem
                 if (activeItem == null) {
                     beginUncategorizedSection()
-                    beginItem(line, indent)
-                } else if (indent > activeItem.indent) {
+                    beginItem(line, indent = 0)
+                } else {
                     if (pendingBlankLine) {
                         activeItem.add("")
                         pendingBlankLine = false
                     }
                     activeItem.add(line)
-                } else {
-                    beginItem(line, indent)
                 }
                 continue
             }
@@ -313,7 +310,7 @@ object ReleaseNotesParser {
 
         flushSection()
 
-        if (unsupported || inFence || detailsDepth != 0 || sections.isEmpty()) {
+        if (sections.isEmpty()) {
             return ReleaseNotes.Fallback(source = source)
         }
 

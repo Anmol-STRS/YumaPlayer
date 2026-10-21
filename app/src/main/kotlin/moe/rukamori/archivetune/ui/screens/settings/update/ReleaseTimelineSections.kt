@@ -226,19 +226,35 @@ internal fun ReleaseTimelineSection(
 
 @Composable
 internal fun ReleaseTimelineFallback(markdown: String?) {
+    val colors = LocalYumaColors.current
+    val sectionShape = RoundedCornerShape(SettingsDimensions.LibrarySmallRadius)
+
     if (markdown.isNullOrBlank()) {
         Text(
             text = stringResource(R.string.release_notes_unavailable),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(SettingsDimensions.BadgeSpacing),
         )
     } else {
-        MarkdownText(
-            markdown = markdown,
-            modifier = Modifier.fillMaxWidth(),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .yumaGlassCard(
+                        shape = sectionShape,
+                        backgroundColor = colors.glassBackground,
+                        borderColor = colors.glassBorder,
+                        strokeWidth = SettingsDimensions.GlassBorderThickness,
+                    ).padding(SettingsDimensions.BadgePaddingH),
+        ) {
+            MarkdownText(
+                markdown = markdown,
+                modifier = Modifier.fillMaxWidth(),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+        }
     }
 }
 
