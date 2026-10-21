@@ -25,12 +25,12 @@ data class ReleaseTimelineEntry(
     val isLatest: Boolean,
     val isInstalled: Boolean,
     val isPrerelease: Boolean,
-    val isExpanded: Boolean,
     val imageUrl: String?,
     val htmlUrl: String?,
     val sections: List<ReleaseTimelineSectionState>,
     val summary: ReleaseNotesSummary,
     val fallbackMarkdown: String?,
+    val isExpanded: Boolean = false,
 )
 
 @Immutable
@@ -39,14 +39,11 @@ data class ReleaseTimelineSectionState(
     val title: String?,
     val category: ReleaseNoteCategory,
     val items: List<ReleaseNoteItem>,
-    val isExpanded: Boolean,
-    val isShowingAll: Boolean,
+    val isExpanded: Boolean = false,
+    val isShowingAll: Boolean = false,
 )
 
 @Immutable
 data class ReleaseTimelineActions(
-    val onToggleRelease: (String) -> Unit,
-    val onToggleSection: (String, String) -> Unit,
-    val onToggleSectionPreview: (String, String) -> Unit,
     val onOpenRelease: (String) -> Unit,
 )

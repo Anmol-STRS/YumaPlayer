@@ -12,6 +12,8 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -19,27 +21,42 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.Bolt
+import androidx.compose.material.icons.rounded.BugReport
+import androidx.compose.material.icons.rounded.Build
+import androidx.compose.material.icons.rounded.Code
+import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.MenuBook
+import androidx.compose.material.icons.rounded.TrendingUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import moe.rukamori.archivetune.R
 import moe.rukamori.archivetune.ui.component.MarkdownText
 import moe.rukamori.archivetune.ui.settings.SettingsAnimations
 import moe.rukamori.archivetune.ui.settings.SettingsDimensions
+import moe.rukamori.archivetune.ui.theme.LocalYumaColors
 import moe.rukamori.archivetune.ui.theme.yumaClickable
+import moe.rukamori.archivetune.ui.theme.yumaGlassCard
 import moe.rukamori.archivetune.utils.ReleaseNoteCategory
 
 @Composable
@@ -51,6 +68,9 @@ internal fun ReleaseTimelineSection(
 ) {
     val title = section.title ?: stringResource(sectionTitleRes(section.category))
     val categoryColors = releaseCategoryColors(section.category)
+    val colors = LocalYumaColors.current
+    val sectionShape = RoundedCornerShape(SettingsDimensions.LibrarySmallRadius)
+
     val stateLabel =
         stringResource(
             if (section.isExpanded) R.string.release_state_expanded else R.string.release_state_collapsed,
@@ -67,29 +87,75 @@ internal fun ReleaseTimelineSection(
             stringResource(R.string.release_notes_show_all, section.items.size)
         }
 
-    Column(modifier = Modifier.fillMaxWidth()) {
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .yumaGlassCard(
+                    shape = sectionShape,
+                    backgroundColor = colors.glassBackground,
+                    borderColor = colors.glassBorder,
+                    strokeWidth = SettingsDimensions.GlassBorderThickness,
+                ).padding(SettingsDimensions.BadgeSpacing),
+    ) {
         Row(
             modifier =
                 Modifier
                     .fillMaxWidth()
+                    .clip(sectionShape)
                     .minimumInteractiveComponentSize()
                     .yumaClickable(onClick = { onToggle(releaseKey, section.id) })
-                    .semantics { stateDescription = stateLabel },
+                    .padding(
+                        horizontal = SettingsDimensions.BadgePaddingH,
+                        vertical = SettingsDimensions.BadgeSpacing,
+                    ).semantics { stateDescription = stateLabel },
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            Surface(
+                shape = RoundedCornerShape(6.dp),
+                color = categoryColors.container,
+                modifier = Modifier.size(SettingsDimensions.BannerIconInnerSize),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = categoryIcon(section.category),
+                        contentDescription = null,
+                        tint = categoryColors.accent,
+                        modifier = Modifier.size(14.dp),
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(SettingsDimensions.BadgePaddingH))
+
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = FontWeight.Bold,
                 color = categoryColors.accent,
                 modifier = Modifier.weight(1f),
             )
-            Text(
-                text = section.items.size.toString(),
-                style = MaterialTheme.typography.labelMedium,
-                color = categoryColors.accent,
-            )
+
+            Surface(
+                shape = RoundedCornerShape(6.dp),
+                color = categoryColors.container,
+                modifier = Modifier.padding(horizontal = 4.dp),
+            ) {
+                Text(
+                    text = section.items.size.toString(),
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = categoryColors.content,
+                    modifier =
+                        Modifier.padding(
+                            horizontal = SettingsDimensions.BadgePaddingH,
+                            vertical = SettingsDimensions.BadgePaddingV,
+                        ),
+                )
+            }
+
             Spacer(modifier = Modifier.width(SettingsDimensions.BadgeSpacing))
+
             Icon(
                 painter = painterResource(R.drawable.expand_more),
                 contentDescription = null,
@@ -111,8 +177,11 @@ internal fun ReleaseTimelineSection(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .padding(top = SettingsDimensions.SegmentedBadgeSpacing)
-                        .animateContentSize(SettingsAnimations.resizeSpring()),
+                        .padding(
+                            horizontal = SettingsDimensions.BadgePaddingH,
+                            vertical = SettingsDimensions.BadgeSpacing,
+                        ).animateContentSize(SettingsAnimations.resizeSpring()),
+                verticalArrangement = Arrangement.spacedBy(SettingsDimensions.LibraryItemGap),
             ) {
                 val visibleItems =
                     if (section.isShowingAll) {
@@ -120,20 +189,33 @@ internal fun ReleaseTimelineSection(
                     } else {
                         section.items.take(ReleaseTimelinePreviewLimit)
                     }
-                MarkdownText(
-                    markdown = visibleItems.joinToString(separator = "\n\n") { it.markdown },
-                    modifier = Modifier.fillMaxWidth(),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
+
+                visibleItems.forEach { item ->
+                    MarkdownText(
+                        markdown = item.markdown,
+                        modifier = Modifier.fillMaxWidth(),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
+
                 if (section.items.size > ReleaseTimelinePreviewLimit) {
-                    TextButton(
-                        onClick = { onTogglePreview(releaseKey, section.id) },
-                        modifier = Modifier.minimumInteractiveComponentSize(),
+                    Row(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .minimumInteractiveComponentSize()
+                                .clip(RoundedCornerShape(6.dp))
+                                .yumaClickable(onClick = { onTogglePreview(releaseKey, section.id) })
+                                .padding(vertical = SettingsDimensions.BadgeSpacing),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
                             text = actionLabel,
-                            style = MaterialTheme.typography.labelLarge,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary,
                         )
                     }
                 }
@@ -159,6 +241,18 @@ internal fun ReleaseTimelineFallback(markdown: String?) {
         )
     }
 }
+
+private fun categoryIcon(category: ReleaseNoteCategory): ImageVector =
+    when (category) {
+        ReleaseNoteCategory.FEATURES -> Icons.Rounded.AutoAwesome
+        ReleaseNoteCategory.FIXES -> Icons.Rounded.BugReport
+        ReleaseNoteCategory.PERFORMANCE -> Icons.Rounded.Bolt
+        ReleaseNoteCategory.IMPROVEMENTS -> Icons.Rounded.TrendingUp
+        ReleaseNoteCategory.REFACTORS -> Icons.Rounded.Code
+        ReleaseNoteCategory.DOCUMENTATION -> Icons.Rounded.MenuBook
+        ReleaseNoteCategory.BUILD_CI -> Icons.Rounded.Build
+        ReleaseNoteCategory.OTHER -> Icons.Rounded.Info
+    }
 
 @StringRes
 private fun sectionTitleRes(category: ReleaseNoteCategory): Int =
@@ -202,4 +296,4 @@ internal fun releaseCategoryColors(category: ReleaseNoteCategory): ReleaseCatego
     }
 }
 
-private const val ReleaseTimelinePreviewLimit = 5
+private const val ReleaseTimelinePreviewLimit = 7

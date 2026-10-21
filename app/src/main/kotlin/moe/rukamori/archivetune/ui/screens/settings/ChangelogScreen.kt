@@ -37,7 +37,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -76,15 +75,6 @@ fun ChangelogScreen(
     var releases by remember { mutableStateOf<List<ChangelogRelease>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
-    var releaseExpansion by rememberSaveable(stateSaver = ReleaseExpansionSaver) {
-        mutableStateOf<Map<String, Boolean>>(emptyMap())
-    }
-    var collapsedSections by rememberSaveable(stateSaver = StringSetSaver) {
-        mutableStateOf<Set<String>>(emptySet())
-    }
-    var showAllSections by rememberSaveable(stateSaver = StringSetSaver) {
-        mutableStateOf<Set<String>>(emptySet())
-    }
 
     suspend fun loadReleases(forceRefresh: Boolean) {
         val result =
@@ -101,9 +91,7 @@ fun ChangelogScreen(
                     } else {
                         rawReleases.filter { !it.prerelease }
                     }
-                val changelogReleases = toChangelogReleases(filteredReleases)
-                releases = changelogReleases
-                releaseExpansion = initializeReleaseExpansion(changelogReleases, releaseExpansion)
+                releases = toChangelogReleases(filteredReleases)
                 error = null
             }.onFailure { throwable ->
                 if (releases.isEmpty()) {
@@ -121,21 +109,16 @@ fun ChangelogScreen(
                 Updater.getCachedReleases().filter { !it.prerelease }
             }
         if (cachedReleases.isNotEmpty()) {
-            val changelogReleases = toChangelogReleases(cachedReleases)
-            releases = changelogReleases
-            releaseExpansion = initializeReleaseExpansion(changelogReleases, releaseExpansion)
+            releases = toChangelogReleases(cachedReleases)
             isLoading = false
         }
         loadReleases(forceRefresh = true)
     }
 
     val timelineState =
-        remember(releases, releaseExpansion, collapsedSections, showAllSections, channel) {
+        remember(releases, channel) {
             buildReleaseTimelineState(
                 releases = releases,
-                releaseExpansion = releaseExpansion,
-                collapsedSections = collapsedSections,
-                showAllSections = showAllSections,
                 channel = channel,
                 installedVersion = BuildConfig.VERSION_NAME,
             )
@@ -143,30 +126,6 @@ fun ChangelogScreen(
 
     val actions =
         ReleaseTimelineActions(
-            onToggleRelease = { releaseKey ->
-                val entry = timelineState.entries.firstOrNull { it.releaseKey == releaseKey }
-                if (entry != null) {
-                    releaseExpansion = releaseExpansion + (releaseKey to !entry.isExpanded)
-                }
-            },
-            onToggleSection = { releaseKey, sectionId ->
-                val sectionKey = sectionStateKey(releaseKey, sectionId)
-                collapsedSections =
-                    if (sectionKey in collapsedSections) {
-                        collapsedSections - sectionKey
-                    } else {
-                        collapsedSections + sectionKey
-                    }
-            },
-            onToggleSectionPreview = { releaseKey, sectionId ->
-                val sectionKey = sectionStateKey(releaseKey, sectionId)
-                showAllSections =
-                    if (sectionKey in showAllSections) {
-                        showAllSections - sectionKey
-                    } else {
-                        showAllSections + sectionKey
-                    }
-            },
             onOpenRelease = { url ->
                 runCatching { uriHandler.openUri(url) }
                     .onFailure {

@@ -38,18 +38,19 @@ import moe.rukamori.archivetune.ui.settings.SettingsDimensions
 @Composable
 internal fun ReleaseNotesContent(
     entry: ReleaseTimelineEntry,
-    actions: ReleaseTimelineActions,
+    onToggleSection: (String, String) -> Unit,
+    onToggleSectionPreview: (String, String) -> Unit,
 ) {
     when {
         entry.sections.isNotEmpty() -> {
-            Column(verticalArrangement = Arrangement.spacedBy(SettingsDimensions.SectionSpacing)) {
+            Column(verticalArrangement = Arrangement.spacedBy(SettingsDimensions.YumaCategorySpacing)) {
                 entry.sections.forEach { section ->
                     key(section.id) {
                         ReleaseTimelineSection(
                             releaseKey = entry.releaseKey,
                             section = section,
-                            onToggle = actions.onToggleSection,
-                            onTogglePreview = actions.onToggleSectionPreview,
+                            onToggle = onToggleSection,
+                            onTogglePreview = onToggleSectionPreview,
                         )
                     }
                 }

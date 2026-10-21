@@ -365,6 +365,57 @@ class ReleaseNotesParserTest {
     }
 
     @Test
+    fun `cleans quote and bullet prefixes from unknown section titles`() {
+        val notes =
+            """
+            ## > - **Breaking Changes**
+
+            - Remove legacy API — by @alex
+            """.trimIndent()
+
+        val parsed = parsed(notes)
+        val section = parsed.sections.single()
+
+        assertEquals(ReleaseNoteCategory.OTHER, section.category)
+        assertEquals("**Breaking Changes**", section.title)
+        assertEquals(1, section.items.size)
+        assertEquals(notes, parsed.source)
+    }
+
+    @Test
+    fun `cleans listed prefixes before matching a canonical heading`() {
+        val notes =
+            """
+            ## * Features
+
+            - Add a real feature
+            """.trimIndent()
+
+        val parsed = parsed(notes)
+        val section = parsed.sections.single()
+
+        assertEquals(ReleaseNoteCategory.FEATURES, section.category)
+        assertNull(section.title)
+        assertEquals(1, parsed.summary.features)
+    }
+
+    @Test
+    fun `keeps inline emphasis in section titles`() {
+        val notes =
+            """
+            ## **Migration** notes
+
+            - Move local data
+            """.trimIndent()
+
+        val parsed = parsed(notes)
+        val section = parsed.sections.single()
+
+        assertEquals(ReleaseNoteCategory.OTHER, section.category)
+        assertEquals("**Migration** notes", section.title)
+    }
+
+    @Test
     fun `empty unknown heading falls back instead of vanishing`() {
         val notes =
             """

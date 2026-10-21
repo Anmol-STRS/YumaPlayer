@@ -54,6 +54,7 @@ object ReleaseNotesParser {
     private const val DocumentWrapperHeading = "Changelog"
 
     private val headingPattern = Regex("""^(#{1,6})\s+(.*?)\s*#*\s*$""")
+    private val headingPrefixPattern = Regex("""^(?:>\s*|[-*+]\s+)+""")
     private val listPattern = Regex("""^(\s*)([-*+]|\d{1,3}[.)])\s+(.*)$""")
     private val fenceOpenPattern = Regex("""^\s{0,3}(`{3,}|~{3,})(.*)$""")
     private val standaloneBlockPattern = Regex("""^(?:\|.*|<[/!A-Za-z][^>]*>|>.*|[-*_]{3,}\s*)$""")
@@ -152,10 +153,15 @@ object ReleaseNotesParser {
 
         fun beginSection(rawTitle: String, level: Int? = null) {
             flushSection()
-            val normalizedTitle = normalizeHeading(rawTitle)
+            val cleanedTitle = cleanHeadingTitle(rawTitle)
+            if (cleanedTitle.isBlank()) {
+                unsupported = true
+                return
+            }
+            val normalizedTitle = normalizeHeading(cleanedTitle)
             val category = canonicalHeadings[normalizedTitle]
-            val title = if (category == null) rawTitle.trim() else null
-            val baseId = if (category == null) slugify(rawTitle) else category.name.lowercase(Locale.ROOT)
+            val title = if (category == null) cleanedTitle else null
+            val baseId = if (category == null) slugify(cleanedTitle) else category.name.lowercase(Locale.ROOT)
             currentSection =
                 SectionBuilder(
                     category = category ?: ReleaseNoteCategory.OTHER,
@@ -266,9 +272,9 @@ object ReleaseNotesParser {
             val listItem = listPattern.matchEntire(line)
             if (listItem != null) {
                 val indent = listItem.groupValues[1].length
-                beginUncategorizedSection()
                 val activeItem = currentItem
                 if (activeItem == null) {
+                    beginUncategorizedSection()
                     beginItem(line, indent)
                 } else if (indent > activeItem.indent) {
                     if (pendingBlankLine) {
@@ -305,12 +311,9 @@ object ReleaseNotesParser {
             }
         }
 
-        if (inFence || detailsDepth != 0) {
-            unsupported = true
-        }
         flushSection()
 
-        if (unsupported || sections.isEmpty()) {
+        if (unsupported || inFence || detailsDepth != 0 || sections.isEmpty()) {
             return ReleaseNotes.Fallback(source = source)
         }
 
@@ -328,6 +331,12 @@ object ReleaseNotesParser {
 
     private fun List<ReleaseNoteSection>.countItems(category: ReleaseNoteCategory): Int =
         filter { it.category == category }.sumOf { it.items.size }
+
+    private fun cleanHeadingTitle(text: String): String =
+        text
+            .trim()
+            .replace(headingPrefixPattern, "")
+            .trim()
 
     private fun normalizeHeading(text: String): String =
         text

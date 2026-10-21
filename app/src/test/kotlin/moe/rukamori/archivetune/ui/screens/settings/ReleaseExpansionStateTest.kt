@@ -6,63 +6,51 @@
 
 package moe.rukamori.archivetune.ui.screens.settings
 
-import moe.rukamori.archivetune.utils.ReleaseInfo
-import moe.rukamori.archivetune.utils.ReleaseNotes
-import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ReleaseExpansionStateTest {
 
     @Test
-    fun `new latest expands while previously seen releases keep their state`() {
-        val releases = listOf(release("v1.1.0"), release("v1.0.0"), release("v0.9.0"))
-        val current = mapOf("v1.0.0" to true)
+    fun `seeds the newest release and keeps previously seen defaults`() {
+        val expansion = TimelineExpansion()
 
-        val result = initializeReleaseExpansion(releases, current)
+        expansion.seedReleases(listOf("v1.1.0", "v1.0.0"))
+        expansion.seedReleases(listOf("v1.2.0", "v1.1.0", "v1.0.0"))
 
-        assertEquals(true, result["v1.1.0"])
-        assertEquals(true, result["v1.0.0"])
-        assertEquals(false, result["v0.9.0"])
+        assertTrue(expansion.isReleaseExpanded("v1.2.0", default = false))
+        assertTrue(expansion.isReleaseExpanded("v1.1.0", default = false))
+        assertFalse(expansion.isReleaseExpanded("v1.0.0", default = true))
     }
 
     @Test
-    fun `explicit collapse of the latest release is preserved`() {
-        val releases = listOf(release("v1.1.0"), release("v1.0.0"))
-        val current = mapOf("v1.1.0" to false)
+    fun `explicit release choices survive list changes`() {
+        val expansion = TimelineExpansion()
+        expansion.seedReleases(listOf("v1.1.0", "v1.0.0"))
+        expansion.toggleRelease("v1.1.0", default = true)
 
-        val result = initializeReleaseExpansion(releases, current)
+        expansion.seedReleases(listOf("v1.2.0", "v1.1.0", "v1.0.0"))
 
-        assertEquals(false, result["v1.1.0"])
-        assertEquals(false, result["v1.0.0"])
+        assertFalse(expansion.isReleaseExpanded("v1.1.0", default = true))
+        assertTrue(expansion.isReleaseExpanded("v1.2.0", default = false))
     }
 
     @Test
-    fun `seen release removed from the list keeps its stored state`() {
-        val current = mapOf("v0.8.0" to true)
+    fun `sections and previews start closed and are scoped by release`() {
+        val expansion = TimelineExpansion()
+        val releaseKey = "v1.2.0"
+        val sectionId = "features"
 
-        val result = initializeReleaseExpansion(listOf(release("v1.0.0")), current)
+        assertFalse(expansion.isSectionExpanded(releaseKey, sectionId))
+        assertFalse(expansion.isSectionShowingAll(releaseKey, sectionId))
 
-        assertEquals(true, result["v0.8.0"])
-        assertEquals(true, result["v1.0.0"])
+        expansion.toggleSection(releaseKey, sectionId)
+        expansion.toggleSectionPreview(releaseKey, sectionId)
+
+        assertTrue(expansion.isSectionExpanded(releaseKey, sectionId))
+        assertTrue(expansion.isSectionShowingAll(releaseKey, sectionId))
+        assertFalse(expansion.isSectionExpanded("v1.1.0", sectionId))
+        assertFalse(expansion.isSectionShowingAll("v1.1.0", sectionId))
     }
-
-    @Test
-    fun `empty release list returns the existing map`() {
-        val current = mapOf("v1.0.0" to true)
-
-        assertEquals(current, initializeReleaseExpansion(emptyList(), current))
-    }
-
-    private fun release(tag: String): ChangelogRelease =
-        ChangelogRelease(
-            info =
-                ReleaseInfo(
-                    tagName = tag,
-                    name = tag,
-                    body = null,
-                    publishedAt = "2026-01-01T00:00:00Z",
-                    htmlUrl = "https://example.com/$tag",
-                ),
-            notes = ReleaseNotes.Fallback(source = ""),
-        )
 }

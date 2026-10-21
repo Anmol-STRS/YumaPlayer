@@ -33,6 +33,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
@@ -42,9 +44,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import moe.rukamori.archivetune.R
 import moe.rukamori.archivetune.ui.settings.SettingsAnimations
 import moe.rukamori.archivetune.ui.settings.SettingsDimensions
-import moe.rukamori.archivetune.ui.theme.LocalYumaColors
 import moe.rukamori.archivetune.ui.theme.yumaClickable
-import moe.rukamori.archivetune.ui.theme.yumaGlassCard
 import moe.rukamori.archivetune.utils.ReleaseNoteCategory
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -52,12 +52,29 @@ import java.util.Locale
 @Composable
 internal fun ReleaseTimelineCard(
     entry: ReleaseTimelineEntry,
-    actions: ReleaseTimelineActions,
+    onToggleRelease: (String) -> Unit,
+    onToggleSection: (String, String) -> Unit,
+    onToggleSectionPreview: (String, String) -> Unit,
+    onOpenRelease: (String) -> Unit,
+    onVersionBaseline: (Float) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val colors = LocalYumaColors.current
-    val cardShape = RoundedCornerShape(SettingsDimensions.SegmentedCornerLarge)
     val imageShape = RoundedCornerShape(SettingsDimensions.LibraryCardRadius)
+    val baselineTracker = remember { VersionBaselineTracker() }
+    val reportVersionBaseline = {
+        val cardTop = baselineTracker.cardTop
+        val textTop = baselineTracker.textTop
+        val textBaseline = baselineTracker.textBaseline
+        if (cardTop != null &&
+            textTop != null &&
+            textBaseline != null &&
+            cardTop.isFinite() &&
+            textTop.isFinite() &&
+            textBaseline.isFinite()
+        ) {
+            onVersionBaseline(textTop - cardTop + textBaseline)
+        }
+    }
     val stateLabel =
         stringResource(
             if (entry.isExpanded) R.string.release_state_expanded else R.string.release_state_collapsed,
@@ -76,12 +93,14 @@ internal fun ReleaseTimelineCard(
         modifier =
             modifier
                 .fillMaxWidth()
-                .yumaGlassCard(
-                    shape = cardShape,
-                    backgroundColor = colors.glassBackground,
-                    borderColor = colors.glassBorder,
-                    strokeWidth = SettingsDimensions.GlassBorderThickness,
-                ).padding(SettingsDimensions.BannerContentPadding),
+                .onGloballyPositioned { coordinates ->
+                    baselineTracker.cardTop = coordinates.positionInWindow().y
+                    reportVersionBaseline()
+                }
+                .padding(
+                    horizontal = SettingsDimensions.BannerContentPadding,
+                    vertical = SettingsDimensions.BadgeSpacing,
+                ),
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(SettingsDimensions.SectionSpacing)) {
             Row(
@@ -89,7 +108,7 @@ internal fun ReleaseTimelineCard(
                     Modifier
                         .fillMaxWidth()
                         .minimumInteractiveComponentSize()
-                        .yumaClickable(onClick = { actions.onToggleRelease(entry.releaseKey) })
+                        .yumaClickable(onClick = { onToggleRelease(entry.releaseKey) })
                         .semantics { stateDescription = stateLabel },
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -103,6 +122,15 @@ internal fun ReleaseTimelineCard(
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
+                        onTextLayout = { layout ->
+                            baselineTracker.textBaseline = layout.firstBaseline
+                            reportVersionBaseline()
+                        },
+                        modifier =
+                            Modifier.onGloballyPositioned { coordinates ->
+                                baselineTracker.textTop = coordinates.positionInWindow().y
+                                reportVersionBaseline()
+                            },
                     )
                     entry.name?.let { name ->
                         Text(
@@ -166,17 +194,24 @@ internal fun ReleaseTimelineCard(
                 exit = shrinkVertically(animationSpec = SettingsAnimations.resizeSpring()),
                 label = "release_timeline_content",
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(SettingsDimensions.SectionSpacing)) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(SettingsDimensions.SegmentedItemGap),
+                ) {
                     ReleaseImage(
                         imageUrl = entry.imageUrl,
                         shape = imageShape,
                     )
-                    ReleaseNotesContent(entry = entry, actions = actions)
+                    ReleaseNotesContent(
+                        entry = entry,
+                        onToggleSection = onToggleSection,
+                        onToggleSectionPreview = onToggleSectionPreview,
+                    )
                     val htmlUrl = entry.htmlUrl
                     if (!htmlUrl.isNullOrBlank()) {
                         ReleaseGithubAction(
                             url = htmlUrl,
-                            onOpenRelease = actions.onOpenRelease,
+                            onOpenRelease = onOpenRelease,
                         )
                     }
                 }
@@ -256,4 +291,10 @@ private fun releaseDateLabel(publishedAt: String): String {
             }.getOrNull() ?: publishedAt
         }
     }
+}
+
+private class VersionBaselineTracker {
+    var cardTop: Float? = null
+    var textTop: Float? = null
+    var textBaseline: Float? = null
 }

@@ -29,8 +29,6 @@ private fun ReleaseTimelinePreview() {
                 title = section.title,
                 category = section.category,
                 items = section.items,
-                isExpanded = true,
-                isShowingAll = false,
             )
         }
     TestThemeWrapper {
@@ -47,7 +45,6 @@ private fun ReleaseTimelinePreview() {
                                 isLatest = true,
                                 isInstalled = true,
                                 isPrerelease = false,
-                                isExpanded = true,
                                 imageUrl = null,
                                 htmlUrl = "https://github.com/MuwMx/YumaPlayer/releases",
                                 sections = sections,
@@ -62,7 +59,6 @@ private fun ReleaseTimelinePreview() {
                                 isLatest = false,
                                 isInstalled = false,
                                 isPrerelease = false,
-                                isExpanded = false,
                                 imageUrl = null,
                                 htmlUrl = "https://github.com/MuwMx/YumaPlayer/releases",
                                 sections = sections,
@@ -71,13 +67,7 @@ private fun ReleaseTimelinePreview() {
                             ),
                         ),
                 ),
-            actions =
-                ReleaseTimelineActions(
-                    onToggleRelease = {},
-                    onToggleSection = { _, _ -> },
-                    onToggleSectionPreview = { _, _ -> },
-                    onOpenRelease = {},
-                ),
+            actions = ReleaseTimelineActions(onOpenRelease = {}),
             listState = rememberLazyListState(),
             bottomPadding = SettingsDimensions.ScreenBottomPadding,
             modifier = Modifier.padding(horizontal = SettingsDimensions.ScreenHorizontalPadding),

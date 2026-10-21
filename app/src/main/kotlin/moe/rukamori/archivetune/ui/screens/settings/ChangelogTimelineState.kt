@@ -6,9 +6,6 @@
 
 package moe.rukamori.archivetune.ui.screens.settings
 
-import android.os.Bundle
-import androidx.compose.runtime.saveable.Saver
-import androidx.compose.runtime.saveable.listSaver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import moe.rukamori.archivetune.constants.UpdateChannel
@@ -23,23 +20,16 @@ internal data class ChangelogRelease(
     val notes: ReleaseNotes,
 )
 
-internal val ReleaseExpansionSaver =
-    Saver<Map<String, Boolean>, Bundle>(
-        save = { expansion ->
-            Bundle().apply {
-                expansion.forEach { (key, value) -> putBoolean(key, value) }
-            }
-        },
-        restore = { bundle ->
-            bundle.keySet().associateWith { key -> bundle.getBoolean(key) }
-        },
-    )
-
-internal val StringSetSaver =
-    listSaver<Set<String>, String>(
-        save = { it.toList() },
-        restore = { it.toSet() },
-    )
+internal fun ReleaseInfo.timelineKey(): String {
+    val tag = tagName.trim()
+    if (tag.isNotEmpty()) return tag
+    val base =
+        name
+            .trim()
+            .ifBlank { htmlUrl.trim() }
+            .ifBlank { "release" }
+    return "$base|$publishedAt"
+}
 
 internal suspend fun toChangelogReleases(releases: List<ReleaseInfo>): List<ChangelogRelease> =
     withContext(Dispatchers.Default) {
@@ -53,9 +43,6 @@ internal suspend fun toChangelogReleases(releases: List<ReleaseInfo>): List<Chan
 
 internal fun buildReleaseTimelineState(
     releases: List<ChangelogRelease>,
-    releaseExpansion: Map<String, Boolean>,
-    collapsedSections: Set<String>,
-    showAllSections: Set<String>,
     channel: UpdateChannel,
     installedVersion: String,
 ): ReleaseTimelineState =
@@ -89,19 +76,15 @@ internal fun buildReleaseTimelineState(
                     isLatest = index == 0,
                     isInstalled = installed,
                     isPrerelease = info.prerelease,
-                    isExpanded = releaseExpansion[releaseKey] ?: false,
                     imageUrl = info.imageUrl?.takeIf { it.isNotBlank() },
                     htmlUrl = info.htmlUrl.takeIf { it.isNotBlank() },
                     sections =
                         parsedSections.map { section ->
-                            val sectionKey = sectionStateKey(releaseKey, section.id)
                             ReleaseTimelineSectionState(
                                 id = section.id,
                                 title = section.title,
                                 category = section.category,
                                 items = section.items,
-                                isExpanded = sectionKey !in collapsedSections,
-                                isShowingAll = sectionKey in showAllSections,
                             )
                         },
                     summary = (changelogRelease.notes as? ReleaseNotes.Parsed)?.summary ?: ReleaseNotesSummary(),
@@ -109,8 +92,3 @@ internal fun buildReleaseTimelineState(
                 )
             },
     )
-
-internal fun sectionStateKey(
-    releaseKey: String,
-    sectionId: String,
-): String = "$releaseKey|$sectionId"
