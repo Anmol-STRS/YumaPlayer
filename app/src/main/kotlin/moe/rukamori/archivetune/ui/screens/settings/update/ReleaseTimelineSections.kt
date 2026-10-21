@@ -1,0 +1,205 @@
+/*
+ * YumaPlayer (2026) | Modified work by MuwMix
+ * ArchiveTune (2026) | Original work by © Rukamori
+ * GPL-3.0 License | Contributors: see git history
+ */
+
+package moe.rukamori.archivetune.ui.screens.settings
+
+import androidx.annotation.StringRes
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.minimumInteractiveComponentSize
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.font.FontWeight
+import moe.rukamori.archivetune.R
+import moe.rukamori.archivetune.ui.component.MarkdownText
+import moe.rukamori.archivetune.ui.settings.SettingsAnimations
+import moe.rukamori.archivetune.ui.settings.SettingsDimensions
+import moe.rukamori.archivetune.ui.theme.yumaClickable
+import moe.rukamori.archivetune.utils.ReleaseNoteCategory
+
+@Composable
+internal fun ReleaseTimelineSection(
+    releaseKey: String,
+    section: ReleaseTimelineSectionState,
+    onToggle: (String, String) -> Unit,
+    onTogglePreview: (String, String) -> Unit,
+) {
+    val title = section.title ?: stringResource(sectionTitleRes(section.category))
+    val categoryColors = releaseCategoryColors(section.category)
+    val stateLabel =
+        stringResource(
+            if (section.isExpanded) R.string.release_state_expanded else R.string.release_state_collapsed,
+        )
+    val rotation by animateFloatAsState(
+        targetValue = if (section.isExpanded) 180f else 0f,
+        animationSpec = SettingsAnimations.resizeSpring(),
+        label = "release_section_chevron",
+    )
+    val actionLabel =
+        if (section.isShowingAll) {
+            stringResource(R.string.release_notes_show_less)
+        } else {
+            stringResource(R.string.release_notes_show_all, section.items.size)
+        }
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .minimumInteractiveComponentSize()
+                    .yumaClickable(onClick = { onToggle(releaseKey, section.id) })
+                    .semantics { stateDescription = stateLabel },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = categoryColors.accent,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                text = section.items.size.toString(),
+                style = MaterialTheme.typography.labelMedium,
+                color = categoryColors.accent,
+            )
+            Spacer(modifier = Modifier.width(SettingsDimensions.BadgeSpacing))
+            Icon(
+                painter = painterResource(R.drawable.expand_more),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier =
+                    Modifier
+                        .size(SettingsDimensions.ChevronSize)
+                        .rotate(rotation),
+            )
+        }
+
+        AnimatedVisibility(
+            visible = section.isExpanded,
+            enter = expandVertically(animationSpec = SettingsAnimations.resizeSpring()),
+            exit = shrinkVertically(animationSpec = SettingsAnimations.resizeSpring()),
+            label = "release_section_content",
+        ) {
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(top = SettingsDimensions.SegmentedBadgeSpacing)
+                        .animateContentSize(SettingsAnimations.resizeSpring()),
+            ) {
+                val visibleItems =
+                    if (section.isShowingAll) {
+                        section.items
+                    } else {
+                        section.items.take(ReleaseTimelinePreviewLimit)
+                    }
+                MarkdownText(
+                    markdown = visibleItems.joinToString(separator = "\n\n") { it.markdown },
+                    modifier = Modifier.fillMaxWidth(),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                if (section.items.size > ReleaseTimelinePreviewLimit) {
+                    TextButton(
+                        onClick = { onTogglePreview(releaseKey, section.id) },
+                        modifier = Modifier.minimumInteractiveComponentSize(),
+                    ) {
+                        Text(
+                            text = actionLabel,
+                            style = MaterialTheme.typography.labelLarge,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+internal fun ReleaseTimelineFallback(markdown: String?) {
+    if (markdown.isNullOrBlank()) {
+        Text(
+            text = stringResource(R.string.release_notes_unavailable),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    } else {
+        MarkdownText(
+            markdown = markdown,
+            modifier = Modifier.fillMaxWidth(),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+    }
+}
+
+@StringRes
+private fun sectionTitleRes(category: ReleaseNoteCategory): Int =
+    when (category) {
+        ReleaseNoteCategory.FEATURES -> R.string.release_notes_section_features
+        ReleaseNoteCategory.FIXES -> R.string.release_notes_section_fixes
+        ReleaseNoteCategory.PERFORMANCE -> R.string.release_notes_section_performance
+        ReleaseNoteCategory.IMPROVEMENTS -> R.string.release_notes_section_improvements
+        ReleaseNoteCategory.REFACTORS -> R.string.release_notes_section_refactors
+        ReleaseNoteCategory.DOCUMENTATION -> R.string.release_notes_section_documentation
+        ReleaseNoteCategory.BUILD_CI -> R.string.release_notes_section_build_ci
+        ReleaseNoteCategory.OTHER -> R.string.release_notes_section_other
+    }
+
+internal data class ReleaseCategoryColors(
+    val container: Color,
+    val content: Color,
+    val accent: Color,
+)
+
+@Composable
+internal fun releaseCategoryColors(category: ReleaseNoteCategory): ReleaseCategoryColors {
+    val scheme = MaterialTheme.colorScheme
+    return when (category) {
+        ReleaseNoteCategory.FEATURES ->
+            ReleaseCategoryColors(scheme.primaryContainer, scheme.onPrimaryContainer, scheme.primary)
+        ReleaseNoteCategory.FIXES ->
+            ReleaseCategoryColors(scheme.tertiaryContainer, scheme.onTertiaryContainer, scheme.tertiary)
+        ReleaseNoteCategory.PERFORMANCE ->
+            ReleaseCategoryColors(scheme.secondaryContainer, scheme.onSecondaryContainer, scheme.secondary)
+        ReleaseNoteCategory.IMPROVEMENTS ->
+            ReleaseCategoryColors(scheme.primaryContainer, scheme.onPrimaryContainer, scheme.primary)
+        ReleaseNoteCategory.REFACTORS ->
+            ReleaseCategoryColors(scheme.secondaryContainer, scheme.onSecondaryContainer, scheme.secondary)
+        ReleaseNoteCategory.DOCUMENTATION ->
+            ReleaseCategoryColors(scheme.tertiaryContainer, scheme.onTertiaryContainer, scheme.tertiary)
+        ReleaseNoteCategory.BUILD_CI ->
+            ReleaseCategoryColors(scheme.secondaryContainer, scheme.onSecondaryContainer, scheme.secondary)
+        ReleaseNoteCategory.OTHER ->
+            ReleaseCategoryColors(scheme.surfaceContainerHighest, scheme.onSurfaceVariant, scheme.onSurfaceVariant)
+    }
+}
+
+private const val ReleaseTimelinePreviewLimit = 5
