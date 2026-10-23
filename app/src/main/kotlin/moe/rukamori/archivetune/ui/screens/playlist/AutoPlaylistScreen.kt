@@ -6,57 +6,31 @@
 
 package moe.rukamori.archivetune.ui.screens.playlist
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastSumBy
-import androidx.compose.ui.zIndex
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.media3.exoplayer.offline.Download
 import androidx.navigation.NavController
-import androidx.palette.graphics.Palette
-import coil3.imageLoader
-import coil3.request.ImageRequest
-import coil3.request.allowHardware
-import coil3.toBitmap
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import moe.rukamori.archivetune.LocalDownloadUtil
 import moe.rukamori.archivetune.LocalPlayerAwareWindowInsets
 import moe.rukamori.archivetune.LocalPlayerConnection
 import moe.rukamori.archivetune.R
@@ -67,23 +41,23 @@ import moe.rukamori.archivetune.constants.DisableBlurKey
 import moe.rukamori.archivetune.constants.YtmSyncKey
 import moe.rukamori.archivetune.extensions.toMediaItem
 import moe.rukamori.archivetune.playback.queues.ListQueue
-import moe.rukamori.archivetune.ui.component.DefaultDialog
 import moe.rukamori.archivetune.ui.component.LocalMenuState
 import moe.rukamori.archivetune.ui.haptics.rememberYumaHaptics
 import moe.rukamori.archivetune.ui.menu.SelectionSongMenu
+import moe.rukamori.archivetune.ui.screens.playlist.auto.AutoPlaylistGradientBackground
 import moe.rukamori.archivetune.ui.screens.playlist.auto.AutoPlaylistHeader
+import moe.rukamori.archivetune.ui.screens.playlist.auto.AutoPlaylistRemoveDownloadDialog
 import moe.rukamori.archivetune.ui.screens.playlist.auto.autoPlaylistEmptyState
 import moe.rukamori.archivetune.ui.screens.playlist.auto.autoPlaylistRuleCards
 import moe.rukamori.archivetune.ui.screens.playlist.auto.autoPlaylistTrackRows
 import moe.rukamori.archivetune.ui.screens.playlist.auto.playlistScrollbar
-import moe.rukamori.archivetune.ui.theme.PlayerColorExtractor
+import moe.rukamori.archivetune.ui.screens.playlist.auto.rememberAutoPlaylistDownloadState
+import moe.rukamori.archivetune.ui.screens.playlist.auto.rememberAutoPlaylistGradientColors
+import moe.rukamori.archivetune.ui.screens.playlist.auto.rememberAutoPlaylistSearchState
 import moe.rukamori.archivetune.ui.utils.HeaderDownloadItem
 import moe.rukamori.archivetune.ui.utils.HeaderDownloadState
-import moe.rukamori.archivetune.ui.utils.ItemWrapper
 import moe.rukamori.archivetune.ui.utils.backToMain
-import moe.rukamori.archivetune.ui.utils.headerDownloadState
 import moe.rukamori.archivetune.ui.utils.sendAddMissingDownloads
-import moe.rukamori.archivetune.ui.utils.sendRemoveDownloads
 import moe.rukamori.archivetune.utils.rememberEnumPreference
 import moe.rukamori.archivetune.utils.rememberPreference
 import moe.rukamori.archivetune.viewmodels.AutoPlaylistViewModel
@@ -107,16 +81,6 @@ fun AutoPlaylistScreen(
 
     val songs by viewModel.likedSongs.collectAsStateWithLifecycle()
 
-    var isSearching by remember { mutableStateOf(false) }
-    var query by remember { mutableStateOf(TextFieldValue()) }
-    val focusRequester = remember { FocusRequester() }
-
-    LaunchedEffect(isSearching) {
-        if (isSearching) {
-            focusRequester.requestFocus()
-        }
-    }
-
     val (ytmSync) = rememberPreference(YtmSyncKey, true)
     val (disableBlur) = rememberPreference(DisableBlurKey, false)
 
@@ -130,34 +94,6 @@ fun AutoPlaylistScreen(
             else -> PlaylistType.OTHER
         }
 
-    val wrappedSongs =
-        remember(songs) {
-            songs.map { item -> ItemWrapper(item) }.toMutableStateList()
-        }
-
-    var selection by remember { mutableStateOf(false) }
-    val selectedCount by remember(wrappedSongs) {
-        derivedStateOf { wrappedSongs.count { it.isSelected } }
-    }
-
-    LaunchedEffect(selection, selectedCount) {
-        if (selection && selectedCount == 0) {
-            selection = false
-        }
-    }
-
-    if (isSearching) {
-        BackHandler {
-            isSearching = false
-            query = TextFieldValue()
-        }
-    } else if (selection) {
-        BackHandler {
-            selection = false
-            wrappedSongs.forEach { it.isSelected = false }
-        }
-    }
-
     val (sortType, onSortTypeChange) =
         rememberEnumPreference(
             AutoPlaylistSongSortTypeKey,
@@ -165,9 +101,8 @@ fun AutoPlaylistScreen(
         )
     val (sortDescending, onSortDescendingChange) = rememberPreference(AutoPlaylistSongSortDescendingKey, true)
 
-    val downloadUtil = LocalDownloadUtil.current
-    var downloads by remember { mutableStateOf<Map<String, Download>>(emptyMap()) }
-    var downloadState by remember { mutableStateOf<HeaderDownloadState>(HeaderDownloadState.None) }
+    val searchState = rememberAutoPlaylistSearchState(songs)
+    val downloadUiState = rememberAutoPlaylistDownloadState(songs)
 
     LaunchedEffect(ytmSync, playlistType) {
         if (ytmSync && playlistType == PlaylistType.LIKE) {
@@ -175,106 +110,24 @@ fun AutoPlaylistScreen(
         }
     }
 
-    val globalDownloadState = remember(downloads) {
-        val activeDownloads = downloads.values.filter {
-            it.state == Download.STATE_DOWNLOADING ||
-            it.state == Download.STATE_QUEUED ||
-            it.state == Download.STATE_RESTARTING ||
-            it.state == Download.STATE_STOPPED
-        }
-        if (activeDownloads.isEmpty()) {
-            HeaderDownloadState.None
-        } else {
-            var progressTotal = 0f
-            var hasRunning = false
-            var hasPaused = false
-            activeDownloads.forEach { download ->
-                val progress = download.percentDownloaded.takeIf { it >= 0f }?.div(100f) ?: 0f
-                progressTotal += progress.coerceIn(0f, 1f)
-                if (download.state == Download.STATE_STOPPED) {
-                    hasPaused = hasPaused || download.stopReason == 1
-                } else {
-                    hasRunning = true
-                }
-            }
-            HeaderDownloadState.Partial(
-                progress = progressTotal / activeDownloads.size,
-            )
-        }
-    }
-
-    LaunchedEffect(songs) {
-        val songIds = songs.map { it.song.id }
-        if (songIds.isEmpty()) {
-            downloads = emptyMap()
-            downloadState = HeaderDownloadState.None
-            return@LaunchedEffect
-        }
-        downloadUtil.downloads.collect { currentDownloads ->
-            downloads = currentDownloads
-            downloadState = headerDownloadState(songIds, currentDownloads)
-        }
-    }
-
-    var showRemoveDownloadDialog by remember { mutableStateOf(false) }
-
-    if (showRemoveDownloadDialog) {
-        DefaultDialog(
-            onDismiss = { showRemoveDownloadDialog = false },
-            content = {
-                Text(
-                    text = stringResource(R.string.remove_download_playlist_confirm, playlist),
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(horizontal = 18.dp),
-                )
-            },
-            buttons = {
-                TextButton(
-                    onClick = { showRemoveDownloadDialog = false },
-                    shapes = ButtonDefaults.shapes(),
-                ) {
-                    Text(text = stringResource(android.R.string.cancel))
-                }
-
-                TextButton(
-                    onClick = {
-                        showRemoveDownloadDialog = false
-                        sendRemoveDownloads(
-                            context = context,
-                            songIds = songs.map { it.song.id },
-                        )
-                    },
-                    shapes = ButtonDefaults.shapes(),
-                ) {
-                    Text(text = stringResource(android.R.string.ok))
-                }
-            },
+    if (downloadUiState.showRemoveDownloadDialog) {
+        AutoPlaylistRemoveDownloadDialog(
+            playlist = playlist,
+            songs = songs,
+            onDismiss = { downloadUiState.showRemoveDownloadDialog = false },
+            context = context,
         )
     }
 
-    val filteredSongs =
-        remember(wrappedSongs, query) {
-            val searchQuery = query.text.trim()
-            if (searchQuery.isEmpty()) {
-                wrappedSongs
-            } else {
-                wrappedSongs.filter { wrapper ->
-                    val song = wrapper.item
-                    song.song.title.contains(searchQuery, true) ||
-                        song.artists.any { it.name.contains(searchQuery, true) }
-                }
-            }
-        }
-
     val mediaItems =
-        remember(filteredSongs) {
-            filteredSongs.map { it.item.toMediaItem() }
+        remember(searchState.filteredSongs) {
+            searchState.filteredSongs.map { it.item.toMediaItem() }
         }
 
     val onSongClick =
-        remember(mediaItems, filteredSongs, playlist, playerConnection) {
+        remember(mediaItems, searchState.filteredSongs, playlist, playerConnection) {
             { songId: String ->
-                val index = filteredSongs.indexOfFirst { it.item.id == songId }
+                val index = searchState.filteredSongs.indexOfFirst { it.item.id == songId }
                 if (index != -1) {
                     playerConnection.playQueue(
                         ListQueue(
@@ -289,56 +142,8 @@ fun AutoPlaylistScreen(
 
     val lazyListState = rememberLazyListState()
 
-    // Gradient colors state for playlist cover
-    var gradientColors by remember { mutableStateOf<List<Color>>(emptyList()) }
-
-    // Capture fallback color in composable context
-    val fallbackColor = MaterialTheme.colorScheme.surface.toArgb()
+    val gradientColors = rememberAutoPlaylistGradientColors(songs)
     val surfaceColor = MaterialTheme.colorScheme.surface
-
-    // Extract gradient colors from playlist cover (first song thumbnail)
-    LaunchedEffect(songs) {
-        val thumbnailUrl = songs.firstOrNull()?.song?.thumbnailUrl
-        if (thumbnailUrl != null) {
-            val request =
-                ImageRequest
-                    .Builder(context)
-                    .data(thumbnailUrl)
-                    .size(PlayerColorExtractor.Config.IMAGE_SIZE, PlayerColorExtractor.Config.IMAGE_SIZE)
-                    .allowHardware(false)
-                    .build()
-
-            val result =
-                runCatching {
-                    context.imageLoader.execute(request)
-                }.getOrNull()
-
-            if (result != null) {
-                val bitmap = result.image?.toBitmap()
-                if (bitmap != null) {
-                    val palette =
-                        withContext(Dispatchers.Default) {
-                            Palette
-                                .from(bitmap)
-                                .maximumColorCount(PlayerColorExtractor.Config.MAX_COLOR_COUNT)
-                                .resizeBitmapArea(PlayerColorExtractor.Config.BITMAP_AREA)
-                                .generate()
-                        }
-
-                    val extractedColors =
-                        PlayerColorExtractor.extractGradientColors(
-                            palette = palette,
-                            fallbackColor = fallbackColor,
-                        )
-                    gradientColors = extractedColors
-                }
-            }
-        } else {
-            gradientColors = emptyList()
-        }
-    }
-
-
 
     val showTopBarTitle by remember {
         derivedStateOf {
@@ -348,11 +153,10 @@ fun AutoPlaylistScreen(
 
     val headerItems by remember {
         derivedStateOf {
-            if (songs.isNotEmpty() && !isSearching) 2 else 0
+            if (songs.isNotEmpty() && !searchState.isSearching) 2 else 0
         }
     }
 
-    // System bars padding
     val systemBarsTopPadding = WindowInsets.systemBars.asPaddingValues().calculateTopPadding()
 
     Box(
@@ -361,122 +165,18 @@ fun AutoPlaylistScreen(
                 .fillMaxSize()
                 .background(Color.Transparent),
     ) {
-        if (!disableBlur && gradientColors.isNotEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .fillMaxSize(0.55f)
-                    .zIndex(-1f)
-                    .drawBehind {
-                        val alpha = if (lazyListState.firstVisibleItemIndex == 0) {
-                            (1f - (lazyListState.firstVisibleItemScrollOffset / 600f)).coerceIn(0f, 1f)
-                        } else {
-                            0f
-                        }
-
-                        if (alpha <= 0f) return@drawBehind
-
-                        val width = size.width
-                        val height = size.height
-
-                        if (gradientColors.size >= 3) {
-                            val c0 = gradientColors[0]
-                            val c1 = gradientColors[1]
-                            val c2 = gradientColors[2]
-                            val c3 = gradientColors.getOrElse(3) { c0 }
-                            val c4 = gradientColors.getOrElse(4) { c1 }
-
-                            drawRect(
-                                brush = Brush.radialGradient(
-                                    colors = listOf(
-                                        c0.copy(alpha = alpha * 0.75f),
-                                        c0.copy(alpha = alpha * 0.4f),
-                                        Color.Transparent,
-                                    ),
-                                    center = Offset(width * 0.5f, height * 0.15f),
-                                    radius = width * 0.8f,
-                                )
-                            )
-                            drawRect(
-                                brush = Brush.radialGradient(
-                                    colors = listOf(
-                                        c1.copy(alpha = alpha * 0.55f),
-                                        c1.copy(alpha = alpha * 0.3f),
-                                        Color.Transparent,
-                                    ),
-                                    center = Offset(width * 0.1f, height * 0.4f),
-                                    radius = width * 0.6f,
-                                )
-                            )
-                            drawRect(
-                                brush = Brush.radialGradient(
-                                    colors = listOf(
-                                        c2.copy(alpha = alpha * 0.5f),
-                                        c2.copy(alpha = alpha * 0.25f),
-                                        Color.Transparent,
-                                    ),
-                                    center = Offset(width * 0.9f, height * 0.35f),
-                                    radius = width * 0.55f,
-                                )
-                            )
-                            drawRect(
-                                brush = Brush.radialGradient(
-                                    colors = listOf(
-                                        c3.copy(alpha = alpha * 0.35f),
-                                        c3.copy(alpha = alpha * 0.18f),
-                                        Color.Transparent,
-                                    ),
-                                    center = Offset(width * 0.25f, height * 0.65f),
-                                    radius = width * 0.75f,
-                                )
-                            )
-                            drawRect(
-                                brush = Brush.radialGradient(
-                                    colors = listOf(
-                                        c4.copy(alpha = alpha * 0.3f),
-                                        c4.copy(alpha = alpha * 0.15f),
-                                        Color.Transparent,
-                                    ),
-                                    center = Offset(width * 0.55f, height * 0.85f),
-                                    radius = width * 0.9f,
-                                )
-                            )
-                        } else {
-                            drawRect(
-                                brush = Brush.radialGradient(
-                                    colors = listOf(
-                                        gradientColors[0].copy(alpha = alpha * 0.7f),
-                                        gradientColors[0].copy(alpha = alpha * 0.35f),
-                                        Color.Transparent,
-                                    ),
-                                    center = Offset(width * 0.5f, height * 0.25f),
-                                    radius = width * 0.85f,
-                                )
-                            )
-                        }
-
-                        drawRect(
-                            brush = Brush.verticalGradient(
-                                colors = listOf(
-                                    Color.Transparent,
-                                    Color.Transparent,
-                                    surfaceColor.copy(alpha = alpha * 0.22f),
-                                    surfaceColor.copy(alpha = alpha * 0.55f),
-                                    surfaceColor,
-                                ),
-                                startY = height * 0.4f,
-                                endY = height,
-                            )
-                        )
-                    }
-            )
-        }
+        AutoPlaylistGradientBackground(
+            lazyListState = lazyListState,
+            gradientColors = gradientColors,
+            surfaceColor = surfaceColor,
+            disableBlur = disableBlur,
+        )
 
         LazyColumn(
             state = lazyListState,
             contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
         ) {
-            if (!isSearching) {
+            if (!searchState.isSearching) {
                 item(
                     key = "header",
                     contentType = CONTENT_TYPE_HEADER,
@@ -484,8 +184,8 @@ fun AutoPlaylistScreen(
                     AutoPlaylistHeader(
                         playlist = playlist,
                         songs = songs,
-                        downloadState = downloadState,
-                        globalProgress = (globalDownloadState as? HeaderDownloadState.Partial)?.progress,
+                        downloadState = downloadUiState.downloadState,
+                        globalProgress = (downloadUiState.globalDownloadState as? HeaderDownloadState.Partial)?.progress,
                         onDownloadToggle = {
                             sendAddMissingDownloads(
                                 context = context,
@@ -496,11 +196,11 @@ fun AutoPlaylistScreen(
                                             title = it.song.title,
                                         )
                                     },
-                                downloads = downloads,
+                                downloads = downloadUiState.downloads,
                             )
                         },
                         onRemoveConfirm = {
-                            showRemoveDownloadDialog = true
+                            downloadUiState.showRemoveDownloadDialog = true
                         },
                         onProgressNavigate = {
                             navController.navigate("auto_playlist/downloaded?tab=progress")
@@ -523,18 +223,18 @@ fun AutoPlaylistScreen(
                 )
 
                 autoPlaylistTrackRows(
-                    filteredSongs = filteredSongs,
-                    wrappedSongs = wrappedSongs,
+                    filteredSongs = searchState.filteredSongs,
+                    wrappedSongs = searchState.wrappedSongs,
                     mediaMetadata = mediaMetadata,
                     isPlaying = isPlaying,
-                    selection = selection,
-                    selectedCount = selectedCount,
-                    onSelectionChange = { selection = it },
+                    selection = searchState.selection,
+                    selectedCount = searchState.selectedCount,
+                    onSelectionChange = { searchState.selection = it },
                     playerConnection = playerConnection,
                     navController = navController,
                     menuState = menuState,
                     haptics = haptics,
-                    downloads = downloads,
+                    downloads = downloadUiState.downloads,
                     onSongClick = onSongClick,
                 )
             }
@@ -548,48 +248,31 @@ fun AutoPlaylistScreen(
         AutoPlaylistSelectionTopBar(
             state =
                 SelectionTopBarUiState(
-                    selection = selection,
-                    selectedCount = selectedCount,
-                    totalCount = wrappedSongs.size,
-                    isSearching = isSearching,
-                    query = query,
+                    selection = searchState.selection,
+                    selectedCount = searchState.selectedCount,
+                    totalCount = searchState.wrappedSongs.size,
+                    isSearching = searchState.isSearching,
+                    query = searchState.query,
                     showTopBarTitle = showTopBarTitle,
                     title = playlist,
                     hasSongs = songs.isNotEmpty(),
                 ),
             callbacks =
                 SelectionTopBarCallbacks(
-                    onQueryChange = { query = it },
-                    onSearchOpen = { isSearching = true },
-                    onSearchClose = {
-                        isSearching = false
-                        query = TextFieldValue()
-                        focusManager.clearFocus()
-                    },
-                    onSelectionClear = {
-                        selection = false
-                        wrappedSongs.forEach { it.isSelected = false }
-                    },
-                    onSelectAll = {
-                        if (selectedCount == wrappedSongs.size) {
-                            wrappedSongs.forEach { it.isSelected = false }
-                            selection = false
-                        } else {
-                            wrappedSongs.forEach { it.isSelected = true }
-                        }
-                    },
+                    onQueryChange = { searchState.query = it },
+                    onSearchOpen = searchState::openSearch,
+                    onSearchClose = { searchState.closeSearch(focusManager) },
+                    onSelectionClear = searchState::clearSelection,
+                    onSelectAll = searchState::toggleSelectAll,
                     onShowSelectionMenu = {
                         menuState.show {
                             SelectionSongMenu(
                                 songSelection =
-                                    wrappedSongs
+                                    searchState.wrappedSongs
                                         .filter { it.isSelected }
                                         .map { it.item },
                                 onDismiss = menuState::dismiss,
-                                clearAction = {
-                                    selection = false
-                                    wrappedSongs.forEach { it.isSelected = false }
-                                },
+                                clearAction = searchState::clearSelection,
                             )
                         }
                     },
@@ -605,7 +288,7 @@ fun AutoPlaylistScreen(
                     onNavigateUp = { navController.navigateUp() },
                     onBackToMain = { navController.backToMain() },
                 ),
-            focusRequester = focusRequester,
+            focusRequester = searchState.focusRequester,
             scrollBehavior = scrollBehavior,
         )
     }

@@ -53,8 +53,12 @@ internal fun LazyListScope.youtubeBrowseSongGridItem(
     menuState: MenuState,
     navController: NavController,
     playerConnection: PlayerConnection,
+    sectionKey: String = "song_grid",
 ) {
-    item {
+    item(
+        key = sectionKey,
+        contentType = "song_grid_section",
+    ) {
         LazyHorizontalGrid(
             state = lazyGridState,
             rows = GridCells.Fixed(4),
@@ -66,11 +70,12 @@ internal fun LazyListScope.youtubeBrowseSongGridItem(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .height(ListItemHeight * 4)
-                    .animateItem(),
+                    .height(ListItemHeight * 4),
         ) {
             items(
                 items = sectionItems,
+                key = { it.id },
+                contentType = { "song_item" },
             ) { song ->
                 Box(Modifier.width(350.dp)) {
                     YouTubeListItem(
@@ -108,11 +113,11 @@ internal fun LazyListScope.youtubeBrowseSongGridItem(
                                             ),
                                         )
                                     }
-                                }.animateItem(),
+                                }
+                                .animateItem(),
                     )
                 }
             }
         }
     }
 }
-
