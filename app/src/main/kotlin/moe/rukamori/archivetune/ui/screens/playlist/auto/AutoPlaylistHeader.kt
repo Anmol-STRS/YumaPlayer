@@ -89,24 +89,15 @@ internal fun AutoPlaylistHeader(
                 .padding(bottom = 16.dp),
     ) {
         Box(
-            modifier =
-                Modifier
-                    .size(240.dp)
-                    .shadow(
-                        elevation = 24.dp,
-                        shape = RoundedCornerShape(16.dp),
-                        ambientColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                        spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                    ),
+            modifier = Modifier
+                .size(240.dp)
+                .clip(RoundedCornerShape(16.dp)),
         ) {
             AsyncImage(
                 model = songs.firstOrNull()?.song?.thumbnailUrl,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .clip(RoundedCornerShape(16.dp)),
+                modifier = Modifier.fillMaxSize(),
             )
         }
 
@@ -347,30 +338,3 @@ internal fun AutoPlaylistHeader(
         Spacer(modifier = Modifier.height(24.dp))
     }
 }
-
-@Composable
-internal fun AutoPlaylistHeaderHero(
-    playlist: String,
-    songs: List<Song>,
-    downloadState: HeaderDownloadState,
-    globalProgress: Float?,
-    onDownloadToggle: () -> Unit,
-    onRemoveConfirm: () -> Unit,
-    onProgressNavigate: () -> Unit,
-    playerConnection: PlayerConnection,
-    modifier: Modifier = Modifier,
-    systemBarsTopPadding: Dp = WindowInsets.systemBars.asPaddingValues().calculateTopPadding(),
-    likeLength: Int = songs.fastSumBy { it.song.duration },
-) = AutoPlaylistHeader(
-    playlist = playlist,
-    songs = songs,
-    downloadState = downloadState,
-    globalProgress = globalProgress,
-    onDownloadToggle = onDownloadToggle,
-    onRemoveConfirm = onRemoveConfirm,
-    onProgressNavigate = onProgressNavigate,
-    playerConnection = playerConnection,
-    modifier = modifier,
-    systemBarsTopPadding = systemBarsTopPadding,
-    likeLength = likeLength,
-)
