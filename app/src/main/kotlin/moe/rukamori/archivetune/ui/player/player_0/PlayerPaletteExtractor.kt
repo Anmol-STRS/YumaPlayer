@@ -30,7 +30,7 @@ internal fun PlayerPaletteExtractor(
             .apply {
                 if (targetUrl != null) {
                     memoryCacheKey("palette:$targetUrl")
-                    diskCacheKey(targetUrl)
+                    diskCacheKey("palette:$targetUrl")
                 }
             }
             .size(128, 128)
