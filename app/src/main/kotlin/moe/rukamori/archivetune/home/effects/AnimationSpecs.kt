@@ -7,15 +7,24 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import androidx.compose.animation.core.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.geometry.Offset
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+
+private const val TILT_TARGET_THRESHOLD = 0.02f
+internal const val BACKGROUND_STEP_INTERVAL_MS = 16f
+private const val ANIMATED_TIME_WRAP_MS = 3_600_000f
 
 /**
- * Frame-based time accumulator that respects a [speedMultiplier].
- * Returns a [State<Float>] that increases every frame by (deltaMs * speedMultiplier).
- * This allows smooth speed changes without restarting animations.
+ * Time accumulator that respects a [speedMultiplier] and steps once per 16ms.
+ * Preserves compatibility with all Yuma backgrounds.
  */
 @Composable
 fun rememberAnimatedTime(
@@ -24,35 +33,45 @@ fun rememberAnimatedTime(
     label: String = "rememberAnimatedTime",
 ): State<Float> {
     val time = remember { mutableFloatStateOf(0f) }
-    // targetSpeed is updated every recomposition via SideEffect (composition thread, safe to read in frame callback)
     val targetSpeed = remember { mutableFloatStateOf(speedMultiplier) }
     SideEffect { targetSpeed.floatValue = speedMultiplier }
 
     val isVisibleState by rememberUpdatedState(isVisible)
+    val lifecycleOwner = LocalLifecycleOwner.current
 
-    LaunchedEffect(Unit) {
-        var lastFrameMs = -1L
-        var currentSpeed = targetSpeed.floatValue
-        while (true) {
-            if (!isVisibleState) {
-                snapshotFlow { isVisibleState }.first { it }
-                lastFrameMs = -1L
-            }
-            if (currentSpeed == 0f && targetSpeed.floatValue == 0f) {
-                snapshotFlow { targetSpeed.floatValue }.first { it > 0f }
-                lastFrameMs = -1L
-            }
-            withInfiniteAnimationFrameMillis { frameMs ->
-                if (lastFrameMs == -1L) lastFrameMs = frameMs
-                val delta = (frameMs - lastFrameMs).coerceIn(0L, 64L).toFloat()
-                lastFrameMs = frameMs
-                // Smooth lerp: 2.5/sec ramp — ~0.8s to reach target speed.
-                // High enough to feel reactive, low enough to avoid jarring jumps.
-                currentSpeed += (targetSpeed.floatValue - currentSpeed) * (delta / 1000f) * 2.5f
-                if (kotlin.math.abs(currentSpeed) < 0.001f && targetSpeed.floatValue == 0f) {
-                    currentSpeed = 0f
+    LaunchedEffect(lifecycleOwner, isVisibleState) {
+        if (!isVisibleState) return@LaunchedEffect
+
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            var lastFrameMs = withInfiniteAnimationFrameMillis { it }
+            var currentSpeed = targetSpeed.floatValue
+            var elapsedMs = 0f
+            var pendingMs = 0f
+
+            while (true) {
+                if (currentSpeed == 0f && targetSpeed.floatValue == 0f) {
+                    snapshotFlow { targetSpeed.floatValue }.first { it > 0f }
+                    lastFrameMs = withInfiniteAnimationFrameMillis { it }
                 }
-                time.floatValue += delta * currentSpeed
+
+                withInfiniteAnimationFrameMillis { frameMs ->
+                    val delta = (frameMs - lastFrameMs).coerceIn(0L, 64L).toFloat()
+                    lastFrameMs = frameMs
+
+                    currentSpeed += (targetSpeed.floatValue - currentSpeed) * (delta / 1000f) * 2.5f
+                    if (kotlin.math.abs(currentSpeed) < 0.001f && targetSpeed.floatValue == 0f) {
+                        currentSpeed = 0f
+                    }
+
+                    elapsedMs += delta
+                    pendingMs += delta * currentSpeed
+
+                    if (elapsedMs >= BACKGROUND_STEP_INTERVAL_MS) {
+                        time.floatValue = (time.floatValue + pendingMs) % ANIMATED_TIME_WRAP_MS
+                        elapsedMs -= BACKGROUND_STEP_INTERVAL_MS
+                        pendingMs = 0f
+                    }
+                }
             }
         }
     }
@@ -67,18 +86,8 @@ data class ParallaxState(
     val tiltY: State<Float>
 )
 
-class CalibrationState {
-    var baselineX = 0f
-    var baselineY = 0f
-    var isCalibrated = false
-}
-
 /**
- * Reusable parallax effect using device accelerometer
- * Returns ParallaxState with current tilt values as State objects
- *
- * @param enableParallax Whether parallax effect is enabled
- * @param sensitivity Multiplier for tilt sensitivity (default 0.3f)
+ * Morphe-based parallax effect using device accelerometer + Compose physics springs.
  */
 @Composable
 fun rememberParallaxState(
@@ -86,55 +95,73 @@ fun rememberParallaxState(
     sensitivity: Float = 0.3f,
     context: Context
 ): ParallaxState {
-    val smoothTiltX = remember { mutableFloatStateOf(0f) }
-    val smoothTiltY = remember { mutableFloatStateOf(0f) }
-
-    val calibration = remember { CalibrationState() }
-
-    val currentSensitivity by rememberUpdatedState(sensitivity)
+    val smoothTiltX = remember { Animatable(0f) }
+    val smoothTiltY = remember { Animatable(0f) }
+    val tiltTarget = remember { MutableStateFlow(Offset.Zero) }
 
     val lifecycleOwner = LocalLifecycleOwner.current
+    val currentSensitivity by rememberUpdatedState(sensitivity)
 
-    // Reset when parallax is toggled
     LaunchedEffect(enableParallax) {
         if (!enableParallax) {
-            smoothTiltX.floatValue = 0f
-            smoothTiltY.floatValue = 0f
-            calibration.isCalibrated = false
-            calibration.baselineX = 0f
-            calibration.baselineY = 0f
-        } else {
-            // Reset calibration when enabling
-            calibration.isCalibrated = false
-            calibration.baselineX = 0f
-            calibration.baselineY = 0f
+            tiltTarget.value = Offset.Zero
+            smoothTiltX.snapTo(0f)
+            smoothTiltY.snapTo(0f)
+            return@LaunchedEffect
+        }
+
+        tiltTarget.collectLatest { target ->
+            coroutineScope {
+                launch {
+                    smoothTiltX.animateTo(
+                        targetValue = target.x,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessLow
+                        )
+                    )
+                }
+                launch {
+                    smoothTiltY.animateTo(
+                        targetValue = target.y,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessLow
+                        )
+                    )
+                }
+            }
         }
     }
 
     DisposableEffect(enableParallax, lifecycleOwner) {
         if (!enableParallax) {
-            // Early exit if parallax is disabled
             return@DisposableEffect onDispose { }
         }
 
         val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
         val accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
-            ?: // No accelerometer available
-            return@DisposableEffect onDispose { }
+            ?: return@DisposableEffect onDispose { }
+
+        var baselineX = 0f
+        var baselineY = 0f
+        var isCalibrated = false
 
         val listener = object : SensorEventListener {
             override fun onSensorChanged(event: SensorEvent) {
-                if (!calibration.isCalibrated) {
-                    calibration.baselineX = event.values[0]
-                    calibration.baselineY = event.values[1]
-                    calibration.isCalibrated = true
+                if (!isCalibrated) {
+                    baselineX = event.values[0]
+                    baselineY = event.values[1]
+                    isCalibrated = true
                 }
 
-                val rawTiltX = (event.values[0] - calibration.baselineX) * currentSensitivity
-                val rawTiltY = -(event.values[1] - calibration.baselineY) * currentSensitivity
+                val rawTiltX = event.values[0] - baselineX
+                val rawTiltY = -(event.values[1] - baselineY)
+                val target = Offset(rawTiltX * currentSensitivity, rawTiltY * currentSensitivity)
 
-                smoothTiltX.floatValue += (rawTiltX - smoothTiltX.floatValue) * 0.1f
-                smoothTiltY.floatValue += (rawTiltY - smoothTiltY.floatValue) * 0.1f
+                if ((target - tiltTarget.value).getDistance() > TILT_TARGET_THRESHOLD) {
+                    tiltTarget.value = target
+                }
             }
 
             override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
@@ -145,7 +172,7 @@ fun rememberParallaxState(
                 sensorManager.registerListener(
                     listener,
                     accelerometer,
-                    SensorManager.SENSOR_DELAY_GAME
+                    SensorManager.SENSOR_DELAY_UI
                 )
             } else if (event == Lifecycle.Event.ON_STOP) {
                 sensorManager.unregisterListener(listener)
@@ -160,9 +187,8 @@ fun rememberParallaxState(
         }
     }
 
-    // Return State objects directly
     return ParallaxState(
-        tiltX = smoothTiltX,
-        tiltY = smoothTiltY
+        tiltX = smoothTiltX.asState(),
+        tiltY = smoothTiltY.asState()
     )
 }
