@@ -219,10 +219,23 @@ fun FullPlayer(
                                     }
                                 }
                         ) {
+                            val playPauseScale by androidx.compose.animation.core.animateFloatAsState(
+                                targetValue = if (state.isPlaying) 1.0f else 0.88f,
+                                animationSpec = androidx.compose.animation.core.spring(
+                                    dampingRatio = 0.76f, // Мягкий аккуратный отскок без мультяшности
+                                    stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow
+                                ),
+                                label = "CoverPlayPauseScale"
+                            )
+
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .playerArtworkFade(queueFractionProvider)
+                                    .graphicsLayer {
+                                        scaleX = playPauseScale
+                                        scaleY = playPauseScale
+                                    }
                             ) {
                                 PlayerCoverGlow(
                                     coverUrl = state.coverUrl,
