@@ -59,6 +59,7 @@ fun PlayerCoverCard(
     artistName: String? = null,
     isPlaying: Boolean = false,
     canvasState: PlayerCanvasState = rememberPlayerCanvasState(mediaId, songTitle, artistName),
+    onCoverLoaded: () -> Unit = {}, // <-- Новый колбэк
     onNext: () -> Unit = {},
     onPrevious: () -> Unit = {},
 ) {
@@ -97,18 +98,21 @@ fun PlayerCoverCard(
     val state by painter.state.collectAsState()
 
     var previousPainter by remember { mutableStateOf<Painter?>(null) }
+    var lastLoadedMediaId by remember { mutableStateOf(mediaId) }
     val newArtAlpha = remember { Animatable(1f) }
-    val newArtScale = remember { Animatable(1f) }
 
-    LaunchedEffect(cleanUrl) {
+    LaunchedEffect(cleanUrl, mediaId) {
         if (cleanUrl == null) {
             currentPainter = null
             previousPainter = null
             activeVibrantColor = Color.Transparent
-        } else if (currentPainter != null) {
+            if (lastLoadedMediaId != mediaId) {
+                lastLoadedMediaId = mediaId
+                onCoverLoaded()
+            }
+        } else if (currentPainter != null && lastLoadedMediaId != mediaId) {
             previousPainter = currentPainter
             newArtAlpha.snapTo(0f)
-            newArtScale.snapTo(0.92f)
         }
     }
 
@@ -117,20 +121,17 @@ fun PlayerCoverCard(
             is AsyncImagePainter.State.Success -> {
                 currentPainter = state.painter
                 activeVibrantColor = vibrantColor
-                launch {
-                    newArtAlpha.animateTo(
-                        targetValue = 1f,
-                        animationSpec = tween(durationMillis = 260)
-                    )
-                }
-                launch {
-                    newArtScale.animateTo(
-                        targetValue = 1f,
-                        animationSpec = spring(
-                            dampingRatio = 0.58f,
-                            stiffness = 380f
+                if (lastLoadedMediaId != mediaId) {
+                    lastLoadedMediaId = mediaId
+                    onCoverLoaded()
+                    launch {
+                        newArtAlpha.animateTo(
+                            targetValue = 1f,
+                            animationSpec = tween(durationMillis = 240)
                         )
-                    )
+                    }
+                } else {
+                    newArtAlpha.snapTo(1f)
                 }
             }
             is AsyncImagePainter.State.Error -> {
@@ -228,8 +229,6 @@ fun PlayerCoverCard(
                     .fillMaxSize()
                     .graphicsLayer {
                         alpha = newArtAlpha.value
-                        scaleX = newArtScale.value
-                        scaleY = newArtScale.value
                     },
                 contentScale = ContentScale.Crop,
             )

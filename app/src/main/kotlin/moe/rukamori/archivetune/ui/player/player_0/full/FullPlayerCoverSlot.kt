@@ -32,6 +32,10 @@ import moe.rukamori.archivetune.ui.player.player_0.PlayerCoverGlow
 import moe.rukamori.archivetune.ui.player.player_0.buttons.PlayerAction
 import moe.rukamori.archivetune.ui.player.player_0.playerArtworkFade
 import moe.rukamori.archivetune.ui.state.PlayerUiState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.spring
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 
 @Composable
 internal fun FullPlayerCoverSlot(
@@ -49,6 +53,8 @@ internal fun FullPlayerCoverSlot(
     modifier: Modifier = Modifier,
 ) {
     val playPauseScaleState = rememberCoverPlayPauseScale(state.isPlaying)
+    val trackSwitchScale = remember { Animatable(1f) }
+    val coroutineScope = rememberCoroutineScope()
 
     val isCoverGlowEnabled by remember(
         state.isAlbumCoverGlowEnabled,
@@ -90,9 +96,11 @@ internal fun FullPlayerCoverSlot(
                 }
                 .graphicsLayer {
                     val isCoverVisible = !state.isImmersiveEnabled && !motionState.isOverlayVisible
+                    val effectiveScale = playPauseScaleState.value * trackSwitchScale.value
+
                     val kinematics = calculateCoverKinematics(
                         q = queueFractionProvider().coerceIn(0f, 1f),
-                        playPauseScale = playPauseScaleState.value, 
+                        playPauseScale = effectiveScale,
                         isCoverVisible = isCoverVisible,
                         safeWidthPx = safeWidthPx,
                         cardWidthPx = cardWidthPx,
@@ -130,6 +138,18 @@ internal fun FullPlayerCoverSlot(
                     artistName = state.artist,
                     isPlaying = motionState.canPlayCanvas,
                     canvasState = canvasState,
+                    onCoverLoaded = {
+                        coroutineScope.launch {
+                            trackSwitchScale.snapTo(0.88f)
+                            trackSwitchScale.animateTo(
+                                targetValue = 1f,
+                                animationSpec = spring(
+                                    dampingRatio = 0.58f,
+                                    stiffness = 340f,
+                                )
+                            )
+                        }
+                    },
                     onNext = { onAction(PlayerAction.Next) },
                     onPrevious = { onAction(PlayerAction.Previous) }
                 )
