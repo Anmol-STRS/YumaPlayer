@@ -310,7 +310,7 @@ fun AppearanceThemeSection(
                 },
             )
         }
-        
+
         item(visible = homeBackgroundStyle != HomeBackgroundStyle.TONAL) {
             HomeBackgroundSliderItem(
                 title = stringResource(R.string.home_background_brightness),
