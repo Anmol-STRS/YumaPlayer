@@ -92,7 +92,7 @@ internal fun FullPlayerCoverSlot(
                     val isCoverVisible = !state.isImmersiveEnabled && !motionState.isOverlayVisible
                     val kinematics = calculateCoverKinematics(
                         q = queueFractionProvider().coerceIn(0f, 1f),
-                        playPauseScale = playPauseScaleState.value,
+                        playPauseScale = playPauseScaleState.value, 
                         isCoverVisible = isCoverVisible,
                         safeWidthPx = safeWidthPx,
                         cardWidthPx = cardWidthPx,

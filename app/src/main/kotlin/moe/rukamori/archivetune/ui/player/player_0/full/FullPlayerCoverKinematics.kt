@@ -62,7 +62,6 @@ internal fun calculateCoverKinematics(
     val coverHeight = cardWidthPx * targetScale
 
     val queueTravel = (rootHeightPx - capsuleHeaderHeightPx).coerceAtLeast(0f)
-
     val queuePeekTop = rootHeightPx - 0.45f * queueTravel
 
     val peekTop = minOf(

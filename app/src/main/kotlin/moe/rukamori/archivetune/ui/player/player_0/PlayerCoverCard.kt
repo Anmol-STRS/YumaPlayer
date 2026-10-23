@@ -90,17 +90,25 @@ fun PlayerCoverCard(
                     diskCacheKey(cleanUrl)
                 }
             }
-            .crossfade(400)
             .build()
     }
 
     val painter = rememberAsyncImagePainter(model = request)
     val state by painter.state.collectAsState()
 
+    var previousPainter by remember { mutableStateOf<Painter?>(null) }
+    val newArtAlpha = remember { Animatable(1f) }
+    val newArtScale = remember { Animatable(1f) }
+
     LaunchedEffect(cleanUrl) {
         if (cleanUrl == null) {
             currentPainter = null
+            previousPainter = null
             activeVibrantColor = Color.Transparent
+        } else if (currentPainter != null) {
+            previousPainter = currentPainter
+            newArtAlpha.snapTo(0f)
+            newArtScale.snapTo(0.92f)
         }
     }
 
@@ -109,9 +117,25 @@ fun PlayerCoverCard(
             is AsyncImagePainter.State.Success -> {
                 currentPainter = state.painter
                 activeVibrantColor = vibrantColor
+                launch {
+                    newArtAlpha.animateTo(
+                        targetValue = 1f,
+                        animationSpec = tween(durationMillis = 260)
+                    )
+                }
+                launch {
+                    newArtScale.animateTo(
+                        targetValue = 1f,
+                        animationSpec = spring(
+                            dampingRatio = 0.58f,
+                            stiffness = 380f
+                        )
+                    )
+                }
             }
             is AsyncImagePainter.State.Error -> {
                 currentPainter = null
+                previousPainter = null
                 activeVibrantColor = Color.Transparent
             }
             else -> {}
@@ -182,22 +206,31 @@ fun PlayerCoverCard(
                 }
             )
             .clip(shape24)
-            .background(surfaceColor), // Чистая карточка БЕЗ обводки border
+            .background(surfaceColor),
         contentAlignment = Alignment.Center
     ) {
         val isCanvasActive = canvasState.isCanvasEnabled && canvasState.artwork != null
+        val placeholder = painterResource(id = placeholderResId)
 
-        // Обложка
-        androidx.compose.animation.Crossfade(
-            targetState = currentPainter,
-            animationSpec = tween(400),
-            label = "CoverCrossfade",
-        ) { targetPainter ->
-            val p = targetPainter ?: painterResource(id = placeholderResId)
+        val bgPainter = previousPainter ?: currentPainter ?: placeholder
+        Image(
+            painter = bgPainter,
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop,
+        )
+
+        if (currentPainter != null && currentPainter != previousPainter) {
             Image(
-                painter = p,
+                painter = currentPainter!!,
                 contentDescription = stringResource(R.string.album_art_large),
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        alpha = newArtAlpha.value
+                        scaleX = newArtScale.value
+                        scaleY = newArtScale.value
+                    },
                 contentScale = ContentScale.Crop,
             )
         }
