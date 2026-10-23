@@ -1,7 +1,7 @@
 
 /*
  * YumaPlayer (2026) | Original work by MuwMix
- * https://github.com/MuwMix/YumaPlayer
+ * https://github.com/MuwMx/YumaPlayer
  * GPL-3.0 License | Contributors: see git history
  */
 
