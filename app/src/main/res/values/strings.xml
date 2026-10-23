@@ -506,6 +506,7 @@
     <string name="home_background_particles">Particles</string>
     <string name="home_background_snow">Snow</string>
     <string name="home_background_space">Space</string>
+    <string name="home_background_lava">Lava Lamp</string>
     <string name="home_background_parallax">Parallax</string>
     <string name="home_background_parallax_strength">Parallax strength</string>
     <string name="home_background_brightness">Brightness</string>

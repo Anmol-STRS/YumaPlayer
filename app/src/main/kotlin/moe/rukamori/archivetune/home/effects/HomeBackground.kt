@@ -110,6 +110,14 @@ fun ScreenBackground(modifier: Modifier = Modifier, isVisible: Boolean = true) {
                     isVisible = isVisible,
                 )
             }
+            HomeBackgroundStyle.LAVA -> {
+                LavaBackground(
+                    parallaxEnabled = homeBackground.parallaxEnabled,
+                    parallaxSensitivity = homeBackground.parallaxSensitivity,
+                    brightness = homeBackground.brightness,
+                    isVisible = isVisible,
+                )
+            }
         }
     }
 }
