@@ -53,14 +53,18 @@ internal fun FullPlayerCoverSlot(
     val isCoverGlowEnabled by remember(
         state.isAlbumCoverGlowEnabled,
         state.isPlaying,
+        state.isImmersiveEnabled,
+        motionState.isOverlayVisible,
         slideOffset,
         queueFractionProvider,
     ) {
         derivedStateOf {
-            state.isAlbumCoverGlowEnabled &&
-                state.isPlaying &&
-                slideOffset() > 0.95f &&
-                queueFractionProvider().coerceIn(0f, 1f) < 0.05f
+            val isCoverVisible = !state.isImmersiveEnabled && !motionState.isOverlayVisible
+            isCoverVisible &&
+                    state.isAlbumCoverGlowEnabled &&
+                    state.isPlaying &&
+                    slideOffset() > 0.95f &&
+                    queueFractionProvider().coerceIn(0f, 1f) < 0.05f
         }
     }
 

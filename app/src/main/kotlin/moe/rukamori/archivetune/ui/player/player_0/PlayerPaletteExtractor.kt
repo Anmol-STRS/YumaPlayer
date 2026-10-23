@@ -8,14 +8,14 @@ import coil3.imageLoader
 import coil3.request.ImageRequest
 import coil3.request.allowHardware
 import coil3.toBitmap
-import java.util.concurrent.ConcurrentHashMap
+import android.util.LruCache
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import moe.rukamori.archivetune.ui.theme.ExtractedColors
 import moe.rukamori.archivetune.ui.theme.PlayerColorExtractor
 
-private val globalPaletteCache = ConcurrentHashMap<String, ExtractedColors>()
-
+private val globalPaletteCache = object : LruCache<String, ExtractedColors>(128) {}
+private val paletteCacheLock = Any()
 @Composable
 internal fun PlayerPaletteExtractor(
     targetUrl: String?,
@@ -41,7 +41,7 @@ internal fun PlayerPaletteExtractor(
     LaunchedEffect(targetUrl, trackUrl) {
         if (targetUrl == null) return@LaunchedEffect
 
-        val cached = globalPaletteCache[targetUrl]
+        val cached = synchronized(paletteCacheLock) { globalPaletteCache.get(targetUrl) }
         if (cached != null) {
             onColorsExtracted(cached.vibrant, cached.darkMuted, cached.gradient)
             return@LaunchedEffect
@@ -59,7 +59,9 @@ internal fun PlayerPaletteExtractor(
             PlayerColorExtractor.extractColors(bitmap)
         }
 
-        globalPaletteCache[targetUrl] = colors
+        synchronized(paletteCacheLock) {
+            globalPaletteCache.put(targetUrl, colors)
+        }
         onColorsExtracted(colors.vibrant, colors.darkMuted, colors.gradient)
     }
 }

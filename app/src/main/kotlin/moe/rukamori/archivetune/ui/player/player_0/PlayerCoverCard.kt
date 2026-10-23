@@ -1,19 +1,15 @@
 package moe.rukamori.archivetune.ui.player.player_0
 
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -21,18 +17,14 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.BlendMode
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
@@ -48,7 +40,6 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import coil3.compose.AsyncImagePainter
 import coil3.compose.rememberAsyncImagePainter
 import coil3.request.ImageRequest
-import coil3.request.allowHardware
 import coil3.request.crossfade
 import kotlinx.coroutines.launch
 import moe.rukamori.archivetune.R
@@ -61,7 +52,6 @@ fun PlayerCoverCard(
     coverUrl: String? = null,
     modifier: Modifier = Modifier,
     placeholderResId: Int,
-    isAlbumCoverGlowEnabled: Boolean = false,
     vibrantColor: Color = Color.Transparent,
     gestureEnabled: Boolean = true,
     mediaId: String? = null,
@@ -81,7 +71,7 @@ fun PlayerCoverCard(
     val density = LocalDensity.current
 
     val offsetX = remember { Animatable(0f) }
-    var accumulatedDragX by remember { mutableStateOf(0f) }
+    var accumulatedDragX by remember { mutableFloatStateOf(0f) }
 
     val maxTensionOffsetPx = with(density) { 60.dp.toPx() }
     val snapThresholdPx = with(density) { 80.dp.toPx() }

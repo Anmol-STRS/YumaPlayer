@@ -29,19 +29,15 @@ val LocalHomeBackgroundStyle = compositionLocalOf { HomeBackgroundSettings() }
 fun ScreenBackground(modifier: Modifier = Modifier, isVisible: Boolean = true) {
     val homeBackground = LocalHomeBackgroundStyle.current
 
-    if (homeBackground.style == HomeBackgroundStyle.OFF) {
+    if (homeBackground.style == HomeBackgroundStyle.OFF || !isVisible) {
         return
     }
-
-    val shouldRender = isVisible || homeBackground.style == HomeBackgroundStyle.TONAL
 
     Box(
         modifier = modifier
             .clipToBounds()
             .drawWithContent {
-                if (shouldRender) {
                     drawContent()
-                }
             }
     ) {
         when (homeBackground.style) {
@@ -59,7 +55,7 @@ fun ScreenBackground(modifier: Modifier = Modifier, isVisible: Boolean = true) {
                     parallaxEnabled = homeBackground.parallaxEnabled,
                     parallaxSensitivity = homeBackground.parallaxSensitivity,
                     brightness = homeBackground.brightness,
-                    isVisible = isVisible,
+                    isVisible = true,
                 )
             }
             HomeBackgroundStyle.RINGS -> {
@@ -67,7 +63,7 @@ fun ScreenBackground(modifier: Modifier = Modifier, isVisible: Boolean = true) {
                     parallaxEnabled = homeBackground.parallaxEnabled,
                     parallaxSensitivity = homeBackground.parallaxSensitivity,
                     brightness = homeBackground.brightness,
-                    isVisible = isVisible,
+                    isVisible = true,
                 )
             }
             HomeBackgroundStyle.MESH -> {
@@ -75,7 +71,7 @@ fun ScreenBackground(modifier: Modifier = Modifier, isVisible: Boolean = true) {
                     parallaxEnabled = homeBackground.parallaxEnabled,
                     parallaxSensitivity = homeBackground.parallaxSensitivity,
                     brightness = homeBackground.brightness,
-                    isVisible = isVisible,
+                    isVisible = true,
                 )
             }
             HomeBackgroundStyle.GRID -> {
@@ -83,7 +79,7 @@ fun ScreenBackground(modifier: Modifier = Modifier, isVisible: Boolean = true) {
                     parallaxEnabled = homeBackground.parallaxEnabled,
                     parallaxSensitivity = homeBackground.parallaxSensitivity,
                     brightness = homeBackground.brightness,
-                    isVisible = isVisible,
+                    isVisible = true,
                 )
             }
             HomeBackgroundStyle.PARTICLES -> {
@@ -91,7 +87,7 @@ fun ScreenBackground(modifier: Modifier = Modifier, isVisible: Boolean = true) {
                     parallaxEnabled = homeBackground.parallaxEnabled,
                     parallaxSensitivity = homeBackground.parallaxSensitivity,
                     brightness = homeBackground.brightness,
-                    isVisible = isVisible,
+                    isVisible = true,
                 )
             }
             HomeBackgroundStyle.SNOW -> {
@@ -99,7 +95,7 @@ fun ScreenBackground(modifier: Modifier = Modifier, isVisible: Boolean = true) {
                     parallaxEnabled = homeBackground.parallaxEnabled,
                     parallaxSensitivity = homeBackground.parallaxSensitivity,
                     brightness = homeBackground.brightness,
-                    isVisible = isVisible,
+                    isVisible = true,
                 )
             }
             HomeBackgroundStyle.SPACE -> {
@@ -107,7 +103,7 @@ fun ScreenBackground(modifier: Modifier = Modifier, isVisible: Boolean = true) {
                     parallaxEnabled = homeBackground.parallaxEnabled,
                     parallaxSensitivity = homeBackground.parallaxSensitivity,
                     brightness = homeBackground.brightness,
-                    isVisible = isVisible,
+                    isVisible = true,
                 )
             }
             HomeBackgroundStyle.LAVA -> {
@@ -115,7 +111,7 @@ fun ScreenBackground(modifier: Modifier = Modifier, isVisible: Boolean = true) {
                     parallaxEnabled = homeBackground.parallaxEnabled,
                     parallaxSensitivity = homeBackground.parallaxSensitivity,
                     brightness = homeBackground.brightness,
-                    isVisible = isVisible,
+                    isVisible = true,
                 )
             }
         }
