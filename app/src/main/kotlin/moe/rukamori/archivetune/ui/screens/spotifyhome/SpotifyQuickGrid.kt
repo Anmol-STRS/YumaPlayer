@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -33,6 +34,10 @@ import coil3.compose.AsyncImage
 import moe.rukamori.archivetune.ui.settings.SettingsDimensions
 import moe.rukamori.archivetune.ui.theme.glassBorder
 import moe.rukamori.archivetune.ui.theme.yumaClickable
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import coil3.request.ImageRequest
+import coil3.request.allowHardware
 
 @Composable
 internal fun <T> SpotifyQuickGrid(
@@ -82,7 +87,18 @@ internal fun SpotifyQuickGridCell(
     onClick: () -> Unit,
     isArtist: Boolean
 ) {
+    val context = LocalContext.current
+    val density = LocalDensity.current
     val cardShape = RoundedCornerShape(SettingsDimensions.BadgeCornerRadius)
+
+    val imageRequest = remember(imageUrl) {
+        val sizePx = with(density) { 56.dp.roundToPx() }
+        ImageRequest.Builder(context)
+            .data(imageUrl)
+            .size(sizePx, sizePx)
+            .allowHardware(true)
+            .build()
+    }
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -94,7 +110,7 @@ internal fun SpotifyQuickGridCell(
             .glassBorder(shape = cardShape, strokeWidth = SettingsDimensions.GlassBorderThickness)
     ) {
         AsyncImage(
-            model = imageUrl,
+            model = imageRequest,
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier

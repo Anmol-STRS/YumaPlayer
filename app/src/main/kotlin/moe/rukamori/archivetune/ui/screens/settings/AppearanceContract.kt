@@ -48,32 +48,6 @@ internal object AppearanceContract {
     val HOME_BACKGROUND_BRIGHTNESS_RANGE = 0.1f..1.5f
 
     const val PALETTE_PICKER_ROUTE = "settings/appearance/palette_picker"
-
-    val DynamicTheme = DynamicThemeKey
-    val RandomThemeOnStartup = RandomThemeOnStartupKey
-    val DarkModePref = DarkModeKey
-    val PureBlack = PureBlackKey
-    val BlurNavBar = BlurNavBarKey
-    val BlurRadius = BlurRadiusKey
-    val DisableAnimations = DisableAnimationsKey
-    val MarqueeEnabled = MarqueeEnabledKey
-    val SplashOverlayEnabled = SplashOverlayEnabledKey
-    val SplashShapePref = SplashShapePreferenceKey
-    val ArchiveTuneCanvas = ArchiveTuneCanvasKey
-    val HomeBackgroundStylePref = HomeBackgroundStyleKey
-    val HomeBackgroundParallaxEnabled = HomeBackgroundParallaxEnabledKey
-    val HomeBackgroundParallaxStrength = HomeBackgroundParallaxStrengthKey
-    val HomeBackgroundBrightness = HomeBackgroundBrightnessKey
-    val ForceHighRefreshRate = ForceHighRefreshRateKey
-    val FontPreference = FontPreferenceKey
-    val CustomFontUri = CustomFontUriKey
-    val CustomFontName = CustomFontNameKey
-    val DefaultOpenTab = DefaultOpenTabKey
-    val ChipSortType = ChipSortTypeKey
-    val SwipeToSong = SwipeToSongKey
-    val ShowTagsInLibrary = ShowTagsInLibraryKey
-    val ShowHomeCategoryChips = ShowHomeCategoryChipsKey
-    val QuickPicksDisplayModePref = QuickPicksDisplayModeKey
 }
 
 enum class DarkMode {
@@ -87,12 +61,6 @@ enum class NavigationTab {
     SEARCH,
     MOODANDGENRES,
     LIBRARY,
-}
-
-enum class LyricsPosition {
-    LEFT,
-    CENTER,
-    RIGHT,
 }
 
 @Immutable
@@ -163,5 +131,3 @@ data class AppearanceSettingsUiActions(
 )
 
 typealias AppearanceUiActions = AppearanceSettingsUiActions
-typealias AppearanceActions = AppearanceSettingsUiActions
-typealias AppearanceSettingsActions = AppearanceSettingsUiActions

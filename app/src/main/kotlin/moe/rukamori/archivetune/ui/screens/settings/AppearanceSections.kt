@@ -310,19 +310,7 @@ fun AppearanceThemeSection(
                 },
             )
         }
-
-        item(visible = hasConfigurableEffects) {
-            HomeBackgroundSliderItem(
-                title = stringResource(R.string.home_background_brightness),
-                value = homeBackgroundBrightness,
-                onValueChangeFinished = onHomeBackgroundBrightnessChange,
-                valueRange = AppearanceContract.HOME_BACKGROUND_BRIGHTNESS_RANGE,
-                valueText = { brightness ->
-                    "${(brightness * 100).roundToInt()}%"
-                },
-            )
-        }
-
+        
         item(visible = homeBackgroundStyle != HomeBackgroundStyle.TONAL) {
             HomeBackgroundSliderItem(
                 title = stringResource(R.string.home_background_brightness),
