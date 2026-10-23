@@ -68,6 +68,7 @@ fun PlayerBackgroundLayers(
         animationSpec = tween(500),
         label = "BlurOverlayTransition"
     )
+    val playerHazeState = remember { HazeState() }
 
     val isOverlayVisible by remember {
         derivedStateOf {
@@ -139,7 +140,6 @@ fun PlayerBackgroundLayers(
             needsBlur = needsBlur
         )
 
-        val playerHazeState = remember { HazeState() }
 
         if (needsBlur && painters.currentBlurPainter != null) {
             Box(

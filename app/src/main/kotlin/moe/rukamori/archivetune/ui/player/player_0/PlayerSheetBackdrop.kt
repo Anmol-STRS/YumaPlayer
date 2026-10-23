@@ -39,13 +39,20 @@ import moe.rukamori.archivetune.ui.settings.SettingsDimensions
 internal fun rememberMiniHazeStyle(
     pureBlack: Boolean,
     blurRadius: Float,
+    gradientColor: Int = 0,
 ): HazeStyle {
-    val containerColor = if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceContainer
+    val defaultContainer = MaterialTheme.colorScheme.surfaceContainer
+    val tintColor = remember(pureBlack, gradientColor, defaultContainer) {
+        if (pureBlack) Color.Black
+        else if (gradientColor != 0) Color(gradientColor)
+        else defaultContainer
+    }
     val fixedTintAlpha = if (pureBlack) SettingsDimensions.HazePureBlackTintAlpha else SettingsDimensions.HazeDefaultTintAlpha
-    return remember(containerColor, blurRadius, pureBlack) {
+
+    return remember(tintColor, blurRadius, pureBlack, defaultContainer) {
         HazeDefaults.style(
-            backgroundColor = containerColor,
-            tint = HazeTint(containerColor.copy(alpha = fixedTintAlpha)),
+            backgroundColor = if (pureBlack) Color.Black else defaultContainer,
+            tint = HazeTint(tintColor.copy(alpha = fixedTintAlpha)),
             blurRadius = blurRadius.dp,
             noiseFactor = SettingsDimensions.HazeNoiseFactor,
         )
@@ -54,11 +61,14 @@ internal fun rememberMiniHazeStyle(
 
 @Composable
 internal fun rememberBackgroundGradient(gradientColor: Int): Brush {
-    val containerColor = MaterialTheme.colorScheme.surfaceContainer
+    val defaultContainer = MaterialTheme.colorScheme.surfaceContainer
+    val color = remember(gradientColor, defaultContainer) {
+        if (gradientColor != 0) Color(gradientColor) else defaultContainer
+    }
 
-    return remember(containerColor) {
+    return remember(color) {
         Brush.verticalGradient(
-            colors = listOf(containerColor, containerColor)
+            colors = listOf(color, color)
         )
     }
 }

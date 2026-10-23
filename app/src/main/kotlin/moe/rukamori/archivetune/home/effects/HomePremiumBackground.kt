@@ -16,23 +16,43 @@ fun HomePremiumBackground(
     modifier: Modifier = Modifier
 ) {
     Canvas(modifier = modifier.fillMaxSize()) {
-        val centerX: Float = size.width * 0.5f
-        val centerY: Float = size.height * 0.15f
-        val radius: Float = size.width * 1.15f
+        val width = size.width
+        val height = size.height
 
-        val brush = Brush.radialGradient(
-            colors = listOf(
-                blobColor.copy(alpha = 0.40f),
-                blobColor.copy(alpha = 0.0f)
-            ),
-            center = Offset(centerX, centerY),
-            radius = radius
+        // Основное мягкое пятно света по центру сверху
+        val primaryCenter = Offset(width * 0.5f, height * 0.08f)
+        val primaryRadius = width * 1.05f
+
+        val primaryBrush = Brush.radialGradient(
+            0.0f to blobColor.copy(alpha = 0.38f),
+            0.35f to blobColor.copy(alpha = 0.20f),
+            0.70f to blobColor.copy(alpha = 0.06f),
+            1.0f to Color.Transparent,
+            center = primaryCenter,
+            radius = primaryRadius
         )
 
         drawCircle(
-            brush = brush,
-            radius = radius,
-            center = Offset(centerX, centerY)
+            brush = primaryBrush,
+            radius = primaryRadius,
+            center = primaryCenter
+        )
+
+        val secondaryCenter = Offset(width * 0.5f, height * 0.35f)
+        val secondaryRadius = width * 0.85f
+
+        val secondaryBrush = Brush.radialGradient(
+            0.0f to blobColor.copy(alpha = 0.12f),
+            0.5f to blobColor.copy(alpha = 0.03f),
+            1.0f to Color.Transparent,
+            center = secondaryCenter,
+            radius = secondaryRadius
+        )
+
+        drawCircle(
+            brush = secondaryBrush,
+            radius = secondaryRadius,
+            center = secondaryCenter
         )
     }
 }

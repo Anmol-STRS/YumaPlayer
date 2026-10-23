@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.PaintingStyle
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.IntOffset
@@ -96,7 +97,6 @@ fun SnowBackground(
         label = "SnowBackground",
     )
     val alphaScale = brightness.coerceIn(0.1f, 2f)
-    val reusablePaint = remember { Paint() }
 
     Canvas(modifier = modifier.fillMaxSize()) {
         val width = size.width
@@ -160,22 +160,17 @@ fun SnowBackground(
 
             // Only draw if visible
             if (finalAlpha > 0.01f && baseY > -50f && baseY < height + 50f) {
-                drawIntoCanvas { canvas ->
-                    canvas.save()
-                    canvas.translate(centerX, baseY)
-                    canvas.rotate(rotation)
-
-                    reusablePaint.alpha = finalAlpha
-                    canvas.drawImageRect(
+                val halfDrawSize = drawSize / 2f
+                withTransform({
+                    translate(centerX, baseY)
+                    rotate(rotation, Offset.Zero)
+                }) {
+                    drawImage(
                         image = bitmap,
-                        srcOffset = IntOffset.Zero,
-                        srcSize = IntSize(bitmap.width, bitmap.height),
-                        dstOffset = IntOffset((-drawSize / 2).toInt(), (-drawSize / 2).toInt()),
+                        dstOffset = IntOffset((-halfDrawSize).toInt(), (-halfDrawSize).toInt()),
                         dstSize = IntSize(drawSize.toInt(), drawSize.toInt()),
-                        paint = reusablePaint
+                        alpha = finalAlpha
                     )
-
-                    canvas.restore()
                 }
             }
         }

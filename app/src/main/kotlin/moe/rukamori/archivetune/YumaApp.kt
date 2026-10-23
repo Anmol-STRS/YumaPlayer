@@ -86,7 +86,7 @@ fun YumaApp(
 
     var playerExpansionFractionProvider by remember { mutableStateOf<() -> Float>({ 0f }) }
     val isHomeScreenVisible by remember {
-        derivedStateOf { playerExpansionFractionProvider() < 0.99f }
+        derivedStateOf { playerExpansionFractionProvider() < 0.7f }
     }
 
     val updateChannel by rememberEnumPreference(UpdateChannelKey, defaultValue = defaultUpdateChannel)
