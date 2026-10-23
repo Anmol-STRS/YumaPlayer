@@ -17,6 +17,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.BlurredEdgeTreatment
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -46,7 +48,19 @@ fun PlayerCoverGlow(
 
     val glowShape = remember { RoundedCornerShape(26.dp) }
 
-    // Контейнер выполняет ровно 1 проход размытия на GPU
+    val glowColorFilter = remember {
+        ColorFilter.colorMatrix(
+            ColorMatrix(
+                floatArrayOf(
+                    1.25f, 0f, 0f, 0f, 0f,
+                    0f, 1.25f, 0f, 0f, 0f,
+                    0f, 0f, 1.25f, 0f, 0f,
+                    0f, 0f, 0f, 1f, 0f,
+                )
+            )
+        )
+    }
+
     Box(
         modifier = modifier
             .blur(
@@ -54,7 +68,6 @@ fun PlayerCoverGlow(
                 edgeTreatment = BlurredEdgeTreatment.Unbounded,
             )
             .graphicsLayer {
-                // Плотность свечения у кромок без пережигания фона
                 alpha = 0.95f
                 scaleX = 1.02f
                 scaleY = 1.02f
@@ -64,6 +77,7 @@ fun PlayerCoverGlow(
             model = glowRequest,
             contentDescription = null,
             contentScale = ContentScale.Crop,
+            colorFilter = glowColorFilter,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(8.dp)
