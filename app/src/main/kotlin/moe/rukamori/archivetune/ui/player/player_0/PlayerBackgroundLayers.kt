@@ -102,15 +102,16 @@ fun PlayerBackgroundLayers(
     }
 
 
+    // ПОСТАВИТЬ:
     val animatedBgColor by animateColorAsState(
         targetValue = gradientColor,
-        animationSpec = tween(500),
+        animationSpec = tween(durationMillis = 650, easing = FastOutSlowInEasing),
         label = "VibrantGradientColor"
     )
 
     val glowTransition by animateFloatAsState(
         targetValue = if (state.isAlbumCoverGlowEnabled) 1f else 0f,
-        animationSpec = tween(500),
+        animationSpec = tween(durationMillis = 500, easing = FastOutSlowInEasing),
         label = "GlowInvertedBackgroundTransition"
     )
 
@@ -118,14 +119,17 @@ fun PlayerBackgroundLayers(
         modifier = modifier
             .fillMaxSize()
             .drawWithCache {
-                val charcoalTone = lerp(Color(0xFF0A0A0A), animatedBgColor, 0.06f)
-                val midTone = lerp(animatedBgColor, Color(0xFF141414), 0.45f)
-                val deepTone = lerp(animatedBgColor, Color(0xFF0A0A0A), 0.85f)
+                val currentBg = animatedBgColor
+                val currentGlow = glowTransition
 
-                val stop0 = lerp(animatedBgColor, charcoalTone, glowTransition)
-                val stop35 = lerp(animatedBgColor, charcoalTone, glowTransition)
-                val stop70 = lerp(midTone, animatedBgColor.copy(alpha = 0.75f), glowTransition)
-                val stop100 = lerp(deepTone, charcoalTone, glowTransition)
+                val charcoalTone = lerp(Color(0xFF080808), currentBg, 0.05f)
+                val midTone = lerp(currentBg, Color(0xFF101010), 0.50f)
+                val deepTone = lerp(currentBg, Color(0xFF060606), 0.90f)
+
+                val stop0 = lerp(currentBg, charcoalTone, currentGlow)
+                val stop35 = lerp(currentBg, charcoalTone, currentGlow)
+                val stop70 = lerp(midTone, currentBg.copy(alpha = 0.70f), currentGlow)
+                val stop100 = lerp(deepTone, charcoalTone, currentGlow)
 
                 val brush = Brush.verticalGradient(
                     0.0f to stop0,
