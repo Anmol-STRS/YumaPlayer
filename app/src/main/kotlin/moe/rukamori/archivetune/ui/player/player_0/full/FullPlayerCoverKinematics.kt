@@ -52,22 +52,18 @@ internal fun calculateCoverKinematics(
         )
     }
 
-    val w = safeWidthPx
-    val a = cardWidthPx
-
-    val targetScale = if (a > 0f && w > 0f) {
-        (w / a) * 1.04f
+    val targetScale = if (cardWidthPx > 0f && safeWidthPx > 0f) {
+        (safeWidthPx / cardWidthPx) * 1.04f
     } else {
         1f
     }
 
     val peekProgress = (q / 0.45f).coerceIn(0f, 1f)
-    val coverHeight = a * targetScale
+    val coverHeight = cardWidthPx * targetScale
 
-    val rootH = rootHeightPx
-    val queueTravel = (rootH - capsuleHeaderHeightPx).coerceAtLeast(0f)
+    val queueTravel = (rootHeightPx - capsuleHeaderHeightPx).coerceAtLeast(0f)
 
-    val queuePeekTop = rootH - 0.45f * queueTravel
+    val queuePeekTop = rootHeightPx - 0.45f * queueTravel
 
     val peekTop = minOf(
         toolbarTopInRoot - extraLiftPx,
@@ -83,7 +79,7 @@ internal fun calculateCoverKinematics(
             alpha = 1f,
         )
     } else {
-        val queueTop = rootH - q * queueTravel
+        val queueTop = rootHeightPx - q * queueTravel
         val coverTop = minOf(
             peekTop,
             queueTop - coverHeight - gapPx,

@@ -72,9 +72,8 @@ internal fun FullPlayerCoverSlot(
             .fillMaxSize()
             .padding(horizontal = 22.dp)
             .onGloballyPositioned { slotCoords ->
-                val root = rootCoordinates
-                if (root != null && root.isAttached && slotCoords.isAttached) {
-                    cardTopInRoot = root.localPositionOf(slotCoords, Offset.Zero).y
+                if (rootCoordinates != null && rootCoordinates.isAttached && slotCoords.isAttached) {
+                    cardTopInRoot = rootCoordinates.localPositionOf(slotCoords, Offset.Zero).y
                 }
             }
     ) {

@@ -51,10 +51,12 @@ internal fun FullPlayerToolbarSlot(
             .fillMaxWidth()
             .padding(horizontal = SettingsDimensions.PlayerControlsHorizontalPadding)
             .onGloballyPositioned { coords ->
-                val root = rootCoordinates
-                if (root != null && root.isAttached && coords.isAttached) {
-                    val top = root.localPositionOf(coords, Offset.Zero).y
-                    val bottom = root.localPositionOf(coords, Offset(0f, coords.size.height.toFloat())).y
+                if (rootCoordinates != null && rootCoordinates.isAttached && coords.isAttached) {
+                    val top = rootCoordinates.localPositionOf(coords, Offset.Zero).y
+                    val bottom = rootCoordinates.localPositionOf(
+                        coords,
+                        Offset(0f, coords.size.height.toFloat())
+                    ).y
                     onPositionedInRoot(top, bottom)
                 }
             }
