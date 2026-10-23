@@ -8,6 +8,7 @@
 
 package moe.rukamori.archivetune.ui.screens.library
 
+import android.annotation.SuppressLint
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -131,16 +132,7 @@ fun SpotifyLikedSongsScreen(
         listOf(errorContainerColor)
     }
 
-    val gradientAlpha by remember {
-        derivedStateOf {
-            if (lazyListState.firstVisibleItemIndex == 0) {
-                val offset = lazyListState.firstVisibleItemScrollOffset
-                (1f - (offset / 600f)).coerceIn(0f, 1f)
-            } else {
-                0f
-            }
-        }
-    }
+
 
     LaunchedEffect(isSearching) {
         if (isSearching) focusRequester.requestFocus()
@@ -169,6 +161,7 @@ fun SpotifyLikedSongsScreen(
         }
     }
 
+    @SuppressLint("LocalContextGetResourceValueCall")
     fun playPlaylist(
         startIndex: Int = 0,
         shuffled: Boolean = false,
@@ -223,47 +216,50 @@ fun SpotifyLikedSongsScreen(
                 .fillMaxSize()
                 .background(Color.Transparent),
     ) {
-        if (!disableBlur && gradientColors.isNotEmpty() && gradientAlpha > 0f) {
+        if (!disableBlur && gradientColors.isNotEmpty()) {
             Box(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .fillMaxSize(0.55f)
-                        .align(Alignment.TopCenter)
-                        .zIndex(-1f)
-                        .drawBehind {
-                            val width = size.width
-                            val height = size.height
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxSize(0.55f)
+                    .align(Alignment.TopCenter)
+                    .zIndex(-1f)
+                    .drawBehind {
+                        val alpha = if (lazyListState.firstVisibleItemIndex == 0) {
+                            (1f - (lazyListState.firstVisibleItemScrollOffset / 600f)).coerceIn(0f, 1f)
+                        } else {
+                            0f
+                        }
 
-                            drawRect(
-                                brush =
-                                    Brush.radialGradient(
-                                        colors =
-                                            listOf(
-                                                gradientColors[0].copy(alpha = gradientAlpha * 0.7f),
-                                                gradientColors[0].copy(alpha = gradientAlpha * 0.35f),
-                                                Color.Transparent,
-                                            ),
-                                        center = Offset(width * 0.5f, height * 0.25f),
-                                        radius = width * 0.85f,
-                                    ),
+                        if (alpha <= 0f) return@drawBehind
+
+                        val width = size.width
+                        val height = size.height
+
+                        drawRect(
+                            brush = Brush.radialGradient(
+                                colors = listOf(
+                                    gradientColors[0].copy(alpha = alpha * 0.7f),
+                                    gradientColors[0].copy(alpha = alpha * 0.35f),
+                                    Color.Transparent,
+                                ),
+                                center = Offset(width * 0.5f, height * 0.25f),
+                                radius = width * 0.85f,
                             )
-                            drawRect(
-                                brush =
-                                    Brush.verticalGradient(
-                                        colors =
-                                            listOf(
-                                                Color.Transparent,
-                                                Color.Transparent,
-                                                surfaceColor.copy(alpha = gradientAlpha * 0.22f),
-                                                surfaceColor.copy(alpha = gradientAlpha * 0.55f),
-                                                surfaceColor,
-                                            ),
-                                        startY = height * 0.4f,
-                                        endY = height,
-                                    ),
+                        )
+                        drawRect(
+                            brush = Brush.verticalGradient(
+                                colors = listOf(
+                                    Color.Transparent,
+                                    Color.Transparent,
+                                    surfaceColor.copy(alpha = alpha * 0.22f),
+                                    surfaceColor.copy(alpha = alpha * 0.55f),
+                                    surfaceColor,
+                                ),
+                                startY = height * 0.4f,
+                                endY = height,
                             )
-                        },
+                        )
+                    }
             )
         }
 
