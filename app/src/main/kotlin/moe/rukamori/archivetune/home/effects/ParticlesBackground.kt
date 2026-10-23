@@ -12,9 +12,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -64,39 +65,32 @@ fun ParticlesBackground(
         context = context
     )
 
-    // Particle state - mutable so physics loop can update positions each frame
     val particles = remember {
-        mutableStateListOf<Particle>().apply {
-            repeat(65) {
-                // Create 3 particle size groups for more natural depth
-                val baseRadius = when (Random.nextFloat()) {
-                    in 0f..0.6f -> 2.5f + Random.nextFloat() * 3f // small particles
-                    in 0.6f..0.9f -> 4f + Random.nextFloat() * 4f // medium particles
-                    else -> 7f + Random.nextFloat() * 5f // large particles
-                }
-
-                add(
-                    Particle(
-                        x = Random.nextFloat(),
-                        y = Random.nextFloat(),
-                        vx = (Random.nextFloat() - 0.5f) * 0.00018f,
-                        vy = (Random.nextFloat() - 0.5f) * 0.00018f,
-                        baseRadius = baseRadius,
-                        colorIndex = it % 3
-                    )
-                )
+        Array(65) {
+            val baseRadius = when (Random.nextFloat()) {
+                in 0f..0.6f -> 2.5f + Random.nextFloat() * 3f
+                in 0.6f..0.9f -> 4f + Random.nextFloat() * 4f
+                else -> 7f + Random.nextFloat() * 5f
             }
+            MutableParticle(
+                x = Random.nextFloat(),
+                y = Random.nextFloat(),
+                vx = (Random.nextFloat() - 0.5f) * 0.00018f,
+                vy = (Random.nextFloat() - 0.5f) * 0.00018f,
+                baseRadius = baseRadius,
+                colorIndex = it % 3
+            )
         }
     }
 
     val speedMultiplier = if (disableAnimations) 0f else 1f
-    // targetSpeedState updated via SideEffect so the physics loop stays reactive
     val targetSpeedState = remember { mutableFloatStateOf(speedMultiplier) }
     SideEffect { targetSpeedState.floatValue = speedMultiplier }
 
     val isVisibleState by rememberUpdatedState(isVisible)
 
-    // Physics loop - runs every display frame independently of Compose animation clock
+    var drawTrigger by remember { mutableLongStateOf(0L) }
+
     LaunchedEffect(Unit) {
         var lastFrameMs = -1L
         var currentSpeed = targetSpeedState.floatValue
@@ -111,27 +105,24 @@ fun ParticlesBackground(
                 val delta = (frameMs - lastFrameMs).coerceIn(0L, 64L).toFloat()
                 lastFrameMs = frameMs
 
-                // Lerp speed for smooth transitions
                 currentSpeed += (targetSpeedState.floatValue - currentSpeed) * (delta / 1000f) * 2.5f
                 val speedScale = currentSpeed * (delta / 16.67f)
 
-                particles.forEachIndexed { index, p ->
-                    var nx  = p.x  + p.vx * speedScale
-                    var ny  = p.y  + p.vy * speedScale
+                for (i in particles.indices) {
+                    val p = particles[i]
+                    var nx = p.x + p.vx * speedScale
+                    var ny = p.y + p.vy * speedScale
                     var nvx = p.vx
                     var nvy = p.vy
 
-                    // Soft edge bounce - reverse velocity and nudge back inside
                     if (nx < 0.02f) { nvx = abs(nvx); nx = 0.02f }
                     if (nx > 0.98f) { nvx = -abs(nvx); nx = 0.98f }
                     if (ny < 0.02f) { nvy = abs(nvy); ny = 0.02f }
                     if (ny > 0.98f) { nvy = -abs(nvy); ny = 0.98f }
 
-                    // Tiny random drift to avoid completely straight paths
                     nvx += (Random.nextFloat() - 0.5f) * 0.000004f
                     nvy += (Random.nextFloat() - 0.5f) * 0.000004f
 
-                    // Speed cap so particles never rocket across the screen
                     val speed = sqrt(nvx * nvx + nvy * nvy)
                     val maxSpeed = 0.00025f
                     if (speed > maxSpeed) {
@@ -139,13 +130,20 @@ fun ParticlesBackground(
                         nvy = nvy / speed * maxSpeed
                     }
 
-                    particles[index] = p.copy(x = nx, y = ny, vx = nvx, vy = nvy)
+                    p.x = nx
+                    p.y = ny
+                    p.vx = nvx
+                    p.vy = nvy
                 }
+                drawTrigger++
             }
         }
     }
 
     Canvas(modifier = modifier.fillMaxSize()) {
+        // Подписка Canvas на один единственный тикер
+        drawTrigger.let { }
+
         val tiltX = parallaxState.tiltX.value
         val tiltY = parallaxState.tiltY.value
 
@@ -184,9 +182,9 @@ fun ParticlesBackground(
             }
         }
 
-        // Draw particles
-        particles.forEach { p ->
-            val pos   = Offset(
+        for (i in particles.indices) {
+            val p = particles[i]
+            val pos = Offset(
                 p.x * size.width  + tiltX * parallaxStrength,
                 p.y * size.height + tiltY * parallaxStrength
             )
@@ -200,11 +198,11 @@ fun ParticlesBackground(
     }
 }
 
-private data class Particle(
-    val x: Float,
-    val y: Float,
-    val vx: Float,
-    val vy: Float,
+private class MutableParticle(
+    var x: Float,
+    var y: Float,
+    var vx: Float,
+    var vy: Float,
     val baseRadius: Float,
     val colorIndex: Int
 )

@@ -69,7 +69,13 @@ fun SpaceBackground(
                 lastFrameMs = frameMs
 
                 val speedBoost = 3f
-                currentSpeed += (1f + (targetSpeedState.floatValue - 1f) * speedBoost - currentSpeed) * (delta / 1000f) * 5.0f
+                val target = if (targetSpeedState.floatValue <= 0f) {
+                    0f
+                } else {
+                    1f + (targetSpeedState.floatValue - 1f) * speedBoost
+                }
+
+                currentSpeed += (target - currentSpeed) * (delta / 1000f) * 5.0f
 
                 baseProgress += 0.0025f * currentSpeed * (delta / 16.67f)
 
