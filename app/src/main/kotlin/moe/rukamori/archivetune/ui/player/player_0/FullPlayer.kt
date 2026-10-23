@@ -224,11 +224,15 @@ fun FullPlayer(
                                     .fillMaxSize()
                                     .playerArtworkFade(queueFractionProvider)
                             ) {
+                                PlayerCoverGlow(
+                                    coverUrl = state.coverUrl,
+                                    enabled = state.isAlbumCoverGlowEnabled,
+                                    modifier = Modifier.fillMaxSize(),
+                                )
+
                                 PlayerCoverCard(
                                     coverUrl = state.coverUrl,
                                     placeholderResId = state.placeholderResId,
-                                    isAlbumCoverGlowEnabled = state.isAlbumCoverGlowEnabled,
-                                    vibrantColor = Color(state.vibrantColor),
                                     gestureEnabled = motionState.coverGestureEnabled,
                                     mediaId = state.trackUrl,
                                     songTitle = state.title,

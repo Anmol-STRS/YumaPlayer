@@ -108,15 +108,26 @@ fun PlayerBackgroundLayers(
         label = "VibrantGradientColor"
     )
 
+    // Коэффициент приглушения фона: 0f при обычном режиме, 0.72f при активном Glow
+    val glowDimFactor by animateFloatAsState(
+        targetValue = if (state.isAlbumCoverGlowEnabled) 0.72f else 0f,
+        animationSpec = tween(500),
+        label = "GlowBackgroundDimTransition"
+    )
+
     Box(
         modifier = modifier
             .fillMaxSize()
             .drawWithCache {
-                val midTone = lerp(animatedBgColor, Color(0xFF141414), 0.45f)
-                val deepTone = lerp(animatedBgColor, Color(0xFF0A0A0A), 0.85f)
+                val topColor = lerp(animatedBgColor, Color(0xFF0E0E0E), glowDimFactor)
+                val midTone = lerp(topColor, Color(0xFF141414), 0.50f)
+                val deepTone = lerp(topColor, Color(0xFF0A0A0A), 0.88f)
+
+                val shelfStop = 0.30f * (1f - glowDimFactor)
+
                 val brush = Brush.verticalGradient(
-                    0.0f to animatedBgColor,
-                    0.30f to animatedBgColor,
+                    0.0f to topColor,
+                    shelfStop to topColor,
                     0.65f to midTone,
                     1.0f to deepTone,
                     startY = 0f,

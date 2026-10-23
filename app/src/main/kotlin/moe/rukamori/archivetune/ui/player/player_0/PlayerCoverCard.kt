@@ -6,12 +6,14 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -25,8 +27,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
@@ -42,6 +48,7 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import coil3.compose.AsyncImagePainter
 import coil3.compose.rememberAsyncImagePainter
 import coil3.request.ImageRequest
+import coil3.request.allowHardware
 import coil3.request.crossfade
 import kotlinx.coroutines.launch
 import moe.rukamori.archivetune.R
@@ -68,7 +75,6 @@ fun PlayerCoverCard(
     val context = LocalContext.current
     val shadowColor = MaterialTheme.colorScheme.scrim
     val surfaceColor: Color = MaterialTheme.colorScheme.surface
-    val outlineColor: Color = MaterialTheme.colorScheme.outlineVariant
 
     val haptics = LocalYumaHaptics.current
     val coroutineScope = rememberCoroutineScope()
@@ -94,7 +100,7 @@ fun PlayerCoverCard(
                     diskCacheKey(cleanUrl)
                 }
             }
-            .crossfade(500)
+            .crossfade(400)
             .build()
     }
 
@@ -118,18 +124,11 @@ fun PlayerCoverCard(
                 currentPainter = null
                 activeVibrantColor = Color.Transparent
             }
-            is AsyncImagePainter.State.Empty -> {}
-            else -> {
-                // Keep currentPainter and activeVibrantColor during Loading
-            }
+            else -> {}
         }
     }
 
-    val animatedVibrantColor by animateColorAsState(
-        targetValue = activeVibrantColor,
-        animationSpec = tween(500),
-        label = "CoverGlowColor"
-    )
+    val shape24 = remember { RoundedCornerShape(24.dp) }
 
     Box(
         modifier = modifier
@@ -137,36 +136,22 @@ fun PlayerCoverCard(
             .graphicsLayer {
                 translationX = offsetX.value
                 val isDraggingCover = abs(offsetX.value) > 1f
-                if (isAlbumCoverGlowEnabled) {
-                    shadowElevation = if (isDraggingCover) 8.dp.toPx() else 48.dp.toPx()
-                    shape = RoundedCornerShape(24.dp)
-                    clip = false
-                    ambientShadowColor = if (isDraggingCover) shadowColor else animatedVibrantColor.copy(alpha = 0.8f)
-                    spotShadowColor = if (isDraggingCover) shadowColor.copy(alpha = 0.5f) else animatedVibrantColor
-                } else {
-                    shadowElevation = if (isDraggingCover) 8.dp.toPx() else 24.dp.toPx()
-                    shape = RoundedCornerShape(24.dp)
-                    clip = false
-                    ambientShadowColor = shadowColor
-                    spotShadowColor = shadowColor.copy(alpha = 0.6f)
-                }
+                shadowElevation = if (isDraggingCover) 6.dp.toPx() else 14.dp.toPx()
+                shape = shape24
+                clip = false
+                ambientShadowColor = shadowColor.copy(alpha = 0.5f)
+                spotShadowColor = shadowColor.copy(alpha = 0.4f)
             }
             .then(
                 if (gestureEnabled) {
                     Modifier.pointerInput(key1 = onNext, key2 = onPrevious) {
                         detectHorizontalDragGestures(
-                            onDragStart = {
-                                accumulatedDragX = 0f
-                            },
+                            onDragStart = { accumulatedDragX = 0f },
                             onDragEnd = {
                                 coroutineScope.launch {
                                     if (abs(accumulatedDragX) > snapThresholdPx) {
                                         haptics.gestureThresholdActivate()
-                                        if (accumulatedDragX > 0) {
-                                            onPrevious()
-                                        } else {
-                                            onNext()
-                                        }
+                                        if (accumulatedDragX > 0) onPrevious() else onNext()
                                     }
                                     accumulatedDragX = 0f
                                     offsetX.animateTo(
@@ -206,29 +191,28 @@ fun PlayerCoverCard(
                     Modifier
                 }
             )
-            .clip(RoundedCornerShape(24.dp))
-            .background(surfaceColor)
-            .border(BorderStroke(1.dp, outlineColor), RoundedCornerShape(24.dp)),
+            .clip(shape24)
+            .background(surfaceColor), // Чистая карточка БЕЗ обводки border
         contentAlignment = Alignment.Center
     ) {
         val isCanvasActive = canvasState.isCanvasEnabled && canvasState.artwork != null
 
-        // 1. Статичная обложка лежит всегда — как основной арт и как бэкдроп под видео
+        // Обложка
         androidx.compose.animation.Crossfade(
             targetState = currentPainter,
-            animationSpec = tween(500),
+            animationSpec = tween(400),
             label = "CoverCrossfade",
         ) { targetPainter ->
-            val painter = targetPainter ?: painterResource(id = placeholderResId)
-            androidx.compose.foundation.Image(
-                painter = painter,
+            val p = targetPainter ?: painterResource(id = placeholderResId)
+            Image(
+                painter = p,
                 contentDescription = stringResource(R.string.album_art_large),
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop,
             )
         }
 
-        // 2. Канвас монтируется поверх обложки, перекрывая её без единого чёрного кадра
+        // Canvas
         if (isCanvasActive) {
             key(mediaId) {
                 CanvasArtworkPlayer(
@@ -242,4 +226,3 @@ fun PlayerCoverCard(
         }
     }
 }
-
