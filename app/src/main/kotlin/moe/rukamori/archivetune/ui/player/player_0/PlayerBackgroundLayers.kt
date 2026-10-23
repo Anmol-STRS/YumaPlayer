@@ -108,30 +108,44 @@ fun PlayerBackgroundLayers(
         label = "VibrantGradientColor"
     )
 
-    val glowDimFactor by animateFloatAsState(
-        targetValue = if (state.isAlbumCoverGlowEnabled) 0.55f else 0f,
+    val glowTransition by animateFloatAsState(
+        targetValue = if (state.isAlbumCoverGlowEnabled) 1f else 0f,
         animationSpec = tween(500),
-        label = "GlowBackgroundDimTransition"
+        label = "GlowInvertedBackgroundTransition"
     )
 
     Box(
         modifier = modifier
             .fillMaxSize()
             .drawWithCache {
-                val topColor = lerp(animatedBgColor, Color(0xFF0E0E0E), glowDimFactor)
-                val midTone = lerp(topColor, Color(0xFF141414), 0.50f)
-                val deepTone = lerp(topColor, Color(0xFF0A0A0A), 0.88f)
+                val charcoalTone = lerp(Color(0xFF0A0A0A), animatedBgColor, 0.08f)
+                val midTone = lerp(animatedBgColor, Color(0xFF141414), 0.45f)
+                val deepTone = lerp(animatedBgColor, Color(0xFF0A0A0A), 0.85f)
 
-                val shelfStop = 0.30f * (1f - glowDimFactor)
+                val topColor = lerp(animatedBgColor, charcoalTone, glowTransition)
+                val bottomColor = lerp(deepTone, charcoalTone, glowTransition)
+                val controlsAccent = lerp(midTone, animatedBgColor.copy(alpha = 0.85f), glowTransition)
 
-                val brush = Brush.verticalGradient(
-                    0.0f to topColor,
-                    shelfStop to topColor,
-                    0.65f to midTone,
-                    1.0f to deepTone,
-                    startY = 0f,
-                    endY = size.height
-                )
+                val brush = if (glowTransition > 0.01f) {
+                    Brush.verticalGradient(
+                        0.0f to topColor,
+                        0.40f to topColor,
+                        0.72f to lerp(controlsAccent, topColor, 0.2f), 
+                        1.0f to bottomColor,
+                        startY = 0f,
+                        endY = size.height
+                    )
+                } else {
+                    Brush.verticalGradient(
+                        0.0f to animatedBgColor,
+                        0.30f to animatedBgColor,
+                        0.65f to midTone,
+                        1.0f to deepTone,
+                        startY = 0f,
+                        endY = size.height
+                    )
+                }
+
                 onDrawBehind {
                     drawRect(brush = brush)
                 }
