@@ -127,7 +127,7 @@ fun YumaApp(
 
     val randomStartupStyle =
         remember(randomHomeBackgroundOnStartup) {
-            HomeBackgroundStyle.entries.random()
+            HomeBackgroundStyle.entries.filterNot { it == HomeBackgroundStyle.OFF }.random()
         }
 
     val effectiveHomeBackgroundStyle =

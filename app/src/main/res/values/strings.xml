@@ -497,6 +497,7 @@
     <string name="home_background">Home background</string>
     <string name="random_home_background_on_startup">Random background on startup</string>
     <string name="random_home_background_on_startup_desc">Choose a different home background every time the app starts</string>
+    <string name="home_background_none">None</string>
     <string name="home_background_tonal">Tonal glow</string>
     <string name="home_background_circles">Circles</string>
     <string name="home_background_rings">Rings</string>

@@ -29,6 +29,10 @@ val LocalHomeBackgroundStyle = compositionLocalOf { HomeBackgroundSettings() }
 fun ScreenBackground(modifier: Modifier = Modifier, isVisible: Boolean = true) {
     val homeBackground = LocalHomeBackgroundStyle.current
 
+    if (homeBackground.style == HomeBackgroundStyle.OFF) {
+        return
+    }
+
     val shouldRender = isVisible || homeBackground.style == HomeBackgroundStyle.TONAL
 
     Box(
@@ -50,7 +54,6 @@ fun ScreenBackground(modifier: Modifier = Modifier, isVisible: Boolean = true) {
                         .align(Alignment.TopCenter)
                 )
             }
-            // Остальные эффекты сами слушают isVisible и усыпляют корутины
             HomeBackgroundStyle.CIRCLES -> {
                 CirclesBackground(
                     parallaxEnabled = homeBackground.parallaxEnabled,

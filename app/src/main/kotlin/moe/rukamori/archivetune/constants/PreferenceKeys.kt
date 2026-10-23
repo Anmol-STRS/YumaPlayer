@@ -605,6 +605,7 @@ enum class MiniPlayerBackgroundStyle {
 }
 
 enum class HomeBackgroundStyle {
+    OFF,
     TONAL,
     CIRCLES,
     RINGS,

@@ -287,8 +287,8 @@ fun AppearanceThemeSection(
                 onCheckedChange = onRandomHomeBackgroundOnStartupChange,
             )
         }
-
-        item(visible = homeBackgroundStyle != HomeBackgroundStyle.TONAL) {
+        val hasConfigurableEffects = homeBackgroundStyle != HomeBackgroundStyle.TONAL && homeBackgroundStyle != HomeBackgroundStyle.OFF
+        item(visible = hasConfigurableEffects) {
             SwitchPreference(
                 title = { Text(stringResource(R.string.home_background_parallax)) },
                 icon = { Icon(painterResource(R.drawable.speed), null, modifier = Modifier.size(24.dp)) },
@@ -298,9 +298,7 @@ fun AppearanceThemeSection(
         }
 
         item(
-            visible =
-                homeBackgroundStyle != HomeBackgroundStyle.TONAL &&
-                    homeBackgroundParallaxEnabled,
+            visible = hasConfigurableEffects && homeBackgroundParallaxEnabled,
         ) {
             HomeBackgroundSliderItem(
                 title = stringResource(R.string.home_background_parallax_strength),
@@ -309,6 +307,18 @@ fun AppearanceThemeSection(
                 valueRange = AppearanceContract.HOME_BACKGROUND_PARALLAX_RANGE,
                 valueText = { strength ->
                     String.format(java.util.Locale.US, "%.1f", strength)
+                },
+            )
+        }
+
+        item(visible = hasConfigurableEffects) {
+            HomeBackgroundSliderItem(
+                title = stringResource(R.string.home_background_brightness),
+                value = homeBackgroundBrightness,
+                onValueChangeFinished = onHomeBackgroundBrightnessChange,
+                valueRange = AppearanceContract.HOME_BACKGROUND_BRIGHTNESS_RANGE,
+                valueText = { brightness ->
+                    "${(brightness * 100).roundToInt()}%"
                 },
             )
         }
@@ -699,6 +709,7 @@ fun HomeBackgroundSelector(
         onValueSelected = onHomeBackgroundStyleChange,
         valueText = {
             when (it) {
+                HomeBackgroundStyle.OFF -> stringResource(R.string.home_background_none)
                 HomeBackgroundStyle.TONAL -> stringResource(R.string.home_background_tonal)
                 HomeBackgroundStyle.CIRCLES -> stringResource(R.string.home_background_circles)
                 HomeBackgroundStyle.RINGS -> stringResource(R.string.home_background_rings)
