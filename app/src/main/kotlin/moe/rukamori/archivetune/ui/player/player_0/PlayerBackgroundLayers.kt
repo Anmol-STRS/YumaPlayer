@@ -108,9 +108,8 @@ fun PlayerBackgroundLayers(
         label = "VibrantGradientColor"
     )
 
-    // Коэффициент приглушения фона: 0f при обычном режиме, 0.72f при активном Glow
     val glowDimFactor by animateFloatAsState(
-        targetValue = if (state.isAlbumCoverGlowEnabled) 0.72f else 0f,
+        targetValue = if (state.isAlbumCoverGlowEnabled) 0.55f else 0f,
         animationSpec = tween(500),
         label = "GlowBackgroundDimTransition"
     )

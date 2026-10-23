@@ -34,9 +34,8 @@ fun PlayerCoverGlow(
     val glowRequest = remember(coverUrl) {
         ImageRequest.Builder(context)
             .data(coverUrl)
-            .memoryCacheKey("palette:$coverUrl")
-            .diskCacheKey("palette:$coverUrl")
-            .size(128, 128)
+            .memoryCacheKey("cover-glow:$coverUrl")
+            .size(256, 256)
             .build()
     }
 
@@ -49,12 +48,24 @@ fun PlayerCoverGlow(
                 .fillMaxSize()
                 .padding(12.dp)
                 .blur(
-                    radius = 32.dp,
+                    radius = 38.dp,
                     edgeTreatment = BlurredEdgeTreatment.Unbounded,
                 )
-                .graphicsLayer {
-                    alpha = 1f
-                },
+                .graphicsLayer { alpha = 0.8f },
+        )
+
+        AsyncImage(
+            model = glowRequest,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(4.dp)
+                .blur(
+                    radius = 18.dp,
+                    edgeTreatment = BlurredEdgeTreatment.Unbounded,
+                )
+                .graphicsLayer { alpha = 0.9f },
         )
     }
 }
