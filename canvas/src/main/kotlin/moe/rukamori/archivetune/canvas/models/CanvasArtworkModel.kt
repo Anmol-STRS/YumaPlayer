@@ -8,6 +8,7 @@ package moe.rukamori.archivetune.canvas.models
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import moe.rukamori.archivetune.canvas.CanvasSource
 
 @Serializable
 data class CanvasArtwork(
@@ -21,6 +22,7 @@ data class CanvasArtwork(
     val animatedVertical: String? = null,
     val videoUrl: String? = null,
     val videoUrlVertical: String? = null,
+    val source: CanvasSource? = null,
 ) {
     val preferredAnimationUrl: String?
         get() = animated ?: videoUrl
