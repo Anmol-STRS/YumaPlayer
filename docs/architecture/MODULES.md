@@ -67,7 +67,7 @@ YumaPlayer consists of **20 Gradle modules** (verified against `settings.gradle.
 - **`:lyrics:*`** — 6 standalone providers: `:lyrics:lrclib`, `:lyrics:kugou`, `:lyrics:simpmusic`, `:lyrics:betterlyrics`, `:lyrics:unison`, `:lyrics:youlyplus`. Each implements the shared domain provider contract.
 - **`:spotifycore`** — Spotify metadata, sync helpers, and video-loop asset pipeline inputs.
 - **`:shazamkit`** — Audio recognition engine integration.
-- **`:canvas`** — Video background rendering engine.
+- **`:canvas`** — Resolves video artwork metadata/URLs (transfer of BetterLyrics, Apple Music with dynamic web token, and TIDAL canvas provider awaiting token injection; rendering lives in `:app`).
 - **`:lastfm`** — Scrobbling integration and metadata synchronization.
 - **`:flaccore`** — Lossless FLAC domain (`FlacConfig`, `FlacKvStore`, `qbdlx/`: `QbdlxSigner`, `QbdlxCredentialStore`, `QbdlxPoolProvider`, `QbdlxQobuzSource`, `streaming/` resolvers). Implemented via `FlacConfigImpl` / `FlacKvStoreImpl` in `:app` (`lossless/`).
 
