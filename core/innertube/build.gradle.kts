@@ -16,6 +16,7 @@ dependencies {
     implementation(libs.ktor.client.encoding)
     implementation(libs.brotli)
     implementation(libs.newpipe.extractor)
+    implementation(project(":cipher-api"))
     implementation(project(":morideobfuscator"))
     implementation(libs.re2j)
     implementation(libs.rhino)

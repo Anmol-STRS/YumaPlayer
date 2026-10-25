@@ -6,6 +6,8 @@
  */
 package moe.rukamori.archivetune.obfuscator.quickjs
 
+import moe.rukamori.archivetune.cipher.PlayerScriptProvider
+
 data class QuickJsPlayerScript(
     val playerId: String,
     val source: String,
@@ -15,3 +17,9 @@ data class QuickJsPlayerScript(
 fun interface QuickJsPlayerScriptProvider {
     suspend fun getPlayerScript(videoId: String): QuickJsPlayerScript
 }
+
+fun PlayerScriptProvider.asQuickJsProvider(): QuickJsPlayerScriptProvider =
+    QuickJsPlayerScriptProvider { videoId ->
+        val raw = getPlayerScript(videoId)
+        QuickJsPlayerScript(raw.playerId, raw.source, raw.url)
+    }

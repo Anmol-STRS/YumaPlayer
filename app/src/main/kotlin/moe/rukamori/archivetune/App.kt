@@ -22,6 +22,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import moe.rukamori.archivetune.canvas.ArchiveTuneCanvas
+import moe.rukamori.archivetune.cipher.CipherBridge
+import moe.rukamori.archivetune.cipher.CipherEngineType
 import moe.rukamori.archivetune.constants.*
 import moe.rukamori.archivetune.innertube.YouTube
 import moe.rukamori.archivetune.innertube.models.YouTubeLocale
@@ -30,6 +32,10 @@ import moe.rukamori.archivetune.lastfm.LastFM
 import moe.rukamori.archivetune.lyrics.SharedLyricsEngine
 import moe.rukamori.archivetune.obfuscator.MoriCipherConfig
 import moe.rukamori.archivetune.obfuscator.MoriCipherRuntime
+import moe.rukamori.archivetune.obfuscator.MoriPlayerScriptProvider
+import moe.rukamori.archivetune.obfuscator.quickjs.QuickJsCipher
+import moe.rukamori.archivetune.obfuscator.quickjs.QuickJsCipherAdapter
+import moe.rukamori.archivetune.obfuscator.quickjs.asQuickJsProvider
 import moe.rukamori.archivetune.ui.player.CanvasArtworkPlaybackCache
 import moe.rukamori.archivetune.utils.PreferenceStore
 import moe.rukamori.archivetune.utils.ProxyAuth
@@ -107,6 +113,17 @@ class App :
                 proxyProvider = { YouTube.streamProxy },
             ),
         )
+        CipherBridge.registerFactory(CipherEngineType.QUICKJS) {
+            val provider = MoriPlayerScriptProvider(
+                cacheDirectory = File(noBackupFilesDir, "mori_cipher"),
+                proxyProvider = { YouTube.streamProxy },
+            )
+            val cipher = QuickJsCipher(
+                context = this,
+                playerScriptProvider = provider.asQuickJsProvider(),
+            )
+            QuickJsCipherAdapter(cipher)
+        }
         ArchiveTuneCanvas.initialize(
             bearerToken = BuildConfig.CANVAS_BEARER_TOKEN,
             tidalToken = BuildConfig.CANVAS_TIDAL_TOKEN,

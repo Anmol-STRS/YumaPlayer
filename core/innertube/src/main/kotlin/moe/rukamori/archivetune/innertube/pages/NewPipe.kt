@@ -13,7 +13,9 @@ import io.ktor.http.parseQueryString
 import kotlinx.coroutines.CancellationException
 import moe.rukamori.archivetune.innertube.models.YouTubeClient
 import moe.rukamori.archivetune.innertube.models.response.PlayerResponse
-import moe.rukamori.archivetune.obfuscator.MoriCipherRuntime
+import moe.rukamori.archivetune.cipher.CipherBridge
+import moe.rukamori.archivetune.cipher.CipherEngineType
+import moe.rukamori.archivetune.obfuscator.MoriRhinoCipherAdapter
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -91,11 +93,12 @@ private class NewPipeDownloaderImpl(
 object NewPipeUtils {
     init {
         NewPipe.init(NewPipeDownloaderImpl(YouTube.streamProxy))
+        CipherBridge.registerFactory(CipherEngineType.RHINO) { MoriRhinoCipherAdapter() }
     }
 
     suspend fun getSignatureTimestamp(videoId: String): Result<Int> {
         println("NewPipeUtils: [$videoId] 1. Checking MoriCipherRuntime...")
-        val moriResult = MoriCipherRuntime.signatureTimestamp(videoId)
+        val moriResult = CipherBridge.signatureTimestamp(videoId)
         println("NewPipeUtils: [$videoId] 2. MoriCipherRuntime result: isSuccess=${moriResult.isSuccess}")
 
         moriResult.getOrNull()?.let {
@@ -125,7 +128,7 @@ object NewPipeUtils {
             if (directUrl != null) {
                 val resolvedDirectUrl =
                     if (directUrl.toHttpUrlOrNull()?.queryParameter("n")?.isNotBlank() == true) {
-                        val nResult = MoriCipherRuntime.transformNParameter(videoId, directUrl)
+                        val nResult = CipherBridge.transformN(videoId, directUrl)
                         val nResolved = nResult.getOrNull()
                         if (nResolved != null) {
                             nResolved
@@ -152,7 +155,7 @@ object NewPipeUtils {
                 format.signatureCipher ?: format.cipher
                     ?: return Result.failure(ParsingException("Could not find format url"))
 
-            val mResult = MoriCipherRuntime.resolveStreamUrl(videoId, cipherString)
+            val mResult = CipherBridge.resolveStreamUrl(videoId, cipherString)
             val resolved = mResult.getOrNull()
             if (resolved != null) {
                 return Result.success(
