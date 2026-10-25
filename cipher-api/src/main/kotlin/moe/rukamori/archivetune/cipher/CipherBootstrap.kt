@@ -20,7 +20,6 @@ object CipherBootstrap {
     fun init(context: Context, defaultEngine: CipherEngineType = CipherEngineType.QUICKJS) {
         val cacheDir = File(context.noBackupFilesDir, "mori_cipher")
 
-        // Регистрация Rhino
         CipherBridge.registerFactory(CipherEngineType.RHINO) {
             MoriCipherRuntime.initialize(
                 MoriCipherConfig(
@@ -31,7 +30,6 @@ object CipherBootstrap {
             MoriRhinoCipherAdapter()
         }
 
-        // Регистрация QuickJS
         CipherBridge.registerFactory(CipherEngineType.QUICKJS) {
             val provider = MoriPlayerScriptProvider(
                 cacheDirectory = cacheDir,
