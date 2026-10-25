@@ -7,6 +7,8 @@
 package moe.rukamori.archivetune.cipher
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import java.util.concurrent.ConcurrentHashMap
 
 object CipherBridge : CipherEngine {
@@ -44,15 +46,23 @@ object CipherBridge : CipherEngine {
     }
 
     private suspend fun <T> executeWithFallback(
+        operationName: String,
         operation: suspend (CipherEngine) -> Result<T>,
     ): Result<T> {
         val primaryType = selectedType
-        val primaryResult = executeOn(primaryType, operation)
+        val primaryResult = executeOn(primaryType, operationName, operation)
+        currentCoroutineContext().ensureActive()
         if (primaryResult.isSuccess || primaryType != CipherEngineType.QUICKJS) {
             return primaryResult
         }
 
-        val fallbackResult = executeOn(CipherEngineType.RHINO, operation)
+        CipherTrace.log(
+            "FALLBACK",
+            "operation=$operationName from=$primaryType to=${CipherEngineType.RHINO}",
+        )
+
+        val fallbackResult = executeOn(CipherEngineType.RHINO, operationName, operation)
+        currentCoroutineContext().ensureActive()
         if (fallbackResult.isSuccess) {
             return fallbackResult
         }
@@ -67,39 +77,72 @@ object CipherBridge : CipherEngine {
 
     private suspend fun <T> executeOn(
         type: CipherEngineType,
+        operationName: String,
         operation: suspend (CipherEngine) -> Result<T>,
     ): Result<T> {
-        val engine = try {
-            getEngine(type)
+        val startNanos = System.nanoTime()
+        var loggedCancelled = false
+        val result: Result<T> = try {
+            val engine = getEngine(type)
+            val opResult = operation(engine)
+            val failure = opResult.exceptionOrNull()
+            if (failure is CancellationException) {
+                loggedCancelled = true
+                CipherTrace.log("CANCELLED", "operation=$operationName engine=$type")
+                throw failure
+            }
+            opResult
         } catch (cancellation: CancellationException) {
-            throw cancellation
-        } catch (exception: Exception) {
-            return Result.failure(exception)
-        }
-
-        return try {
-            operation(engine)
-        } catch (cancellation: CancellationException) {
+            if (!loggedCancelled) {
+                loggedCancelled = true
+                CipherTrace.log("CANCELLED", "operation=$operationName engine=$type")
+            }
             throw cancellation
         } catch (exception: Exception) {
             Result.failure(exception)
         }
+
+        try {
+            currentCoroutineContext().ensureActive()
+        } catch (cancellation: CancellationException) {
+            if (!loggedCancelled) {
+                loggedCancelled = true
+                CipherTrace.log("CANCELLED", "operation=$operationName engine=$type")
+            }
+            throw cancellation
+        }
+
+        val durationMs = (System.nanoTime() - startNanos) / 1_000_000L
+        if (result.isSuccess) {
+            CipherTrace.log(
+                "ENGINE_RESULT",
+                "operation=$operationName engine=$type success=true durationMs=$durationMs",
+            )
+        } else {
+            val failure = result.exceptionOrNull()
+            val failureClass = failure?.javaClass?.simpleName ?: "Unknown"
+            CipherTrace.log(
+                "ENGINE_RESULT",
+                "operation=$operationName engine=$type success=false durationMs=$durationMs failure=$failureClass",
+            )
+        }
+        return result
     }
 
     override suspend fun signatureTimestamp(videoId: String): Result<Int?> {
-        return executeWithFallback { engine ->
+        return executeWithFallback("ST") { engine ->
             engine.signatureTimestamp(videoId)
         }
     }
 
     override suspend fun resolveStreamUrl(videoId: String, signatureCipher: String): Result<String> {
-        return executeWithFallback { engine ->
+        return executeWithFallback("SIGNATURE") { engine ->
             engine.resolveStreamUrl(videoId, signatureCipher)
         }
     }
 
     override suspend fun transformN(videoId: String, url: String): Result<String> {
-        return executeWithFallback { engine ->
+        return executeWithFallback("N_TRANSFORM") { engine ->
             engine.transformN(videoId, url)
         }
     }

@@ -16,6 +16,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import moe.rukamori.archivetune.cipher.CipherTrace
 import moe.rukamori.archivetune.obfuscator.quickjs.youtubei.YoutubeiDiskCache
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.json.JSONObject
@@ -60,6 +61,7 @@ class QuickJsCipher(
             val script = playerScriptProvider.getPlayerScript(videoId)
             currentCoroutineContext().ensureActive()
             val timestamp = extractSignatureTimestamp(script.source)
+            CipherTrace.log("ST_ONLY", "engine=QUICKJS runtime=NOT_USED")
             Result.success(timestamp)
         } catch (cancellation: CancellationException) {
             throw cancellation
@@ -75,6 +77,7 @@ class QuickJsCipher(
                 ?: throw IllegalArgumentException("Invalid URL: $url")
             val nParam = httpUrl.queryParameter("n")
             if (nParam == null) {
+                CipherTrace.log("BYPASS", "operation=N_TRANSFORM reason=NO_N_PARAMETER")
                 return Result.success(url)
             }
             val script = playerScriptProvider.getPlayerScript(videoId)

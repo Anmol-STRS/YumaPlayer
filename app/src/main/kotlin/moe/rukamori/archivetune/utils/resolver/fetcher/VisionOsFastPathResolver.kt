@@ -7,6 +7,7 @@
 package moe.rukamori.archivetune.utils.resolver.fetcher
 
 import android.net.ConnectivityManager
+import moe.rukamori.archivetune.cipher.CipherTrace
 import moe.rukamori.archivetune.constants.AudioQuality
 import moe.rukamori.archivetune.innertube.PlaybackAuthState
 import moe.rukamori.archivetune.innertube.YouTube
@@ -118,6 +119,13 @@ internal object VisionOsFastPathResolver {
                             streamExpiresInSeconds,
                             authState.fingerprint,
                         )
+
+                        val formatType = when {
+                            selectedFormat.url != null -> "DIRECT"
+                            selectedFormat.signatureCipher != null -> "SIGNATURE_CIPHER"
+                            else -> "OTHER"
+                        }
+                        CipherTrace.log("VISIONOS_SUCCESS", "itag=${selectedFormat.itag} format=$formatType")
 
                         moe.rukamori.archivetune.playback.PlaybackTiming.log(
                             "FAST_PATH_SUCCESS",

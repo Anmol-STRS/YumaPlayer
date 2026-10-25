@@ -7,6 +7,8 @@
 package moe.rukamori.archivetune.cipher
 
 import android.content.Context
+import android.util.Log
+import moe.rukamori.archivetune.BuildConfig
 import moe.rukamori.archivetune.innertube.YouTube
 import moe.rukamori.archivetune.obfuscator.MoriCipherConfig
 import moe.rukamori.archivetune.obfuscator.MoriCipherRuntime
@@ -28,6 +30,12 @@ object CipherBootstrap {
         if (initialized) {
             CipherBridge.selectEngine(defaultEngine)
             return
+        }
+
+        CipherTrace.sink = if (BuildConfig.DEBUG) {
+            { message -> Log.d("CipherTrace", message) }
+        } else {
+            null
         }
 
         val appContext = context.applicationContext
