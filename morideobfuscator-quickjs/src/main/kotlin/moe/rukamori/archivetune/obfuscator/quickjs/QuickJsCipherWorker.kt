@@ -24,10 +24,13 @@ import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.UUID
 
+internal class QuickJsMissingSourceException(message: String) : IllegalStateException(message)
+
 internal class QuickJsCipherWorker(
     private val context: Context?,
     private val diskCache: YoutubeiDiskCache?,
     private val dispatcher: CoroutineDispatcher,
+    private val onRuntimeDiscarded: () -> Unit = {},
 ) {
     private val secureRandom = SecureRandom()
     private var quickJs: QuickJs? = null
@@ -42,10 +45,11 @@ internal class QuickJsCipherWorker(
                     ");"
                 runtime.evaluate<String>(code, "archivetune-decipher.js")
             } catch (cancellation: CancellationException) {
+                discardRuntime(runtime, cancellation)
                 throw cancellation
             } catch (interrupted: QuickJsInterruptedException) {
-                currentCoroutineContext().ensureActive()
                 discardRuntime(runtime, interrupted)
+                currentCoroutineContext().ensureActive()
                 throw interrupted
             } catch (throwable: Throwable) {
                 if (throwable.isQuickJsOutOfMemory()) {
@@ -60,6 +64,9 @@ internal class QuickJsCipherWorker(
             val error = json.optJSONObject("error")
             val message = error?.optString("message") ?: "youtubei decipher failed"
             val kind = error?.optString("kind") ?: "INTERNAL"
+            if (kind == "DECIPHER" && message.contains("Player script source missing")) {
+                throw QuickJsMissingSourceException(message)
+            }
             throw IllegalStateException("[$kind] $message")
         }
         return json.getString("value")
@@ -69,6 +76,7 @@ internal class QuickJsCipherWorker(
         val runtime = quickJs
         quickJs = null
         initialized = false
+        onRuntimeDiscarded()
         runtime?.close()
     }
 
@@ -142,6 +150,7 @@ internal class QuickJsCipherWorker(
         if (quickJs === runtime) {
             quickJs = null
             initialized = false
+            onRuntimeDiscarded()
         }
         try {
             runtime.close()
@@ -153,12 +162,13 @@ internal class QuickJsCipherWorker(
     private fun Throwable.isQuickJsOutOfMemory(): Boolean =
         this is QuickJsException && message.orEmpty().contains("out of memory", ignoreCase = true)
 
-    private companion object {
+    companion object {
         const val YOUTUBEI_VERSION = "18.0.0"
         const val BUNDLE_ASSET = "youtubei-quickjs/youtubei.bundle.js"
         const val RUNTIME_POLYFILLS_ASSET = "youtubei-quickjs/runtime-polyfills.js"
         const val JAVASCRIPT_MEMORY_LIMIT_BYTES = 256L * 1024L * 1024L
         const val JAVASCRIPT_STACK_LIMIT_BYTES = 2L * 1024L * 1024L
+        const val WORKER_STACK_SIZE_BYTES = 4L * JAVASCRIPT_STACK_LIMIT_BYTES
         const val MAX_RANDOM_BYTES = 4096
     }
 }

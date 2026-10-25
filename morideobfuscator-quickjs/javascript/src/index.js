@@ -754,7 +754,18 @@ async function resolvePrepared(requestJson) {
   }
 }
 
+const MAX_ACTIVE_PLAYERS = 100;
 const activePlayers = new Map();
+
+function recordActivePlayer(playerId, player) {
+  if (activePlayers.size >= MAX_ACTIVE_PLAYERS && !activePlayers.has(playerId)) {
+    const oldestKey = activePlayers.keys().next().value;
+    if (oldestKey !== undefined) {
+      activePlayers.delete(oldestKey);
+    }
+  }
+  activePlayers.set(playerId, player);
+}
 
 async function getOrInitPlayer(playerId, source, signatureTimestamp) {
   let player = activePlayers.get(playerId);
@@ -763,7 +774,7 @@ async function getOrInitPlayer(playerId, source, signatureTimestamp) {
   const cache = new AndroidCache();
   player = await Player.fromCache(cache, playerId);
   if (player && player.data) {
-    activePlayers.set(playerId, player);
+    recordActivePlayer(playerId, player);
     return player;
   }
 
@@ -778,7 +789,7 @@ async function getOrInitPlayer(playerId, source, signatureTimestamp) {
     signature_timestamp: timestamp,
     data,
   });
-  activePlayers.set(playerId, player);
+  recordActivePlayer(playerId, player);
   return player;
 }
 
@@ -791,15 +802,64 @@ async function decipherUrl(requestJson) {
     }
     const player = await getOrInitPlayer(playerId, request.playerSource, request.signatureTimestamp);
 
-    const url = normalizedString(request.url);
+    const inputUrl = normalizedString(request.url);
     const cipher = normalizedString(request.cipher);
-    const poToken = normalizedString(request.poToken);
-    if (poToken) {
-      player.po_token = poToken;
+
+    let targetUrlString = inputUrl;
+    let effectiveCipher = cipher;
+    let sp = "signature";
+    let hasSignature = false;
+
+    if (cipher) {
+      const cipherParams = new URLSearchParams(cipher);
+      const extractedUrl = cipherParams.get("url");
+      if (extractedUrl) {
+        targetUrlString = extractedUrl;
+      }
+      const rawSp = cipherParams.get("sp");
+      if (rawSp && rawSp.trim()) {
+        sp = rawSp.trim();
+      } else {
+        sp = "signature";
+        cipherParams.set("sp", "signature");
+        effectiveCipher = cipherParams.toString();
+      }
+      hasSignature = Boolean(cipherParams.get("s"));
     }
 
-    const deciphered = await player.decipher(url, cipher, undefined, undefined);
-    return JSON.stringify({ ok: true, value: deciphered });
+    if (!targetUrlString) {
+      throw playerError("No valid URL to decipher", "INTERNAL");
+    }
+
+    const libraryResultStr = await player.decipher(inputUrl, effectiveCipher, undefined, undefined);
+    const libraryResultUrl = new URL(libraryResultStr);
+
+    const outputUrl = new URL(targetUrlString);
+
+    if (hasSignature) {
+      const transformedSig = libraryResultUrl.searchParams.get(sp);
+      if (!transformedSig || !transformedSig.trim()) {
+        throw playerError("Decipher returned blank or missing signature", "DECIPHER");
+      }
+      outputUrl.searchParams.set(sp, transformedSig);
+    }
+
+    if (outputUrl.searchParams.has("n")) {
+      const transformedN = libraryResultUrl.searchParams.get("n");
+      if (!transformedN || !transformedN.trim()) {
+        throw playerError("Failed to decipher n token", "DECIPHER");
+      }
+      if (transformedN.startsWith("enhanced_except_")) {
+        throw playerError(`Decipher returned failure marker: ${transformedN}`, "DECIPHER");
+      }
+      outputUrl.searchParams.set("n", transformedN);
+    }
+
+    if (outputUrl.protocol !== "https:" && outputUrl.protocol !== "http:") {
+      throw playerError("Invalid stream protocol after decipher", "DECIPHER");
+    }
+
+    return JSON.stringify({ ok: true, value: outputUrl.toString() });
   } catch (error) {
     return JSON.stringify({ ok: false, error: normalizedFailure(error) });
   }

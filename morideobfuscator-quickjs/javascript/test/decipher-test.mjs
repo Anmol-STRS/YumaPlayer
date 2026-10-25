@@ -7,11 +7,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const bundlePath = resolve(__dirname, "../../src/main/assets/youtubei-quickjs/youtubei.bundle.js");
 const polyfillsPath = resolve(__dirname, "../../src/main/assets/youtubei-quickjs/runtime-polyfills.js");
 
-// Load polyfills and bundle in Node environment
 const polyfills = await readFile(polyfillsPath, "utf8");
 const bundle = await readFile(bundlePath, "utf8");
 
-// Set up mock host bindings
 const diskCache = new Map();
 globalThis.__archiveTuneCacheRead = async (key) => diskCache.get(key) || null;
 globalThis.__archiveTuneCacheWrite = async (req) => {
@@ -32,15 +30,13 @@ globalThis.__archiveTuneRandom = (size) => {
   return Buffer.from(bytes).toString("base64");
 };
 
-// Evaluate polyfills and bundle
 new Function(polyfills)();
 new Function(bundle)();
 
 const runtime = globalThis.ArchiveTuneYoutubei;
-assert.ok(runtime, "ArchiveTuneYoutubei must be defined on globalThis");
-assert.equal(typeof runtime.decipherUrl, "function", "decipherUrl must be exported");
+assert.ok(runtime);
+assert.equal(typeof runtime.decipherUrl, "function");
 
-// Synthetic player script fixture matching modern YouTube base.js structure
 const syntheticPlayerSource = `(function(g) {
   var ns = {};
   ns.Url = class {
@@ -60,7 +56,11 @@ const syntheticPlayerSource = `(function(g) {
       this.map.set("sig", "deciphered_" + s);
       this.map.set("signature", "deciphered_" + s);
       var n = this.map.get("n") || "default_n";
-      this.map.set("n", "deciphered_" + n);
+      if (n === "error_trigger") {
+        this.map.set("n", "enhanced_except_bad_token");
+      } else {
+        this.map.set("n", "deciphered_" + n);
+      }
     }
   };
 
@@ -72,69 +72,60 @@ const syntheticPlayerSource = `(function(g) {
   };
 })(this);`;
 
-console.log("[TEST] 1. signatureCipher with default sp");
 {
   const request = JSON.stringify({
-    playerId: "player1",
+    playerId: "player1_hashA_v1",
     playerSource: syntheticPlayerSource,
     signatureTimestamp: 19842,
-    cipher: "s=testSig123&sp=signature&url=https%3A%2F%2Fgooglevideo.com%2Fvideoplayback%3Fexpire%3D1000",
+    cipher: "s=testSig123&url=https%3A%2F%2Fgooglevideo.com%2Fvideoplayback%3Fexpire%3D1000",
   });
   const res = JSON.parse(await runtime.decipherUrl(request));
   assert.equal(res.ok, true);
-  assert.ok(res.value.includes("signature=deciphered_testSig123"), `Expected signature in ${res.value}`);
-  assert.ok(res.value.includes("https://googlevideo.com/videoplayback"), `Expected base URL in ${res.value}`);
+  assert.ok(res.value.includes("signature=deciphered_testSig123"));
 }
 
-console.log("[TEST] 2. signatureCipher with custom sp");
 {
   const request = JSON.stringify({
-    playerId: "player1",
+    playerId: "player1_hashA_v1",
     cipher: "s=customSig456&sp=sig&url=https%3A%2F%2Fgooglevideo.com%2Fvideoplayback%3Fexpire%3D1000",
   });
-  // Note: player1 is cached, so playerSource is omitted
   const res = JSON.parse(await runtime.decipherUrl(request));
   assert.equal(res.ok, true);
-  assert.ok(res.value.includes("sig=deciphered_customSig456"), `Expected sig in ${res.value}`);
+  assert.ok(res.value.includes("sig=deciphered_customSig456"));
 }
 
-console.log("[TEST] 3. Combined signature + n-token transform");
 {
   const request = JSON.stringify({
-    playerId: "player1",
+    playerId: "player1_hashA_v1",
     cipher: "s=combSig&sp=signature&url=https%3A%2F%2Fgooglevideo.com%2Fvideoplayback%3Fexpire%3D1000%26n%3DoriginalN",
   });
   const res = JSON.parse(await runtime.decipherUrl(request));
   assert.equal(res.ok, true);
-  assert.ok(res.value.includes("signature=deciphered_combSig"), `Expected signature in ${res.value}`);
-  assert.ok(res.value.includes("n=deciphered_originalN"), `Expected transformed n in ${res.value}`);
+  assert.ok(res.value.includes("signature=deciphered_combSig"));
+  assert.ok(res.value.includes("n=deciphered_originalN"));
 }
 
-console.log("[TEST] 4. Direct URL with n-token only");
 {
   const request = JSON.stringify({
-    playerId: "player1",
+    playerId: "player1_hashA_v1",
     url: "https://googlevideo.com/videoplayback?expire=1000&n=directNVal",
   });
   const res = JSON.parse(await runtime.decipherUrl(request));
   assert.equal(res.ok, true);
-  assert.ok(res.value.includes("n=deciphered_directNVal"), `Expected transformed n in ${res.value}`);
+  assert.ok(res.value.includes("n=deciphered_directNVal"));
 }
 
-console.log("[TEST] 5. Cache reuse from disk across reset");
 {
-  runtime.reset(); // clears in-memory activePlayers
-  // Call without playerSource - should load from diskCache
+  runtime.reset();
   const request = JSON.stringify({
-    playerId: "player1",
+    playerId: "player1_hashA_v1",
     url: "https://googlevideo.com/videoplayback?expire=1000&n=cachedN",
   });
   const res = JSON.parse(await runtime.decipherUrl(request));
-  assert.equal(res.ok, true, `Expected success from disk cache, got: ${JSON.stringify(res)}`);
+  assert.equal(res.ok, true);
   assert.ok(res.value.includes("n=deciphered_cachedN"));
 }
 
-console.log("[TEST] 6. Missing player capability (uncached player without source)");
 {
   const request = JSON.stringify({
     playerId: "unknownPlayer",
@@ -145,7 +136,6 @@ console.log("[TEST] 6. Missing player capability (uncached player without source
   assert.equal(res.error.kind, "DECIPHER");
 }
 
-console.log("[TEST] 7. Malformed input (missing playerId)");
 {
   const request = JSON.stringify({
     url: "https://googlevideo.com/videoplayback?expire=1000",
@@ -155,27 +145,60 @@ console.log("[TEST] 7. Malformed input (missing playerId)");
   assert.equal(res.error.kind, "INTERNAL");
 }
 
-console.log("[TEST] 8. Player hash update / new player isolation");
 {
-  const newPlayerSource = syntheticPlayerSource.replaceAll("deciphered_", "v2_deciphered_");
+  const newSource = syntheticPlayerSource.replaceAll("deciphered_", "v2_deciphered_");
   const request = JSON.stringify({
-    playerId: "player2",
-    playerSource: newPlayerSource,
-    signatureTimestamp: 19843,
-    url: "https://googlevideo.com/videoplayback?expire=1000&n=token2",
+    playerId: "player1_hashB_v1",
+    playerSource: newSource,
+    signatureTimestamp: 19842,
+    url: "https://googlevideo.com/videoplayback?expire=1000&n=tokenX",
   });
   const res = JSON.parse(await runtime.decipherUrl(request));
   assert.equal(res.ok, true);
-  assert.ok(res.value.includes("n=v2_deciphered_token2"), `Expected v2 transform in ${res.value}`);
+  assert.ok(res.value.includes("n=v2_deciphered_tokenX"));
 
-  // Ensure player1 is unchanged
-  const req1 = JSON.stringify({
-    playerId: "player1",
-    url: "https://googlevideo.com/videoplayback?expire=1000&n=token1",
+  const oldRequest = JSON.stringify({
+    playerId: "player1_hashA_v1",
+    url: "https://googlevideo.com/videoplayback?expire=1000&n=tokenX",
   });
-  const res1 = JSON.parse(await runtime.decipherUrl(req1));
-  assert.equal(res1.ok, true);
-  assert.ok(res1.value.includes("n=deciphered_token1"), `Expected player1 transform in ${res1.value}`);
+  const oldRes = JSON.parse(await runtime.decipherUrl(oldRequest));
+  assert.equal(oldRes.ok, true);
+  assert.ok(oldRes.value.includes("n=deciphered_tokenX"));
 }
 
-console.log("All Node tests PASSED successfully!");
+{
+  const request = JSON.stringify({
+    playerId: "player1_hashA_v1",
+    url: "https://googlevideo.com/videoplayback?c=WEB&cver=custom.123&pot=my_pot_token&expire=1000&n=tokenX",
+  });
+  const res = JSON.parse(await runtime.decipherUrl(request));
+  assert.equal(res.ok, true);
+  const parsed = new URL(res.value);
+  assert.equal(parsed.searchParams.get("c"), "WEB");
+  assert.equal(parsed.searchParams.get("cver"), "custom.123");
+  assert.equal(parsed.searchParams.get("pot"), "my_pot_token");
+}
+
+{
+  const request = JSON.stringify({
+    playerId: "player1_hashA_v1",
+    url: "https://googlevideo.com/videoplayback?expire=1000&n=error_trigger",
+  });
+  const res = JSON.parse(await runtime.decipherUrl(request));
+  assert.equal(res.ok, false);
+  assert.equal(res.error.kind, "DECIPHER");
+  assert.ok(res.error.message.includes("enhanced_except_bad_token"));
+}
+
+{
+  const request = JSON.stringify({
+    playerId: "player1_hashA_v1",
+    url: "https://googlevideo.com/videoplayback?expire=1000&query=a%2Bb&nested=x%2520y&n=directVal",
+  });
+  const res = JSON.parse(await runtime.decipherUrl(request));
+  assert.equal(res.ok, true);
+  const parsed = new URL(res.value);
+  assert.equal(parsed.searchParams.get("query"), "a+b");
+  assert.equal(parsed.searchParams.get("nested"), "x%20y");
+  assert.equal(parsed.searchParams.get("n"), "deciphered_directVal");
+}
