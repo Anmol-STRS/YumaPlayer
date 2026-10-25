@@ -42,6 +42,7 @@ kuromojiIpadic = "0.9.0"
 extractor = "0.26.3"
 translator = "1.1.1"
 rhino = "1.9.1"
+quickjsKt = "1.0.15"
 markwon = "4.6.2"
 okhttp = "5.4.0"
 accompanist = "1.0.19"
@@ -147,6 +148,7 @@ okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
 
 brotli = { module = "org.brotli:dec", version.ref = "brotli" }
 rhino = { module = "org.mozilla:rhino", version.ref = "rhino" }
+quickjs-kt = { module = "io.github.dokar3:quickjs-kt", version.ref = "quickjsKt" }
 
 desugaring = { module = "com.android.tools:desugar_jdk_libs", version.ref = "desugaring" }
 

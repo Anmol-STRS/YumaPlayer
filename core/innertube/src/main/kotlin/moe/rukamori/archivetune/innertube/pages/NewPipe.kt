@@ -94,13 +94,23 @@ object NewPipeUtils {
     }
 
     suspend fun getSignatureTimestamp(videoId: String): Result<Int> {
-        MoriCipherRuntime.signatureTimestamp(videoId).getOrNull()?.let {
+        println("NewPipeUtils: [$videoId] 1. Checking MoriCipherRuntime...")
+        val moriResult = MoriCipherRuntime.signatureTimestamp(videoId)
+        println("NewPipeUtils: [$videoId] 2. MoriCipherRuntime result: isSuccess=${moriResult.isSuccess}")
+
+        moriResult.getOrNull()?.let {
             return Result.success(it)
         }
+
+        println("NewPipeUtils: [$videoId] 3. Falling back to YoutubeJavaScriptPlayerManager...")
         return runCatching {
             withJavaScriptPlayerCacheRecovery {
-                YoutubeJavaScriptPlayerManager.getSignatureTimestamp(videoId)
+                val sts = YoutubeJavaScriptPlayerManager.getSignatureTimestamp(videoId)
+                println("NewPipeUtils: [$videoId] 4. YoutubeJavaScriptPlayerManager STS: $sts")
+                sts
             }
+        }.also {
+            println("NewPipeUtils: [$videoId] 5. Finished STS resolution: $it")
         }
     }
 

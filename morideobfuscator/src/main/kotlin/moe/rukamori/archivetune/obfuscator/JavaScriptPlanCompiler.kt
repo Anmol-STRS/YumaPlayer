@@ -16,10 +16,18 @@ internal class JavaScriptPlanCompiler {
         script: PlayerScript,
         nowMillis: Long,
     ): TransformPlan {
+        println("CompilerDebug: 1. findFunctionName for signature...")
         val signatureFunction = findFunctionName(script.source, signatureCallPatterns)
+        println("CompilerDebug: signatureFunction = $signatureFunction")
+
+        println("CompilerDebug: 2. findNTransform...")
         val nTransform = findNTransform(script.source)
         val nFunction = nTransform.functionName
+        println("CompilerDebug: nFunction = $nFunction, state = ${nTransform.state}")
+
         val declarationCache = HashMap<String, String?>()
+
+        println("CompilerDebug: 3. buildProgram for signature...")
         val signatureProgram =
             signatureFunction?.let {
                 buildProgram(
@@ -28,6 +36,9 @@ internal class JavaScriptPlanCompiler {
                     declarationCache = declarationCache,
                 )
             }
+        println("CompilerDebug: signatureProgram done (len=${signatureProgram?.length})")
+
+        println("CompilerDebug: 4. buildProgram for nFunction...")
         val nProgram =
             nFunction?.let {
                 buildProgram(
@@ -36,7 +47,11 @@ internal class JavaScriptPlanCompiler {
                     declarationCache = declarationCache,
                 )
             }
+        println("CompilerDebug: nProgram done (len=${nProgram?.length})")
+
+        println("CompilerDebug: 5. findSignatureTimestamp...")
         val signatureTimestamp = findSignatureTimestamp(script.source)
+        println("CompilerDebug: signatureTimestamp = $signatureTimestamp")
 
         if (
             signatureProgram == null &&
@@ -144,8 +159,11 @@ internal class JavaScriptPlanCompiler {
 
         enqueue(rootName)
 
+        println("CompilerDebug: buildProgram($rootName) starting while loop, queue size: ${pending.size}")
+
         while (pending.isNotEmpty() && declarations.size < MAX_DECLARATIONS) {
             val name = pending.removeFirst()
+            println("CompilerDebug: resolving declaration for: '$name' (declarations: ${declarations.size}, pending: ${pending.size})")
             if (name in namespaceOwners) continue
             val declaration =
                 if (declarationCache.containsKey(name)) {
@@ -153,6 +171,10 @@ internal class JavaScriptPlanCompiler {
                 } else {
                     findDeclaration(source, name).also { declarationCache[name] = it }
                 } ?: continue
+            if (declaration.length > MAX_DECLARATION_LENGTH) {
+                println("CompilerDebug: REJECT oversized declaration '$name', len=${declaration.length}")
+                continue
+            }
             declarations[name] = declaration
             name
                 .substringBefore('.', missingDelimiterValue = "")
@@ -200,14 +222,26 @@ internal class JavaScriptPlanCompiler {
         source: String,
         name: String,
     ): String? {
+        println("findDeclaration: START for '$name'")
         var searchStart = 0
+        var attempts = 0
         while (searchStart < source.length) {
             val nameStart = source.indexOf(name, searchStart)
-            if (nameStart < 0) return null
+            if (nameStart < 0) {
+                println("findDeclaration: NOT FOUND for '$name' after $attempts attempts")
+                return null
+            }
+            attempts++
             searchStart = nameStart + name.length
+
+            if (attempts % 100 == 0) {
+                println("findDeclaration: '$name' checking attempt $attempts at index $nameStart...")
+            }
+
             if (!hasIdentifierBoundaries(source, nameStart, name.length)) continue
 
-            findFunctionDeclarationStart(source, nameStart)?.let { declarationStart ->
+            val funcStart = findFunctionDeclarationStart(source, nameStart)
+            if (funcStart != null) {
                 val afterName = skipWhitespaceForward(source, nameStart + name.length)
                 if (source.getOrNull(afterName) == '(') {
                     val declarationEnd =
@@ -218,7 +252,7 @@ internal class JavaScriptPlanCompiler {
                             close = '}',
                         )
                     if (declarationEnd != null) {
-                        return source.normalizedDeclaration(declarationStart, declarationEnd)
+                        return source.normalizedDeclaration(funcStart, declarationEnd)
                     }
                 }
             }
@@ -229,7 +263,18 @@ internal class JavaScriptPlanCompiler {
 
             val declarationStart = findAssignmentDeclarationStart(source, nameStart, name) ?: continue
             val initializerStart = skipWhitespaceForward(source, equalsIndex + 1)
-            val declarationEnd = findInitializerEnd(source, initializerStart) ?: continue
+
+            val declarationEnd = if (source.startsWith("function", initializerStart)) {
+                findBalancedDeclarationEnd(
+                    source = source,
+                    searchStart = initializerStart,
+                    open = '{',
+                    close = '}',
+                )
+            } else {
+                findInitializerEnd(source, initializerStart)
+            } ?: continue
+
             return source.normalizedDeclaration(declarationStart, declarationEnd)
         }
         return null
@@ -329,7 +374,8 @@ internal class JavaScriptPlanCompiler {
         var quote: Char? = null
         var escaped = false
         var index = start
-        while (index < source.length) {
+        val scanLimit = minOf(source.length, start + MAX_DECLARATION_LENGTH)
+        while (index < scanLimit) {
             val current = source[index]
             if (quote != null) {
                 when {
@@ -451,6 +497,7 @@ internal class JavaScriptPlanCompiler {
         const val MAX_DECLARATIONS = 128
         const val MAX_DEPENDENCY_CANDIDATES = 256
         const val MAX_PROGRAM_LENGTH = 1_500_000
+        const val MAX_DECLARATION_LENGTH = 64 * 1024
         const val FUNCTION_KEYWORD = "function"
         val IDENTIFIER_PATTERN = Regex("""^[A-Za-z_$][\w$]*$""")
         val declarationKeywords = arrayOf("var", "let", "const")
