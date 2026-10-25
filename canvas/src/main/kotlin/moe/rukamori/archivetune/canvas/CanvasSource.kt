@@ -9,6 +9,7 @@
 package moe.rukamori.archivetune.canvas
 
 import kotlinx.serialization.Serializable
+import java.util.Locale
 
 @Serializable
 enum class CanvasSource {
@@ -19,11 +20,18 @@ enum class CanvasSource {
     ALL;
 
     fun accepts(provider: CanvasSource?): Boolean =
-        provider != null && provider != ALL && (this == ALL || this == provider)
+        if (this == ALL) {
+            provider != ALL
+        } else {
+            provider != null && provider == this
+        }
 
     companion object {
-        fun fromPreference(value: String?): CanvasSource =
-            if (value == "BOTH") ALL else entries.firstOrNull { it.name == value } ?: ALL
+        fun fromPreference(value: String?): CanvasSource {
+            val normalized = value?.trim()?.uppercase(Locale.ROOT)
+            if (normalized == "BOTH") return ALL
+            return entries.firstOrNull { it.name == normalized } ?: ALL
+        }
 
         fun fromString(value: String?): CanvasSource = fromPreference(value)
     }

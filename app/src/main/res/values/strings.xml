@@ -1284,4 +1284,25 @@
     <string name="good_afternoon">Good afternoon</string>
     <string name="good_evening">Good evening</string>
     <string name="good_night">Good night</string>
+
+    <!-- Canvas Settings -->
+    <string name="canvas_enable">Use canvas</string>
+    <string name="canvas_settings_subtitle">Sources and playback cache</string>
+    <string name="canvas_source">Canvas source</string>
+    <string name="canvas_better_lyrics">BetterLyrics</string>
+    <string name="canvas_apple_music">Apple Music</string>
+    <string name="canvas_tidal">TIDAL</string>
+    <string name="canvas_source_all">All</string>
+    <string name="canvas_source_all_desc">Try BetterLyrics, Apple Music, then TIDAL</string>
+    <string name="canvas_provider_health">Provider health</string>
+    <string name="canvas_health_not_checked">Not checked</string>
+    <string name="canvas_health_checking">Checking…</string>
+    <string name="canvas_health_available">Available</string>
+    <string name="canvas_health_unavailable">Unavailable</string>
+    <string name="canvas_health_not_selected">Not selected</string>
+    <string name="canvas_health_disabled">Canvas is off</string>
+    <string name="canvas_health_offline">Offline</string>
+    <string name="canvas_cache_desc">Videos play offline. Oldest videos are removed when the cache is full.</string>
+    <string name="canvas_settings_load_failed">Could not load canvas settings</string>
+    <string name="canvas_settings_update_failed">Could not update canvas settings</string>
 </resources>

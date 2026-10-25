@@ -84,6 +84,7 @@ fun AppearanceThemeSection(
         onSplashShapePreferenceChange = actions.onSplashShapePreferenceChange,
         archiveTuneCanvas = state.archiveTuneCanvas,
         onArchiveTuneCanvasChange = actions.onArchiveTuneCanvasChange,
+        onNavigateCanvas = actions.onNavigateCanvas,
         homeBackgroundStyle = state.homeBackgroundStyle,
         onHomeBackgroundStyleChange = actions.onHomeBackgroundStyleChange,
         randomHomeBackgroundOnStartup = state.randomHomeBackgroundOnStartup,
@@ -131,6 +132,7 @@ fun AppearanceThemeSection(
     onSplashShapePreferenceChange: (SplashShapePreference) -> Unit,
     archiveTuneCanvas: Boolean,
     onArchiveTuneCanvasChange: (Boolean) -> Unit,
+    onNavigateCanvas: () -> Unit,
     homeBackgroundStyle: HomeBackgroundStyle,
     onHomeBackgroundStyleChange: (HomeBackgroundStyle) -> Unit,
     randomHomeBackgroundOnStartup: Boolean,
@@ -262,12 +264,12 @@ fun AppearanceThemeSection(
         }
 
         item {
-            SwitchPreference(
+            PreferenceEntry(
                 title = { Text(stringResource(R.string.archivetune_canvas)) },
-                description = stringResource(R.string.archivetune_canvas_desc),
+                description = stringResource(R.string.canvas_settings_subtitle),
                 icon = { Icon(painterResource(R.drawable.motion_photos_on), null, modifier = Modifier.size(24.dp)) },
-                checked = archiveTuneCanvas,
-                onCheckedChange = onArchiveTuneCanvasChange,
+                onClick = onNavigateCanvas,
+                showChevron = true,
             )
         }
 

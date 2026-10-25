@@ -44,6 +44,7 @@ internal class CanvasVideoDownloader(
     }
 
     private val cacheJobs = LinkedHashMap<String, Job>()
+    private val jobSources = LinkedHashMap<String, moe.rukamori.archivetune.canvas.CanvasSource?>()
     private val downloadScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val client: OkHttpClient by lazy {
@@ -100,11 +101,24 @@ internal class CanvasVideoDownloader(
     fun cancelAll() {
         cacheJobs.values.forEach { job -> job.cancel() }
         cacheJobs.clear()
+        jobSources.clear()
     }
 
     @Synchronized
     fun cancel(mediaId: String) {
         cacheJobs.remove(mediaId)?.cancel()
+        jobSources.remove(mediaId)
+    }
+
+    @Synchronized
+    fun cancelIfDifferentSource(
+        mediaId: String,
+        newSource: moe.rukamori.archivetune.canvas.CanvasSource?,
+    ) {
+        val inFlightSource = jobSources[mediaId]
+        if (inFlightSource != newSource) {
+            cancel(mediaId)
+        }
     }
 
     fun downloadArtworkInBackground(
@@ -113,7 +127,17 @@ internal class CanvasVideoDownloader(
         artwork: CanvasArtwork,
     ) {
         synchronized(this) {
-            if (cacheJobs[mediaId]?.isActive == true) return
+            val existingJob = cacheJobs[mediaId]
+            val inFlightSource = jobSources[mediaId]
+            if (existingJob?.isActive == true) {
+                if (inFlightSource != artwork.source) {
+                    existingJob.cancel()
+                    jobSources.remove(mediaId)
+                } else {
+                    return
+                }
+            }
+            jobSources[mediaId] = artwork.source
             cacheJobs[mediaId] =
                 downloadScope.launch {
                     try {
@@ -125,6 +149,7 @@ internal class CanvasVideoDownloader(
                     } finally {
                         synchronized(this@CanvasVideoDownloader) {
                             cacheJobs.remove(mediaId)
+                            jobSources.remove(mediaId)
                         }
                     }
                 }
@@ -144,7 +169,7 @@ internal class CanvasVideoDownloader(
         mediaId: String,
         artwork: CanvasArtwork,
     ) {
-        val current = index.getEntry(mediaId)
+        val current = index.getEntry(mediaId)?.takeIf { it.artwork.source == artwork.source }
         val regularFileName =
             cacheCanvasVideo(
                 directory = directory,

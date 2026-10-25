@@ -287,6 +287,7 @@ fun AppearanceSettings(navController: NavController) {
                 onSplashOverlayEnabledChange = onSplashOverlayEnabledChange,
                 onSplashShapePreferenceChange = onSplashShapePreferenceChange,
                 onArchiveTuneCanvasChange = onArchiveTuneCanvasChange,
+                onNavigateCanvas = { navController.navigate(AppearanceContract.CANVAS_ROUTE) },
                 onHomeBackgroundStyleChange = onHomeBackgroundStyleChange,
                 onRandomHomeBackgroundOnStartupChange = onRandomHomeBackgroundOnStartupChange,
                 onHomeBackgroundParallaxEnabledChange = onHomeBackgroundParallaxEnabledChange,

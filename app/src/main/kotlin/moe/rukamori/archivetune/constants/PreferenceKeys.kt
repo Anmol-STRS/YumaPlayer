@@ -50,6 +50,7 @@ val SwipeToSongKey = booleanPreferencesKey("SwipeToSong")
 val PlayerDesignStyleKey = stringPreferencesKey("playerDesignStyle")
 val HidePlayerThumbnailKey = booleanPreferencesKey("hidePlayerThumbnail")
 val ArchiveTuneCanvasKey = booleanPreferencesKey("archiveTuneCanvas")
+val CanvasSourceKey = stringPreferencesKey("canvasSource")
 val CropThumbnailToSquareKey = booleanPreferencesKey("cropThumbnailToSquare")
 
 val AodThumbnailShapeKey = stringPreferencesKey("aodThumbnailShape")

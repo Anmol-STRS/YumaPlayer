@@ -816,4 +816,25 @@
     <string name="sponsor_block_fillers">Филлеры</string>
     <string name="sponsor_block_subscription_reminders">Напоминания о подписке</string>
     <string name="sponsor_block_hooks">Хуки и приветствия</string>
+
+    <!-- Canvas Settings -->
+    <string name="canvas_enable">Использовать canvas</string>
+    <string name="canvas_settings_subtitle">Источники и кеш видео</string>
+    <string name="canvas_source">Источник canvas</string>
+    <string name="canvas_better_lyrics">BetterLyrics</string>
+    <string name="canvas_apple_music">Apple Music</string>
+    <string name="canvas_tidal">TIDAL</string>
+    <string name="canvas_source_all">Все</string>
+    <string name="canvas_source_all_desc">Сначала BetterLyrics, затем Apple Music и TIDAL</string>
+    <string name="canvas_provider_health">Состояние источников</string>
+    <string name="canvas_health_not_checked">Не проверено</string>
+    <string name="canvas_health_checking">Проверка…</string>
+    <string name="canvas_health_available">Доступен</string>
+    <string name="canvas_health_unavailable">Недоступен</string>
+    <string name="canvas_health_not_selected">Не выбран</string>
+    <string name="canvas_health_disabled">Canvas выключен</string>
+    <string name="canvas_health_offline">Нет сети</string>
+    <string name="canvas_cache_desc">Видео воспроизводятся офлайн. Старые удаляются при заполнении кеша.</string>
+    <string name="canvas_settings_load_failed">Не удалось загрузить настройки canvas</string>
+    <string name="canvas_settings_update_failed">Не удалось обновить настройки canvas</string>
 </resources>
