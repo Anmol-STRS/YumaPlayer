@@ -1,10 +1,12 @@
 /*
- * YumaPlayer (2026) | Original work by MuwMix
- * GPL-3.0 License
+ * ArchiveTune (2026)
+ * © Rukamori — github.com/rukamori
+ * GPL-3.0 License | Contributors: see git history
+ * Do not remove or alter this notice. - Per GPL-3.0 Section 4 & Section 5
  */
-
 package moe.rukamori.archivetune.cipher
 
+import android.content.Context
 import moe.rukamori.archivetune.innertube.YouTube
 import moe.rukamori.archivetune.obfuscator.MoriCipherConfig
 import moe.rukamori.archivetune.obfuscator.MoriCipherRuntime
@@ -14,18 +16,29 @@ import moe.rukamori.archivetune.obfuscator.quickjs.QuickJsCipher
 import moe.rukamori.archivetune.obfuscator.quickjs.QuickJsCipherAdapter
 import moe.rukamori.archivetune.obfuscator.quickjs.asQuickJsProvider
 import java.io.File
-import javax.naming.Context
 
 object CipherBootstrap {
-    fun init(context: Context, defaultEngine: CipherEngineType = CipherEngineType.QUICKJS) {
-        val cacheDir = File(context.noBackupFilesDir, "mori_cipher")
+    private var initialized = false
+
+    @Synchronized
+    fun init(
+        context: Context,
+        defaultEngine: CipherEngineType = CipherEngineType.RHINO,
+    ) {
+        if (initialized) {
+            CipherBridge.selectEngine(defaultEngine)
+            return
+        }
+
+        val appContext = context.applicationContext
+        val cacheDir = File(appContext.noBackupFilesDir, "mori_cipher")
 
         CipherBridge.registerFactory(CipherEngineType.RHINO) {
             MoriCipherRuntime.initialize(
                 MoriCipherConfig(
                     cacheDirectory = cacheDir,
                     proxyProvider = { YouTube.streamProxy },
-                )
+                ),
             )
             MoriRhinoCipherAdapter()
         }
@@ -36,12 +49,13 @@ object CipherBootstrap {
                 proxyProvider = { YouTube.streamProxy },
             )
             val cipher = QuickJsCipher(
-                context = context,
+                context = appContext,
                 playerScriptProvider = provider.asQuickJsProvider(),
             )
             QuickJsCipherAdapter(cipher)
         }
 
         CipherBridge.selectEngine(defaultEngine)
+        initialized = true
     }
 }

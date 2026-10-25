@@ -102,14 +102,14 @@ class CipherBridgeTest {
     }
 
     @Test
-    fun explicitSelectionActivatesQuickJsOnly() = runTest {
-        val rhinoCalls = AtomicInteger(0)
-        val quickCalls = AtomicInteger(0)
+    fun explicitQuickJsSelectionExecutesQuickJsAndSkipsRhinoOnSuccess() = runTest {
+        val rhinoCalled = AtomicBoolean(false)
+        val quickCalled = AtomicBoolean(false)
 
         CipherBridge.registerFactory(CipherEngineType.RHINO) {
             object : CipherEngine {
                 override suspend fun signatureTimestamp(videoId: String): Result<Int?> {
-                    rhinoCalls.incrementAndGet()
+                    rhinoCalled.set(true)
                     return Result.success(1)
                 }
                 override suspend fun resolveStreamUrl(videoId: String, signatureCipher: String): Result<String> = Result.success("rhino")
@@ -119,7 +119,7 @@ class CipherBridgeTest {
         CipherBridge.registerFactory(CipherEngineType.QUICKJS) {
             object : CipherEngine {
                 override suspend fun signatureTimestamp(videoId: String): Result<Int?> {
-                    quickCalls.incrementAndGet()
+                    quickCalled.set(true)
                     return Result.success(2)
                 }
                 override suspend fun resolveStreamUrl(videoId: String, signatureCipher: String): Result<String> = Result.success("quick")
@@ -133,33 +133,194 @@ class CipherBridgeTest {
         val result = CipherBridge.signatureTimestamp("test")
         assertTrue(result.isSuccess)
         assertEquals(2, result.getOrNull())
-        assertEquals(0, rhinoCalls.get())
-        assertEquals(1, quickCalls.get())
+        assertTrue(quickCalled.get())
+        assertFalse(rhinoCalled.get())
+        assertEquals(CipherEngineType.QUICKJS, CipherBridge.getSelectedEngineType())
     }
 
     @Test
-    fun selectDuringSuspendedOpPreservesCapturedBackend() = runTest {
+    fun failedQuickJsBackendFallsBackToRhinoOnce() = runTest {
+        val rhinoCalls = AtomicInteger(0)
+        val quickCalls = AtomicInteger(0)
+
+        CipherBridge.registerFactory(CipherEngineType.QUICKJS) {
+            object : CipherEngine {
+                override suspend fun signatureTimestamp(videoId: String): Result<Int?> {
+                    quickCalls.incrementAndGet()
+                    return Result.failure(IllegalStateException("QuickJS decipher failed"))
+                }
+                override suspend fun resolveStreamUrl(videoId: String, signatureCipher: String): Result<String> = Result.success("quick")
+                override suspend fun transformN(videoId: String, url: String): Result<String> = Result.success("quick")
+            }
+        }
+        CipherBridge.registerFactory(CipherEngineType.RHINO) {
+            object : CipherEngine {
+                override suspend fun signatureTimestamp(videoId: String): Result<Int?> {
+                    rhinoCalls.incrementAndGet()
+                    return Result.success(999)
+                }
+                override suspend fun resolveStreamUrl(videoId: String, signatureCipher: String): Result<String> = Result.success("rhino")
+                override suspend fun transformN(videoId: String, url: String): Result<String> = Result.success("rhino")
+            }
+        }
+
+        CipherBridge.selectEngine(CipherEngineType.QUICKJS)
+        val result = CipherBridge.signatureTimestamp("test")
+
+        assertTrue(result.isSuccess)
+        assertEquals(999, result.getOrNull())
+        assertEquals(1, quickCalls.get())
+        assertEquals(1, rhinoCalls.get())
+        assertEquals(CipherEngineType.QUICKJS, CipherBridge.getSelectedEngineType())
+    }
+
+    @Test
+    fun failedQuickJsFactoryFallsBackToRhinoOnce() = runTest {
+        val rhinoCalls = AtomicInteger(0)
+
+        CipherBridge.registerFactory(CipherEngineType.QUICKJS) {
+            throw IllegalStateException("QuickJS initialization failed")
+        }
+        CipherBridge.registerFactory(CipherEngineType.RHINO) {
+            object : CipherEngine {
+                override suspend fun signatureTimestamp(videoId: String): Result<Int?> {
+                    rhinoCalls.incrementAndGet()
+                    return Result.success(888)
+                }
+                override suspend fun resolveStreamUrl(videoId: String, signatureCipher: String): Result<String> = Result.success("rhino")
+                override suspend fun transformN(videoId: String, url: String): Result<String> = Result.success("rhino")
+            }
+        }
+
+        CipherBridge.selectEngine(CipherEngineType.QUICKJS)
+        val result = CipherBridge.signatureTimestamp("test")
+
+        assertTrue(result.isSuccess)
+        assertEquals(888, result.getOrNull())
+        assertEquals(1, rhinoCalls.get())
+        assertEquals(CipherEngineType.QUICKJS, CipherBridge.getSelectedEngineType())
+    }
+
+    @Test
+    fun failedRhinoDirectlyNeverTouchesQuickJs() = runTest {
+        val quickFactoryCalls = AtomicInteger(0)
+
+        CipherBridge.registerFactory(CipherEngineType.RHINO) {
+            object : CipherEngine {
+                override suspend fun signatureTimestamp(videoId: String): Result<Int?> {
+                    return Result.failure(IllegalStateException("Rhino failed"))
+                }
+                override suspend fun resolveStreamUrl(videoId: String, signatureCipher: String): Result<String> = Result.success("rhino")
+                override suspend fun transformN(videoId: String, url: String): Result<String> = Result.success("rhino")
+            }
+        }
+        CipherBridge.registerFactory(CipherEngineType.QUICKJS) {
+            quickFactoryCalls.incrementAndGet()
+            object : CipherEngine {
+                override suspend fun signatureTimestamp(videoId: String): Result<Int?> = Result.success(1)
+                override suspend fun resolveStreamUrl(videoId: String, signatureCipher: String): Result<String> = Result.success("quick")
+                override suspend fun transformN(videoId: String, url: String): Result<String> = Result.success("quick")
+            }
+        }
+
+        val result = CipherBridge.signatureTimestamp("test")
+
+        assertTrue(result.isFailure)
+        assertEquals("Rhino failed", result.exceptionOrNull()?.message)
+        assertEquals(0, quickFactoryCalls.get())
+    }
+
+    @Test
+    fun bothEnginesFailReturnsFailurePreservingSuppressedPrimaryCause() = runTest {
+        val primaryError = IllegalStateException("Primary QuickJS crash")
+        val fallbackError = RuntimeException("Fallback Rhino crash")
+
+        CipherBridge.registerFactory(CipherEngineType.QUICKJS) {
+            object : CipherEngine {
+                override suspend fun signatureTimestamp(videoId: String): Result<Int?> {
+                    throw primaryError
+                }
+                override suspend fun resolveStreamUrl(videoId: String, signatureCipher: String): Result<String> = Result.success("quick")
+                override suspend fun transformN(videoId: String, url: String): Result<String> = Result.success("quick")
+            }
+        }
+        CipherBridge.registerFactory(CipherEngineType.RHINO) {
+            object : CipherEngine {
+                override suspend fun signatureTimestamp(videoId: String): Result<Int?> {
+                    throw fallbackError
+                }
+                override suspend fun resolveStreamUrl(videoId: String, signatureCipher: String): Result<String> = Result.success("rhino")
+                override suspend fun transformN(videoId: String, url: String): Result<String> = Result.success("rhino")
+            }
+        }
+
+        CipherBridge.selectEngine(CipherEngineType.QUICKJS)
+        val result = CipherBridge.signatureTimestamp("test")
+
+        assertTrue(result.isFailure)
+        val failure = result.exceptionOrNull()
+        assertEquals(fallbackError, failure)
+        assertTrue(failure?.suppressed?.contains(primaryError) == true)
+    }
+
+    @Test(expected = CancellationException::class)
+    fun cancellationInPrimaryPropagatesImmediatelyWithoutFallback() = runTest {
+        val rhinoCalled = AtomicBoolean(false)
+
+        CipherBridge.registerFactory(CipherEngineType.QUICKJS) {
+            object : CipherEngine {
+                override suspend fun signatureTimestamp(videoId: String): Result<Int?> {
+                    currentCoroutineContext().cancel()
+                    throw CancellationException("Primary cancelled")
+                }
+                override suspend fun resolveStreamUrl(videoId: String, signatureCipher: String): Result<String> = Result.success("")
+                override suspend fun transformN(videoId: String, url: String): Result<String> = Result.success("")
+            }
+        }
+        CipherBridge.registerFactory(CipherEngineType.RHINO) {
+            object : CipherEngine {
+                override suspend fun signatureTimestamp(videoId: String): Result<Int?> {
+                    rhinoCalled.set(true)
+                    return Result.success(1)
+                }
+                override suspend fun resolveStreamUrl(videoId: String, signatureCipher: String): Result<String> = Result.success("")
+                override suspend fun transformN(videoId: String, url: String): Result<String> = Result.success("")
+            }
+        }
+
+        CipherBridge.selectEngine(CipherEngineType.QUICKJS)
+        try {
+            CipherBridge.signatureTimestamp("test")
+        } finally {
+            assertFalse(rhinoCalled.get())
+        }
+    }
+
+    @Test
+    fun selectDuringSuspendedPrimaryPreservesCapturedBackendAndFallbackPolicy() = runTest {
         val suspendedStarted = CompletableDeferred<Unit>()
         val allowComplete = CompletableDeferred<Unit>()
 
-        CipherBridge.registerFactory(CipherEngineType.RHINO) {
+        CipherBridge.registerFactory(CipherEngineType.QUICKJS) {
             object : CipherEngine {
                 override suspend fun signatureTimestamp(videoId: String): Result<Int?> = Result.success(1)
                 override suspend fun resolveStreamUrl(videoId: String, signatureCipher: String): Result<String> {
                     suspendedStarted.complete(Unit)
                     allowComplete.await()
-                    return Result.success("from_rhino")
+                    return Result.failure(IllegalStateException("QuickJS failed after resume"))
                 }
+                override suspend fun transformN(videoId: String, url: String): Result<String> = Result.success("quick")
+            }
+        }
+        CipherBridge.registerFactory(CipherEngineType.RHINO) {
+            object : CipherEngine {
+                override suspend fun signatureTimestamp(videoId: String): Result<Int?> = Result.success(2)
+                override suspend fun resolveStreamUrl(videoId: String, signatureCipher: String): Result<String> = Result.success("rhino_fallback_resolved")
                 override suspend fun transformN(videoId: String, url: String): Result<String> = Result.success("rhino")
             }
         }
-        CipherBridge.registerFactory(CipherEngineType.QUICKJS) {
-            object : CipherEngine {
-                override suspend fun signatureTimestamp(videoId: String): Result<Int?> = Result.success(2)
-                override suspend fun resolveStreamUrl(videoId: String, signatureCipher: String): Result<String> = Result.success("from_quickjs")
-                override suspend fun transformN(videoId: String, url: String): Result<String> = Result.success("quickjs")
-            }
-        }
+
+        CipherBridge.selectEngine(CipherEngineType.QUICKJS)
 
         val op = async {
             CipherBridge.resolveStreamUrl("video", "cipher")
@@ -167,94 +328,15 @@ class CipherBridgeTest {
 
         suspendedStarted.await()
 
-        CipherBridge.selectEngine(CipherEngineType.QUICKJS)
-        assertEquals(CipherEngineType.QUICKJS, CipherBridge.getSelectedEngineType())
+        // Switch engine to RHINO mid-operation
+        CipherBridge.selectEngine(CipherEngineType.RHINO)
+        assertEquals(CipherEngineType.RHINO, CipherBridge.getSelectedEngineType())
 
         allowComplete.complete(Unit)
         val result = op.await()
 
+        // The operation captured QUICKJS as primary, which failed and cleanly invoked RHINO fallback!
         assertTrue(result.isSuccess)
-        assertEquals("from_rhino", result.getOrNull())
-    }
-
-    @Test
-    fun backendAndFactoryExceptionsAreCapturedIntoResultFailureWithoutRetryingRhino() = runTest {
-        val rhinoCalled = AtomicBoolean(false)
-
-        CipherBridge.registerFactory(CipherEngineType.RHINO) {
-            object : CipherEngine {
-                override suspend fun signatureTimestamp(videoId: String): Result<Int?> {
-                    rhinoCalled.set(true)
-                    return Result.success(1)
-                }
-                override suspend fun resolveStreamUrl(videoId: String, signatureCipher: String): Result<String> = Result.success("rhino")
-                override suspend fun transformN(videoId: String, url: String): Result<String> = Result.success("rhino")
-            }
-        }
-
-        CipherBridge.registerFactory(CipherEngineType.QUICKJS) {
-            object : CipherEngine {
-                override suspend fun signatureTimestamp(videoId: String): Result<Int?> {
-                    throw IllegalStateException("Uncaught backend crash")
-                }
-                override suspend fun resolveStreamUrl(videoId: String, signatureCipher: String): Result<String> = Result.success("quick")
-                override suspend fun transformN(videoId: String, url: String): Result<String> = Result.success("quick")
-            }
-        }
-
-        CipherBridge.selectEngine(CipherEngineType.QUICKJS)
-        val result = CipherBridge.signatureTimestamp("test")
-
-        assertTrue(result.isFailure)
-        assertTrue(result.exceptionOrNull() is IllegalStateException)
-        assertEquals("Uncaught backend crash", result.exceptionOrNull()?.message)
-        assertFalse(rhinoCalled.get())
-        assertEquals(CipherEngineType.QUICKJS, CipherBridge.getSelectedEngineType())
-    }
-
-    @Test
-    fun factoryExceptionReturnsFailureForEveryOperation() = runTest {
-        val failure = IllegalStateException("Factory failed")
-        CipherBridge.registerFactory(CipherEngineType.QUICKJS) { throw failure }
-        CipherBridge.selectEngine(CipherEngineType.QUICKJS)
-
-        assertEquals(failure, CipherBridge.signatureTimestamp("video").exceptionOrNull())
-        assertEquals(failure, CipherBridge.resolveStreamUrl("video", "cipher").exceptionOrNull())
-        assertEquals(failure, CipherBridge.transformN("video", "url").exceptionOrNull())
-        assertEquals(CipherEngineType.QUICKJS, CipherBridge.getSelectedEngineType())
-    }
-
-    @Test
-    fun missingFactoryWhenQuickJsSelectedReturnsResultFailureWithoutRetryingRhino() = runTest {
-        CipherBridge.registerFactory(CipherEngineType.RHINO) {
-            object : CipherEngine {
-                override suspend fun signatureTimestamp(videoId: String): Result<Int?> = Result.success(1)
-                override suspend fun resolveStreamUrl(videoId: String, signatureCipher: String): Result<String> = Result.success("rhino")
-                override suspend fun transformN(videoId: String, url: String): Result<String> = Result.success("rhino")
-            }
-        }
-
-        CipherBridge.selectEngine(CipherEngineType.QUICKJS)
-        val result = CipherBridge.signatureTimestamp("test")
-
-        assertTrue(result.isFailure)
-        assertTrue(result.exceptionOrNull() is IllegalStateException)
-        assertEquals(CipherEngineType.QUICKJS, CipherBridge.getSelectedEngineType())
-    }
-
-    @Test(expected = CancellationException::class)
-    fun cancellationExceptionPropagatesOutward() = runTest {
-        CipherBridge.registerFactory(CipherEngineType.RHINO) {
-            object : CipherEngine {
-                override suspend fun signatureTimestamp(videoId: String): Result<Int?> {
-                    currentCoroutineContext().cancel()
-                    throw CancellationException("Operation cancelled")
-                }
-                override suspend fun resolveStreamUrl(videoId: String, signatureCipher: String): Result<String> = Result.success("")
-                override suspend fun transformN(videoId: String, url: String): Result<String> = Result.success("")
-            }
-        }
-
-        CipherBridge.signatureTimestamp("test")
+        assertEquals("rhino_fallback_resolved", result.getOrNull())
     }
 }

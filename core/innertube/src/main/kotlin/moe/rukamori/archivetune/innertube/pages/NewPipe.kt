@@ -15,7 +15,6 @@ import moe.rukamori.archivetune.innertube.models.YouTubeClient
 import moe.rukamori.archivetune.innertube.models.response.PlayerResponse
 import moe.rukamori.archivetune.cipher.CipherBridge
 import moe.rukamori.archivetune.cipher.CipherEngineType
-import moe.rukamori.archivetune.obfuscator.MoriRhinoCipherAdapter
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -93,7 +92,6 @@ private class NewPipeDownloaderImpl(
 object NewPipeUtils {
     init {
         NewPipe.init(NewPipeDownloaderImpl(YouTube.streamProxy))
-        CipherBridge.registerFactory(CipherEngineType.RHINO) { MoriRhinoCipherAdapter() }
     }
 
     suspend fun getSignatureTimestamp(videoId: String): Result<Int> {

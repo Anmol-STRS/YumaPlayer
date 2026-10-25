@@ -1,9 +1,9 @@
 /*
- * YumaPlayer (2026) | Modified work by MuwMix
- * ArchiveTune (2026) | Original work by © Rukamori
+ * ArchiveTune (2026)
+ * © Rukamori — github.com/rukamori
  * GPL-3.0 License | Contributors: see git history
+ * Do not remove or alter this notice. - Per GPL-3.0 Section 4 & Section 5
  */
-
 package moe.rukamori.archivetune.cipher
 
 import kotlinx.coroutines.CancellationException
@@ -15,9 +15,6 @@ object CipherBridge : CipherEngine {
 
     @Volatile
     private var selectedType: CipherEngineType = CipherEngineType.RHINO
-
-    @Volatile
-    private var cachedSignatureTimestamp: Int? = null
 
     fun registerFactory(type: CipherEngineType, factory: () -> CipherEngine) {
         val existing = factories.putIfAbsent(type, factory)
@@ -32,76 +29,67 @@ object CipherBridge : CipherEngine {
 
     fun getSelectedEngineType(): CipherEngineType = selectedType
 
-    fun invalidateTimestampCache() {
-        cachedSignatureTimestamp = null
-    }
-
     fun resetForTesting() {
         factories.clear()
         engines.clear()
         selectedType = CipherEngineType.RHINO
-        cachedSignatureTimestamp = null
     }
 
-    private fun getEngine(type: CipherEngineType): CipherEngine? {
-        return engines[type] ?: factories[type]?.invoke()?.let { engine ->
-            engines.putIfAbsent(type, engine) ?: engine
-        }
-    }
-
-    private fun fallbackTypeFor(primary: CipherEngineType): CipherEngineType {
-        return when (primary) {
-            CipherEngineType.QUICKJS -> CipherEngineType.RHINO
-            CipherEngineType.RHINO -> CipherEngineType.QUICKJS
+    private fun getEngine(type: CipherEngineType): CipherEngine {
+        return engines.computeIfAbsent(type) { key ->
+            val factory = factories[key]
+                ?: throw IllegalStateException("Cipher engine $key is selected but no factory has been registered")
+            factory()
         }
     }
 
     private suspend fun <T> executeWithFallback(
-        operation: suspend (CipherEngine) -> Result<T>
+        operation: suspend (CipherEngine) -> Result<T>,
     ): Result<T> {
         val primaryType = selectedType
-        val primaryEngine = getEngine(primaryType)
-
-        val primaryResult = if (primaryEngine != null) {
-            try {
-                operation(primaryEngine)
-            } catch (cancellation: CancellationException) {
-                throw cancellation
-            } catch (e: Exception) {
-                Result.failure(e)
-            }
-        } else {
-            Result.failure(IllegalStateException("Primary engine $primaryType is not registered"))
-        }
-
-        if (primaryResult.isSuccess) {
+        val primaryResult = executeOn(primaryType, operation)
+        if (primaryResult.isSuccess || primaryType != CipherEngineType.QUICKJS) {
             return primaryResult
         }
 
-        val fallbackType = fallbackTypeFor(primaryType)
-        val fallbackEngine = getEngine(fallbackType) ?: return primaryResult
+        val fallbackResult = executeOn(CipherEngineType.RHINO, operation)
+        if (fallbackResult.isSuccess) {
+            return fallbackResult
+        }
 
-        return try {
-            operation(fallbackEngine)
+        val primaryError = primaryResult.exceptionOrNull()
+        val fallbackError = fallbackResult.exceptionOrNull()
+        if (fallbackError != null && primaryError != null && fallbackError !== primaryError) {
+            fallbackError.addSuppressed(primaryError)
+        }
+        return fallbackResult
+    }
+
+    private suspend fun <T> executeOn(
+        type: CipherEngineType,
+        operation: suspend (CipherEngine) -> Result<T>,
+    ): Result<T> {
+        val engine = try {
+            getEngine(type)
         } catch (cancellation: CancellationException) {
             throw cancellation
-        } catch (e: Exception) {
-            Result.failure(e)
+        } catch (exception: Exception) {
+            return Result.failure(exception)
+        }
+
+        return try {
+            operation(engine)
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (exception: Exception) {
+            Result.failure(exception)
         }
     }
 
     override suspend fun signatureTimestamp(videoId: String): Result<Int?> {
-        cachedSignatureTimestamp?.let { return Result.success(it) }
-
-        val result = executeWithFallback { engine ->
+        return executeWithFallback { engine ->
             engine.signatureTimestamp(videoId)
         }
-
-        result.getOrNull()?.let {
-            cachedSignatureTimestamp = it
-        }
-
-        return result
     }
 
     override suspend fun resolveStreamUrl(videoId: String, signatureCipher: String): Result<String> {
