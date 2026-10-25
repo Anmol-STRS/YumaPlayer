@@ -46,5 +46,9 @@ class CanvasSourceTest {
         assertFalse(CanvasSource.TIDAL.accepts(CanvasSource.APPLE_MUSIC))
         assertFalse(CanvasSource.TIDAL.accepts(CanvasSource.BETTER_LYRICS))
         assertFalse(CanvasSource.TIDAL.accepts(null))
+
+        assertFalse(CanvasSource.APPLE_MUSIC.accepts(null))
+        assertFalse(CanvasSource.BETTER_LYRICS.accepts(null))
+        assertFalse(CanvasSource.SPOTIFY.accepts(null))
     }
 }

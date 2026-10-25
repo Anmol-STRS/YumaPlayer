@@ -17,6 +17,7 @@ import moe.rukamori.archivetune.defaultUpdateChannel
 import moe.rukamori.archivetune.ui.screens.settings.AboutScreen
 import moe.rukamori.archivetune.ui.screens.settings.AccountSettings
 import moe.rukamori.archivetune.ui.screens.settings.AiIntegrationSettings
+import moe.rukamori.archivetune.ui.screens.settings.AppearanceContract
 import moe.rukamori.archivetune.ui.screens.settings.AppearanceSettings
 import moe.rukamori.archivetune.ui.screens.settings.BackupAndRestore
 import moe.rukamori.archivetune.ui.screens.settings.ChangelogScreen
@@ -51,7 +52,7 @@ internal fun NavGraphBuilder.settingsNavigationRoutes(
     composable("settings/appearance") {
         AppearanceSettings(navController)
     }
-    composable("settings/appearance/canvas") {
+    composable(AppearanceContract.CANVAS_ROUTE) {
         moe.rukamori.archivetune.ui.screens.settings.canvas.CanvasSettings(navController)
     }
     composable("settings/appearance/icon") {
