@@ -40,6 +40,7 @@ data class CanvasSettingsUiState(
     val cacheBytes: Long = 0L,
     val health: CanvasHealthStatus = CanvasHealthStatus(),
     val isBusy: Boolean = false,
+    val errorMessageRes: Int? = null,
 )
 
 sealed interface CanvasSettingsUiIntent {

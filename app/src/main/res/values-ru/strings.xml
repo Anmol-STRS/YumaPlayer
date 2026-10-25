@@ -816,11 +816,9 @@
     <string name="sponsor_block_fillers">Филлеры</string>
     <string name="sponsor_block_subscription_reminders">Напоминания о подписке</string>
     <string name="sponsor_block_hooks">Хуки и приветствия</string>
-
-    <!-- Canvas Settings -->
-    <string name="canvas_enable">Использовать canvas</string>
-    <string name="canvas_settings_subtitle">Источники и кеш видео</string>
-    <string name="canvas_source">Источник canvas</string>
+    <string name="canvas_enable">Использовать Canvas</string>
+    <string name="canvas_settings_subtitle">Источники и кэш видео</string>
+    <string name="canvas_source">Источник Canvas</string>
     <string name="canvas_better_lyrics">BetterLyrics</string>
     <string name="canvas_apple_music">Apple Music</string>
     <string name="canvas_tidal">TIDAL</string>
@@ -834,7 +832,7 @@
     <string name="canvas_health_not_selected">Не выбран</string>
     <string name="canvas_health_disabled">Canvas выключен</string>
     <string name="canvas_health_offline">Нет сети</string>
-    <string name="canvas_cache_desc">Видео воспроизводятся офлайн. Старые удаляются при заполнении кеша.</string>
-    <string name="canvas_settings_load_failed">Не удалось загрузить настройки canvas</string>
-    <string name="canvas_settings_update_failed">Не удалось обновить настройки canvas</string>
+    <string name="canvas_cache_desc">Сохранённые видео доступны без сети. При заполнении кэша старые записи удаляются.</string>
+    <string name="canvas_settings_load_failed">Не удалось загрузить настройки Canvas</string>
+    <string name="canvas_settings_update_failed">Не удалось обновить настройки Canvas</string>
 </resources>

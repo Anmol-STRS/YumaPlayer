@@ -646,12 +646,14 @@ fun YumaSettingsScaffold(
     modifier: Modifier = Modifier,
     onBackLongClick: (() -> Unit)? = null,
     actions: @Composable RowScope.() -> Unit = {},
+    snackbarHost: @Composable () -> Unit = {},
     scrollable: Boolean = true,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     SettingsScreenBackground(modifier = modifier) {
         GlassScaffold(
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
+            snackbarHost = snackbarHost,
             topBar = {
                 TopAppBar(
                     title = title,

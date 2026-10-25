@@ -119,11 +119,6 @@ fun AppearanceSettings(navController: NavController) {
             SplashShapePreferenceKey,
             defaultValue = SplashShapePreference.LOGO,
         )
-    val (archiveTuneCanvas, onArchiveTuneCanvasChange) =
-        rememberPreference(
-            ArchiveTuneCanvasKey,
-            defaultValue = false,
-        )
     val (homeBackgroundStyle, onHomeBackgroundStyleChange) =
         rememberEnumPreference(
             HomeBackgroundStyleKey,
@@ -250,7 +245,6 @@ fun AppearanceSettings(navController: NavController) {
             disableAnimations = disableAnimations,
             splashOverlayEnabled = splashOverlayEnabled,
             splashShapePreference = splashShapePreference,
-            archiveTuneCanvas = archiveTuneCanvas,
             homeBackgroundStyle = homeBackgroundStyle,
             randomHomeBackgroundOnStartup = randomHomeBackgroundOnStartup,
             homeBackgroundParallaxEnabled = homeBackgroundParallaxEnabled,
@@ -286,7 +280,6 @@ fun AppearanceSettings(navController: NavController) {
                 onDisableAnimationsChange = onDisableAnimationsChange,
                 onSplashOverlayEnabledChange = onSplashOverlayEnabledChange,
                 onSplashShapePreferenceChange = onSplashShapePreferenceChange,
-                onArchiveTuneCanvasChange = onArchiveTuneCanvasChange,
                 onNavigateCanvas = { navController.navigate(AppearanceContract.CANVAS_ROUTE) },
                 onHomeBackgroundStyleChange = onHomeBackgroundStyleChange,
                 onRandomHomeBackgroundOnStartupChange = onRandomHomeBackgroundOnStartupChange,

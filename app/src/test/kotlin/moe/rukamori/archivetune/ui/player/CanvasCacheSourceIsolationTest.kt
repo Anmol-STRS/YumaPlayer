@@ -2,10 +2,15 @@
  * YumaPlayer (2026) | Modified work by MuwMix
  * ArchiveTune (2026) | Original work by © Rukamori
  * GPL-3.0 License | Contributors: see git history
+ * Do not remove or alter this notice. - Per GPL-3.0 Section 4 & Section 5
  */
 
 package moe.rukamori.archivetune.ui.player
 
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.runTest
 import moe.rukamori.archivetune.canvas.CanvasSource
 import moe.rukamori.archivetune.canvas.models.CanvasArtwork
 import org.junit.After
@@ -19,6 +24,7 @@ import org.junit.Test
 import java.io.File
 import java.nio.file.Files
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class CanvasCacheSourceIsolationTest {
 
     private lateinit var tempDir: File
@@ -56,10 +62,8 @@ class CanvasCacheSourceIsolationTest {
             )
         index.persistEntry(tempDir, appleEntry)
 
-        // TIDAL rejects Apple Music entry without touching playback decoder
         assertNull(index.get("apple_track", source = CanvasSource.TIDAL))
 
-        // Untagged entry (legacy backward compatibility)
         val untaggedArtwork =
             CanvasArtwork(
                 source = null,
@@ -78,11 +82,9 @@ class CanvasCacheSourceIsolationTest {
             )
         index.persistEntry(tempDir, legacyEntry)
 
-        // Explicit sources reject untagged legacy entry
         assertNull(index.get("legacy_track", source = CanvasSource.TIDAL))
         assertNull(index.get("legacy_track", source = CanvasSource.APPLE_MUSIC))
 
-        // ALL accepts entry source presence in index
         assertEquals(CanvasSource.APPLE_MUSIC, index.getEntry("apple_track")?.artwork?.source)
         assertNull(index.getEntry("legacy_track")?.artwork?.source)
     }
@@ -110,13 +112,11 @@ class CanvasCacheSourceIsolationTest {
         assertTrue(file.exists())
         assertNotNull(index.getEntry("track_b"))
 
-        // Checking with same source does NOT remove
         val removedSame = index.removeIfDifferentSource("track_b", CanvasSource.APPLE_MUSIC)
         assertFalse(removedSame)
         assertTrue(file.exists())
         assertNotNull(index.getEntry("track_b"))
 
-        // Checking with different source removes entry and deletes file
         val removedDifferent = index.removeIfDifferentSource("track_b", CanvasSource.TIDAL)
         assertTrue(removedDifferent)
         assertFalse(file.exists())
@@ -143,8 +143,121 @@ class CanvasCacheSourceIsolationTest {
             )
         index.persistEntry(tempDir, entry)
 
-        // TIDAL required source returns null directly without touching playback decoder
         assertNull(index.getCurrentPlayable("track_c", requiredSource = CanvasSource.TIDAL))
         assertNull(index.getCurrentPlayable("track_c", requiredSource = CanvasSource.BETTER_LYRICS))
+    }
+
+    @Test
+    fun downloaderDeterministicReplacementAndIdentityFencing() =
+        runTest {
+            val testDispatcher = StandardTestDispatcher(testScheduler)
+            val downloader = CanvasVideoDownloader(index, ioDispatcher = testDispatcher)
+            val mediaId = "track_d"
+
+            downloader.downloadArtworkInBackground(
+                directory = tempDir,
+                mediaId = mediaId,
+                artwork = CanvasArtwork(source = CanvasSource.APPLE_MUSIC),
+            )
+
+            val initialJob = downloader.getJob(mediaId)
+            assertNotNull(initialJob)
+            assertEquals(CanvasSource.APPLE_MUSIC, downloader.getSource(mediaId))
+
+            downloader.downloadArtworkInBackground(
+                directory = tempDir,
+                mediaId = mediaId,
+                artwork = CanvasArtwork(source = CanvasSource.TIDAL),
+            )
+
+            val replacedJob = downloader.getJob(mediaId)
+            assertNotNull(replacedJob)
+            assertEquals(CanvasSource.TIDAL, downloader.getSource(mediaId))
+            assertTrue(initialJob!!.isCancelled)
+            assertTrue(downloader.isJobCurrent(mediaId, replacedJob!!, CanvasSource.TIDAL))
+            assertFalse(downloader.isJobCurrent(mediaId, initialJob, CanvasSource.APPLE_MUSIC))
+
+            testScheduler.advanceUntilIdle()
+
+            assertNull(downloader.getJob(mediaId))
+            assertNull(downloader.getSource(mediaId))
+        }
+
+    @Test
+    fun commitFileAtomicallySuppressesStaleOrCancelledJob() {
+        val downloader = CanvasVideoDownloader(index)
+        val mediaId = "track_e"
+        val fileName = "committed_e.mp4"
+        val target = File(tempDir, fileName)
+
+        val partial1 = File(tempDir, "$fileName.part1").apply { writeBytes(ByteArray(512)) }
+        val cancelledJob = Job().apply { cancel() }
+        val resultCancelled =
+            downloader.commitFileAtomically(
+                mediaId = mediaId,
+                partial = partial1,
+                target = target,
+                fileName = fileName,
+                job = cancelledJob,
+                expectedSource = CanvasSource.TIDAL,
+            )
+        assertNull(resultCancelled)
+        assertFalse(target.exists())
+        assertFalse(partial1.exists())
+
+        val partial2 = File(tempDir, "$fileName.part2").apply { writeBytes(ByteArray(512)) }
+        val unregisteredJob = Job()
+        val resultMismatched =
+            downloader.commitFileAtomically(
+                mediaId = mediaId,
+                partial = partial2,
+                target = target,
+                fileName = fileName,
+                job = unregisteredJob,
+                expectedSource = CanvasSource.TIDAL,
+            )
+        assertNull(resultMismatched)
+        assertFalse(target.exists())
+        assertFalse(partial2.exists())
+    }
+
+    @Test
+    fun commitEntryAtomicallySuppressesStaleOrCancelledJob() {
+        val downloader = CanvasVideoDownloader(index)
+        val mediaId = "track_f"
+        val artwork = CanvasArtwork(source = CanvasSource.TIDAL, name = "Track F")
+        val entry =
+            CanvasCacheEntry(
+                mediaId = mediaId,
+                artwork = artwork,
+                regularFileName = null,
+                verticalFileName = null,
+                createdAtMs = System.currentTimeMillis(),
+                lastAccessedAtMs = System.currentTimeMillis(),
+            )
+
+        val cancelledJob = Job().apply { cancel() }
+        val persistedCancelled =
+            downloader.commitEntryAtomically(
+                mediaId = mediaId,
+                entry = entry,
+                job = cancelledJob,
+                expectedSource = CanvasSource.TIDAL,
+                directory = tempDir,
+            )
+        assertFalse(persistedCancelled)
+        assertNull(index.getEntry(mediaId))
+
+        val unregisteredJob = Job()
+        val persistedMismatched =
+            downloader.commitEntryAtomically(
+                mediaId = mediaId,
+                entry = entry,
+                job = unregisteredJob,
+                expectedSource = CanvasSource.TIDAL,
+                directory = tempDir,
+            )
+        assertFalse(persistedMismatched)
+        assertNull(index.getEntry(mediaId))
     }
 }

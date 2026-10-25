@@ -1284,9 +1284,7 @@
     <string name="good_afternoon">Good afternoon</string>
     <string name="good_evening">Good evening</string>
     <string name="good_night">Good night</string>
-
-    <!-- Canvas Settings -->
-    <string name="canvas_enable">Use canvas</string>
+    <string name="canvas_enable">Use Canvas</string>
     <string name="canvas_settings_subtitle">Sources and playback cache</string>
     <string name="canvas_source">Canvas source</string>
     <string name="canvas_better_lyrics">BetterLyrics</string>
@@ -1302,7 +1300,7 @@
     <string name="canvas_health_not_selected">Not selected</string>
     <string name="canvas_health_disabled">Canvas is off</string>
     <string name="canvas_health_offline">Offline</string>
-    <string name="canvas_cache_desc">Videos play offline. Oldest videos are removed when the cache is full.</string>
-    <string name="canvas_settings_load_failed">Could not load canvas settings</string>
-    <string name="canvas_settings_update_failed">Could not update canvas settings</string>
+    <string name="canvas_cache_desc">Saved videos play offline. Oldest entries are removed when cache is full.</string>
+    <string name="canvas_settings_load_failed">Could not load Canvas settings</string>
+    <string name="canvas_settings_update_failed">Could not update Canvas settings</string>
 </resources>

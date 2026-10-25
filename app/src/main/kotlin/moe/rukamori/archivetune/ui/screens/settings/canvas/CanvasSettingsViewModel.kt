@@ -16,9 +16,11 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import moe.rukamori.archivetune.R
 import moe.rukamori.archivetune.canvas.CanvasSource
 import timber.log.Timber
 import javax.inject.Inject
@@ -30,6 +32,9 @@ class CanvasSettingsViewModel @Inject constructor(
     private val isBusy = MutableStateFlow(false)
     private val cacheBytes = MutableStateFlow(0L)
     private val health = MutableStateFlow(CanvasHealthStatus())
+    private val errorMessageRes = MutableStateFlow<Int?>(null)
+    private val isScreenActive = MutableStateFlow(false)
+
     private var healthCheckJob: Job? = null
     private var lastCheckedSource: CanvasSource? = null
     private var lastCheckedEnabled: Boolean = false
@@ -40,7 +45,8 @@ class CanvasSettingsViewModel @Inject constructor(
             cacheBytes,
             health,
             isBusy,
-        ) { config, bytes, healthStatus, busy ->
+            errorMessageRes,
+        ) { config, bytes, healthStatus, busy, errorRes ->
             CanvasSettingsUiState(
                 enabled = config.enabled,
                 source = config.source,
@@ -48,6 +54,7 @@ class CanvasSettingsViewModel @Inject constructor(
                 cacheBytes = bytes,
                 health = healthStatus,
                 isBusy = busy,
+                errorMessageRes = errorRes,
             )
         }.stateIn(
             scope = viewModelScope,
@@ -58,24 +65,45 @@ class CanvasSettingsViewModel @Inject constructor(
     init {
         updateCacheSize()
         viewModelScope.launch {
-            repository.configuration.collect { config ->
-                if (!config.enabled) {
-                    healthCheckJob?.cancel()
-                    lastCheckedEnabled = false
-                    lastCheckedSource = null
-                    health.value =
-                        CanvasHealthStatus(
-                            betterLyrics = CanvasHealth.DISABLED,
-                            appleMusic = CanvasHealth.DISABLED,
-                            tidal = CanvasHealth.DISABLED,
-                        )
-                } else {
-                    if (!lastCheckedEnabled || lastCheckedSource != config.source) {
-                        checkHealth(enabled = true, selectedSource = config.source)
+            repository.configuration
+                .catch { exception ->
+                    if (exception is CancellationException) throw exception
+                    Timber.e(exception, "Failed to observe canvas configuration")
+                    errorMessageRes.value = R.string.canvas_settings_load_failed
+                }.collect { config ->
+                    if (!config.enabled) {
+                        healthCheckJob?.cancel()
+                        lastCheckedEnabled = false
+                        lastCheckedSource = null
+                        health.value =
+                            CanvasHealthStatus(
+                                betterLyrics = CanvasHealth.DISABLED,
+                                appleMusic = CanvasHealth.DISABLED,
+                                tidal = CanvasHealth.DISABLED,
+                            )
+                    } else if (isScreenActive.value) {
+                        if (!lastCheckedEnabled || lastCheckedSource != config.source) {
+                            checkHealth(enabled = true, selectedSource = config.source)
+                        }
                     }
                 }
+        }
+    }
+
+    fun setScreenActive(active: Boolean) {
+        isScreenActive.value = active
+        if (!active) {
+            healthCheckJob?.cancel()
+        } else {
+            val current = uiState.value
+            if (current.enabled) {
+                checkHealth(enabled = true, selectedSource = current.source)
             }
         }
+    }
+
+    fun onErrorDismissed() {
+        errorMessageRes.value = null
     }
 
     fun onIntent(intent: CanvasSettingsUiIntent) {
@@ -86,7 +114,9 @@ class CanvasSettingsViewModel @Inject constructor(
             CanvasSettingsUiIntent.ClearCache -> clearCache()
             CanvasSettingsUiIntent.RefreshHealth -> {
                 val current = uiState.value
-                checkHealth(enabled = current.enabled, selectedSource = current.source, force = true)
+                if (isScreenActive.value) {
+                    checkHealth(enabled = current.enabled, selectedSource = current.source)
+                }
             }
         }
     }
@@ -99,6 +129,7 @@ class CanvasSettingsViewModel @Inject constructor(
                 throw e
             } catch (e: Exception) {
                 Timber.e(e, "Failed to update canvas enabled setting")
+                errorMessageRes.value = R.string.canvas_settings_update_failed
             }
         }
     }
@@ -111,6 +142,7 @@ class CanvasSettingsViewModel @Inject constructor(
                 throw e
             } catch (e: Exception) {
                 Timber.e(e, "Failed to update canvas source setting")
+                errorMessageRes.value = R.string.canvas_settings_update_failed
             }
         }
     }
@@ -124,6 +156,7 @@ class CanvasSettingsViewModel @Inject constructor(
                 throw e
             } catch (e: Exception) {
                 Timber.e(e, "Failed to update canvas cache limit")
+                errorMessageRes.value = R.string.canvas_settings_update_failed
             }
         }
     }
@@ -136,12 +169,14 @@ class CanvasSettingsViewModel @Inject constructor(
                 val cleared = repository.clearCache()
                 if (!cleared) {
                     Timber.w("Canvas cache clearAndPersist returned false")
+                    errorMessageRes.value = R.string.canvas_settings_update_failed
                 }
                 updateCacheSize()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 Timber.e(e, "Failed to clear canvas cache")
+                errorMessageRes.value = R.string.canvas_settings_update_failed
             } finally {
                 isBusy.value = false
             }
@@ -156,6 +191,7 @@ class CanvasSettingsViewModel @Inject constructor(
                 throw e
             } catch (e: Exception) {
                 Timber.w(e, "Failed to calculate canvas cache size")
+                errorMessageRes.value = R.string.canvas_settings_load_failed
             }
         }
     }
@@ -163,10 +199,9 @@ class CanvasSettingsViewModel @Inject constructor(
     private fun checkHealth(
         enabled: Boolean,
         selectedSource: CanvasSource,
-        force: Boolean = false,
     ) {
         healthCheckJob?.cancel()
-        if (!enabled) {
+        if (!enabled || !isScreenActive.value) {
             lastCheckedEnabled = false
             lastCheckedSource = null
             health.value =
