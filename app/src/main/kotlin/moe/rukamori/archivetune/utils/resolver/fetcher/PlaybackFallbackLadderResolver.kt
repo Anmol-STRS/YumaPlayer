@@ -74,7 +74,7 @@ internal object PlaybackFallbackLadderResolver {
             }
         Timber.tag(TAG).v("Session authentication status: $authStatus (sessionId=${sessionId.orEmpty()})")
 
-        if (canUseLoggedInPlayback && !(moe.rukamori.archivetune.BuildConfig.DEBUG && DISABLE_VISIONOS_FAST_START)) {
+        if (!(moe.rukamori.archivetune.BuildConfig.DEBUG && DISABLE_VISIONOS_FAST_START)) {
             val fastPathData =
                 VisionOsFastPathResolver.tryVisionOsFastPath(
                     videoId = videoId,
