@@ -152,9 +152,8 @@ object PlaybackClientSelector {
             }
 
         val order = buildList {
-            if (!authState.hasPlaybackLoginContext) {
-                add(VISIONOS)
-            }
+            add(VISIONOS)
+
             lastSuccessfulClient?.let { add(it) }
             if (authState.hasPlaybackLoginContext && PlaybackAuthCoordinator.hasCompleteWebPlaybackPoToken(authState)) {
                 add(WEB_REMIX)
