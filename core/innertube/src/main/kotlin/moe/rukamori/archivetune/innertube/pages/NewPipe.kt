@@ -97,9 +97,10 @@ object NewPipeUtils {
     }
 
     suspend fun getSignatureTimestamp(videoId: String): Result<Int> {
-        println("NewPipeUtils: [$videoId] 1. Checking MoriCipherRuntime...")
+        val engine = CipherBridge.getSelectedEngineType()
+        println("NewPipeUtils: [$videoId] 1. Checking CipherBridge (Active Engine: $engine)...")
         val moriResult = CipherBridge.signatureTimestamp(videoId)
-        println("NewPipeUtils: [$videoId] 2. MoriCipherRuntime result: isSuccess=${moriResult.isSuccess}")
+        println("NewPipeUtils: [$videoId] 2. CipherBridge result ($engine): isSuccess=${moriResult.isSuccess}")
 
         moriResult.getOrNull()?.let {
             return Result.success(it)

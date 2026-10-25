@@ -62,10 +62,10 @@ class App :
 
     private fun currentProcessName(): String? =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            Application.getProcessName()
+            getProcessName()
         } else {
             val pid = android.os.Process.myPid()
-            val activityManager = getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
+            val activityManager = getSystemService(ACTIVITY_SERVICE) as? ActivityManager
             activityManager?.runningAppProcesses?.firstOrNull { it.pid == pid }?.processName
         }
 
@@ -113,7 +113,7 @@ class App :
                 proxyProvider = { YouTube.streamProxy },
             ),
         )
-        CipherBridge.registerFactory(CipherEngineType.QUICKJS) {
+        CipherBridge.registerFactory(CipherEngineType.QUICKJS){
             val provider = MoriPlayerScriptProvider(
                 cacheDirectory = File(noBackupFilesDir, "mori_cipher"),
                 proxyProvider = { YouTube.streamProxy },
@@ -124,6 +124,7 @@ class App :
             )
             QuickJsCipherAdapter(cipher)
         }
+        CipherBridge.selectEngine(CipherEngineType.QUICKJS)
         ArchiveTuneCanvas.initialize(
             bearerToken = BuildConfig.CANVAS_BEARER_TOKEN,
             tidalToken = BuildConfig.CANVAS_TIDAL_TOKEN,
