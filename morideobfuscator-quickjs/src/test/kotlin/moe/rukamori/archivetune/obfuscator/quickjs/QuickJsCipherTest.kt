@@ -118,6 +118,36 @@ class QuickJsCipherTest {
     }
 
     @Test
+    fun resolveStreamUrlFailsOnBlankSignatureInCipher() = runTest {
+        val cipher = QuickJsCipher(
+            context = null,
+            playerScriptProvider = { QuickJsPlayerScript("test", "") },
+        )
+
+        val blankSigCipher = "s=&sp=signature&url=https%3A%2F%2Fexample.com"
+        val result = cipher.resolveStreamUrl("testVideo", blankSigCipher)
+
+        assertTrue(result.isFailure)
+        assertTrue(result.exceptionOrNull() is IllegalArgumentException)
+        cipher.close()
+    }
+
+    @Test
+    fun resolveStreamUrlPreservesDirectUrlWithPlusAndPercentEncoding() = runTest {
+        val cipher = QuickJsCipher(
+            context = null,
+            playerScriptProvider = { QuickJsPlayerScript("test", "") },
+        )
+
+        val directUrl = "https://googlevideo.com/videoplayback?expire=123&query=a%2Bb&nested=x%2520y"
+        val result = cipher.resolveStreamUrl("testVideo", directUrl)
+
+        assertTrue(result.isSuccess)
+        assertEquals(directUrl, result.getOrNull())
+        cipher.close()
+    }
+
+    @Test
     fun resolveStreamUrlFailsOnArbitraryTextNotUrl() = runTest {
         val cipher = QuickJsCipher(
             context = null,

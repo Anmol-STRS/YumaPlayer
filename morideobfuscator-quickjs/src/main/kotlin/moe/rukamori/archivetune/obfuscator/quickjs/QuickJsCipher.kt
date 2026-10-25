@@ -9,6 +9,7 @@ package moe.rukamori.archivetune.obfuscator.quickjs
 import android.content.Context
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -31,14 +32,24 @@ class QuickJsCipher(
     private val playerScriptProvider: QuickJsPlayerScriptProvider,
     private val executorService: ExecutorService =
         Executors.newSingleThreadExecutor { runnable ->
-            Thread(runnable, "QuickJsCipherWorker").apply { isDaemon = true }
+            Thread(
+                null,
+                runnable,
+                "QuickJsCipherWorker",
+                QuickJsCipherWorker.WORKER_STACK_SIZE_BYTES,
+            ).apply { isDaemon = true }
         },
     private val dispatcher: CoroutineDispatcher = executorService.asCoroutineDispatcher(),
 ) {
     private val diskCache = context?.let { YoutubeiDiskCache(it.applicationContext) }
-    private val worker = QuickJsCipherWorker(context, diskCache, dispatcher)
-    private val mutex = Mutex()
     private val knownPlayers = Collections.synchronizedSet(LinkedHashSet<String>())
+    private val worker = QuickJsCipherWorker(
+        context = context,
+        diskCache = diskCache,
+        dispatcher = dispatcher,
+        onRuntimeDiscarded = { knownPlayers.clear() },
+    )
+    private val mutex = Mutex()
 
     @Volatile
     private var closed = false
@@ -80,34 +91,49 @@ class QuickJsCipher(
     suspend fun resolveStreamUrl(videoId: String, cipher: String): Result<String> {
         if (closed) return Result.failure(IllegalStateException("QuickJsCipher is closed"))
         return try {
-            val params = parseFormEncoded(cipher)
-            val signature = params["s"]
-            val directUrl = params["url"]
-            val sp = params["sp"]?.takeIf(String::isNotBlank) ?: "signature"
-
-            if (signature != null) {
-                val streamUrl = directUrl
-                    ?: throw IllegalArgumentException("signatureCipher is missing url parameter")
-                streamUrl.toHttpUrlOrNull()
-                    ?: throw IllegalArgumentException("Invalid stream url in signatureCipher: $streamUrl")
-
-                val normalizedCipher = "s=" + URLEncoder.encode(signature, StandardCharsets.UTF_8.name()) +
-                    "&sp=" + URLEncoder.encode(sp, StandardCharsets.UTF_8.name()) +
-                    "&url=" + URLEncoder.encode(streamUrl, StandardCharsets.UTF_8.name())
-
-                val script = playerScriptProvider.getPlayerScript(videoId)
-                currentCoroutineContext().ensureActive()
-                val resolved = executeDecipher(script = script, url = null, cipher = normalizedCipher)
-                Result.success(resolved)
-            } else if (directUrl != null) {
-                transformN(videoId, directUrl)
-            } else {
+            if (cipher.startsWith("https://", ignoreCase = true) || cipher.startsWith("http://", ignoreCase = true)) {
                 val httpUrl = cipher.toHttpUrlOrNull()
-                    ?: throw IllegalArgumentException("Input is neither a valid signatureCipher nor an HTTP(S) URL: $cipher")
+                    ?: throw IllegalArgumentException("Invalid direct HTTP(S) stream URL: $cipher")
                 if (httpUrl.queryParameter("n") == null) {
                     Result.success(cipher)
                 } else {
                     transformN(videoId, cipher)
+                }
+            } else {
+                val params = parseFormEncoded(cipher)
+                if (params.containsKey("s")) {
+                    val signature = params["s"]?.trim()
+                    if (signature.isNullOrEmpty()) {
+                        throw IllegalArgumentException("signatureCipher contains blank 's' parameter: $cipher")
+                    }
+                    val directUrl = params["url"]?.takeIf(String::isNotBlank)
+                        ?: throw IllegalArgumentException("signatureCipher is missing 'url' parameter: $cipher")
+                    val streamUrl = directUrl.toHttpUrlOrNull()
+                        ?: throw IllegalArgumentException("Invalid stream URL in signatureCipher: $directUrl")
+
+                    val sp = params["sp"]?.trim()?.takeIf(String::isNotEmpty) ?: "signature"
+
+                    val normalizedCipher = "s=" + URLEncoder.encode(signature, StandardCharsets.UTF_8.name()) +
+                        "&sp=" + URLEncoder.encode(sp, StandardCharsets.UTF_8.name()) +
+                        "&url=" + URLEncoder.encode(directUrl, StandardCharsets.UTF_8.name())
+
+                    val script = playerScriptProvider.getPlayerScript(videoId)
+                    currentCoroutineContext().ensureActive()
+                    val resolved = executeDecipher(script = script, url = null, cipher = normalizedCipher)
+                    Result.success(resolved)
+                } else {
+                    val directUrl = params["url"]?.takeIf(String::isNotBlank)
+                    if (directUrl != null) {
+                        val httpUrl = directUrl.toHttpUrlOrNull()
+                            ?: throw IllegalArgumentException("Invalid stream URL in form: $directUrl")
+                        if (httpUrl.queryParameter("n") == null) {
+                            Result.success(directUrl)
+                        } else {
+                            transformN(videoId, directUrl)
+                        }
+                    } else {
+                        throw IllegalArgumentException("Input is neither a valid HTTP(S) URL nor a valid signatureCipher: $cipher")
+                    }
                 }
             }
         } catch (cancellation: CancellationException) {
@@ -128,7 +154,7 @@ class QuickJsCipher(
                 currentCoroutineContext().ensureActive()
                 val sourceHash = sha256(script.source)
                 val compositePlayerId = "${script.playerId}_${sourceHash}_v$ADAPTER_VERSION"
-                val isKnown = knownPlayers.contains(compositePlayerId)
+                val isKnown = isPlayerKnown(compositePlayerId)
 
                 val request = JSONObject().put("playerId", compositePlayerId)
                 if (!isKnown) {
@@ -137,11 +163,21 @@ class QuickJsCipher(
                 if (url != null) request.put("url", url)
                 if (cipher != null) request.put("cipher", cipher)
 
-                val result = worker.decipherUrl(request.toString())
+                val result =
+                    try {
+                        worker.decipherUrl(request.toString())
+                    } catch (missingSource: QuickJsMissingSourceException) {
+                        knownPlayers.remove(compositePlayerId)
+                        request.put("playerSource", script.source)
+                        worker.decipherUrl(request.toString())
+                    }
                 recordKnownPlayer(compositePlayerId)
                 result
             }
         }
+
+    private fun isPlayerKnown(playerId: String): Boolean =
+        synchronized(knownPlayers) { knownPlayers.contains(playerId) }
 
     private fun recordKnownPlayer(playerId: String) {
         synchronized(knownPlayers) {
@@ -156,15 +192,20 @@ class QuickJsCipher(
         }
     }
 
-    suspend fun close() =
+    suspend fun close() {
         mutex.withLock {
-            if (closed) return@withLock
-            closed = true
-            withContext(dispatcher) {
-                worker.close()
+            if (closed) return
+            try {
+                withContext(dispatcher + NonCancellable) {
+                    worker.close()
+                }
+            } finally {
+                closed = true
+                knownPlayers.clear()
+                executorService.shutdown()
             }
-            executorService.shutdown()
         }
+    }
 
     companion object {
         private const val ADAPTER_VERSION = 1
