@@ -81,7 +81,6 @@ YumaPlayer consists of **20 Gradle modules** (verified against `settings.gradle.
 ### 🛠️ Low-Level Engines
 - **`:moriextractor`** — Media extraction engine and stream link resolution utilities.
 - **`:morideobfuscator`** — Low-level code execution engine for decoding streaming signatures.
-- **`:morideobfuscator-quickjs`** — Experimental QuickJS-based stream resolver and cipher runtime (isolated port).
 - **Rule:** Isolated data components. Independent of Android UI and upper layers.
 
 ---
