@@ -36,8 +36,13 @@ internal class PlayerScriptClient(
         withContext(Dispatchers.IO) {
             val client = createClient()
             try {
+                println("PlayerScriptClient: 1. DISCOVERING...")
                 onStageChanged(PlayerScriptFetchStage.DISCOVERING)
+
+                println("PlayerScriptClient: 2. Fetching IFRAME_API_URL: $IFRAME_API_URL")
                 val iframeBody = client.fetchText(IFRAME_API_URL, MAX_DISCOVERY_BYTES)
+                println("PlayerScriptClient: 3. IFRAME fetched, len=${iframeBody.length}. Matching patterns...")
+
                 val discoveredPath =
                     playerPathPatterns.firstNotNullOfOrNull { pattern ->
                         pattern.find(iframeBody)?.groupValues?.getOrNull(1)
@@ -46,19 +51,22 @@ internal class PlayerScriptClient(
                         ?.groupValues
                         ?.getOrNull(1)
                         ?.let { "/s/player/$it/player_ias.vflset/en_US/base.js" }
-                        ?: videoId
-                            ?.takeIf(VIDEO_ID_PATTERN::matches)
-                            ?.let { id ->
-                                val embedBody = client.fetchText("$YOUTUBE_ORIGIN/embed/$id", MAX_DISCOVERY_BYTES)
-                                playerPathPatterns.firstNotNullOfOrNull { pattern ->
-                                    pattern.find(embedBody)?.groupValues?.getOrNull(1)
-                                } ?: playerIdPattern
-                                    .find(embedBody)
-                                    ?.groupValues
-                                    ?.getOrNull(1)
-                                    ?.let { "/s/player/$it/player_ias.vflset/en_US/base.js" }
-                            } ?: throw MoriCipherException("YouTube player URL was not found")
+                    ?: videoId
+                        ?.takeIf(VIDEO_ID_PATTERN::matches)
+                        ?.let { id ->
+                            println("PlayerScriptClient: 3a. Iframe failed, fetching embed for $id...")
+                            val embedBody = client.fetchText("$YOUTUBE_ORIGIN/embed/$id", MAX_DISCOVERY_BYTES)
+                            println("PlayerScriptClient: 3b. Embed fetched, matching...")
+                            playerPathPatterns.firstNotNullOfOrNull { pattern ->
+                                pattern.find(embedBody)?.groupValues?.getOrNull(1)
+                            } ?: playerIdPattern
+                                .find(embedBody)
+                                ?.groupValues
+                                ?.getOrNull(1)
+                                ?.let { "/s/player/$it/player_ias.vflset/en_US/base.js" }
+                        } ?: throw MoriCipherException("YouTube player URL was not found")
 
+                println("PlayerScriptClient: 4. Discovered path: $discoveredPath")
                 val unescapedPath = discoveredPath.replace("\\/", "/")
                 val playerUrl =
                     when {
@@ -74,9 +82,14 @@ internal class PlayerScriptClient(
                         ?.getOrNull(1)
                         ?: throw MoriCipherException("YouTube player identifier was invalid")
 
+                println("PlayerScriptClient: 5. DOWNLOADING playerUrl: $playerUrl")
                 onStageChanged(PlayerScriptFetchStage.DOWNLOADING)
                 val source = client.fetchText(playerUrl, MAX_PLAYER_BYTES)
+                println("PlayerScriptClient: 6. SUCCESS, script len=${source.length}")
                 PlayerScript(playerId = playerId, url = playerUrl, source = source)
+            } catch (e: Exception) {
+                println("PlayerScriptClient: ERROR -> ${e.javaClass.simpleName}: ${e.message}")
+                throw e
             } finally {
                 client.connectionPool.evictAll()
                 client.dispatcher.executorService.shutdown()

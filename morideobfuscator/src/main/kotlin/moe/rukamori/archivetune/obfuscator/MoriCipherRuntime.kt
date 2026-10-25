@@ -54,6 +54,7 @@ object MoriCipherRuntime : MoriCipherResolver {
         force: Boolean,
         videoId: String?,
     ): Result<CipherRefreshResult> {
+        println("MoriDebug: refresh ENTER (force=$force, videoId=$videoId)")
         val currentEngine = requireEngine()
         ensureCacheLoaded(currentEngine)
         val (shared, ownsRefresh) =
@@ -62,7 +63,12 @@ object MoriCipherRuntime : MoriCipherResolver {
                 CompletableDeferred<Result<CipherRefreshResult>>()
                     .also { activeRefresh = it } to true
             }
-        if (!ownsRefresh) return shared.await()
+        println("MoriDebug: refresh ownsRefresh=$ownsRefresh")
+        if (!ownsRefresh) {
+            println("MoriDebug: refresh waiting for shared.await()...")
+            return shared.await()
+        }
+        println("MoriDebug: refresh starting fetch...")
 
         val result =
             try {
@@ -223,19 +229,31 @@ object MoriCipherRuntime : MoriCipherResolver {
         videoId: String,
         operation: suspend (TransformPlan) -> T,
     ): Result<T> {
+        println("MoriDebug: 1. requireEngine")
         val currentEngine = requireEngine()
+
+        println("MoriDebug: 2. ensureCacheLoaded")
         ensureCacheLoaded(currentEngine)
+
+        println("MoriDebug: 3. checking artifact plan (hasArtifact=${currentEngine.artifact != null})")
         val firstPlan =
             currentEngine.artifact?.plan
-                ?: refresh(force = true, videoId = videoId)
-                    .getOrElse { return Result.failure(it) }
-                    .let { currentEngine.artifact?.plan }
+                ?: run {
+                    println("MoriDebug: 3a. Calling refresh(force=true)...")
+                    refresh(force = true, videoId = videoId)
+                        .also { println("MoriDebug: 3b. Refresh result: $it") }
+                        .getOrElse { return Result.failure(it) }
+                        .let { currentEngine.artifact?.plan }
+                }
                 ?: return Result.failure(MoriCipherException("Cipher plan was unavailable"))
+
+        println("MoriDebug: 4. Executing operation on plan...")
         return try {
-            Result.success(operation(firstPlan))
+            Result.success(operation(firstPlan)).also { println("MoriDebug: 5. Done operation") }
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (firstFailure: Exception) {
+            println("MoriDebug: Operation failed: ${firstFailure.message}")
             val recoveredPlan = recoverPlan(currentEngine, firstPlan, videoId) ?: return Result.failure(firstFailure)
             try {
                 Result.success(operation(recoveredPlan))
