@@ -21,6 +21,7 @@ kotlin {
 }
 
 dependencies {
+    implementation(project(":cipher-api"))
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.okhttp)
     implementation(libs.quickjs.kt)

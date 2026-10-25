@@ -393,6 +393,8 @@ implementation(libs.androidx.foundation.layout)
     implementation(project(":spotifycore"))
     implementation(project(":moriextractor"))
     implementation(project(":morideobfuscator"))
+    implementation(project(":morideobfuscator-quickjs"))
+    implementation(project(":cipher-api"))
 
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.okhttp)
