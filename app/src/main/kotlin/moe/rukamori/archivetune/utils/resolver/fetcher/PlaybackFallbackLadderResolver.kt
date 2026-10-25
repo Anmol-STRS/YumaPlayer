@@ -30,6 +30,7 @@ import timber.log.Timber
 
 internal object PlaybackFallbackLadderResolver {
     private const val TAG = "PlaybackFallbackLadderResolver"
+    private const val DISABLE_VISIONOS_FAST_START = false
 
     suspend fun resolve(
         videoId: String,
@@ -73,7 +74,7 @@ internal object PlaybackFallbackLadderResolver {
             }
         Timber.tag(TAG).v("Session authentication status: $authStatus (sessionId=${sessionId.orEmpty()})")
 
-        if (canUseLoggedInPlayback) {
+        if (canUseLoggedInPlayback && !(moe.rukamori.archivetune.BuildConfig.DEBUG && DISABLE_VISIONOS_FAST_START)) {
             val fastPathData =
                 VisionOsFastPathResolver.tryVisionOsFastPath(
                     videoId = videoId,

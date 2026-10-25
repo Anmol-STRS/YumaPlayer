@@ -18,6 +18,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import moe.rukamori.archivetune.cipher.CipherTrace
 import moe.rukamori.archivetune.obfuscator.quickjs.youtubei.YoutubeiDiskCache
 import org.json.JSONObject
 import java.security.MessageDigest
@@ -43,6 +44,7 @@ internal class QuickJsCipherWorker(
                 val code = "await globalThis.ArchiveTuneYoutubei.decipherUrl(" +
                     JSONObject.quote(requestJson) +
                     ");"
+                CipherTrace.log("JS_EXECUTE", "engine=QUICKJS operation=DECIPHER")
                 runtime.evaluate<String>(code, "archivetune-decipher.js")
             } catch (cancellation: CancellationException) {
                 discardRuntime(runtime, cancellation)
@@ -81,12 +83,17 @@ internal class QuickJsCipherWorker(
     }
 
     private suspend fun ensureInitialized(): QuickJs {
-        quickJs?.takeIf { initialized }?.let { return it }
+        quickJs?.takeIf { initialized }?.let {
+            CipherTrace.log("RUNTIME_REUSED", "engine=QUICKJS")
+            return it
+        }
         quickJs?.close()
 
         val appContext = context?.applicationContext
             ?: throw IllegalStateException("Android Context is required to initialize QuickJS assets")
 
+        CipherTrace.log("RUNTIME_INIT_START", "engine=QUICKJS")
+        val initStartNanos = System.nanoTime()
         val runtime = QuickJs.create(dispatcher)
         try {
             runtime.memoryLimit = JAVASCRIPT_MEMORY_LIMIT_BYTES
@@ -123,8 +130,12 @@ internal class QuickJsCipherWorker(
 
             quickJs = runtime
             initialized = true
+            val durationMs = (System.nanoTime() - initStartNanos) / 1_000_000L
+            CipherTrace.log("RUNTIME_INIT_SUCCESS", "engine=QUICKJS durationMs=$durationMs")
             return runtime
         } catch (throwable: Throwable) {
+            val errorClass = throwable.javaClass.simpleName
+            CipherTrace.log("RUNTIME_INIT_FAILED", "engine=QUICKJS error=$errorClass")
             discardRuntime(runtime, throwable)
             throw throwable
         }
