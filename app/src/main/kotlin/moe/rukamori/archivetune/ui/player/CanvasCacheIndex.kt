@@ -61,10 +61,12 @@ internal class CanvasCacheIndex {
     fun get(
         mediaId: String,
         preferCachedOnly: Boolean = false,
+        source: moe.rukamori.archivetune.canvas.CanvasSource = moe.rukamori.archivetune.canvas.CanvasSource.ALL,
     ): CanvasArtwork? {
         if (maxSizeBytes == 0L || mediaId.isBlank()) return null
         val directory = cacheDirectory ?: return null
         val entry = map[mediaId] ?: return null
+        if (!source.accepts(entry.artwork.source)) return null
         val playable =
             entry.toPlayableArtwork(
                 directory = directory,
@@ -81,12 +83,38 @@ internal class CanvasCacheIndex {
     }
 
     @Synchronized
-    fun getCurrentPlayable(mediaId: String): CanvasArtwork? {
+    fun getCurrentPlayable(
+        mediaId: String,
+        requiredSource: moe.rukamori.archivetune.canvas.CanvasSource? = null,
+    ): CanvasArtwork? {
         val directory = cacheDirectory ?: return null
-        return map[mediaId]?.toPlayableArtwork(
+        val entry = map[mediaId] ?: return null
+        if (requiredSource != null && !requiredSource.accepts(entry.artwork.source)) {
+            return null
+        }
+        return entry.toPlayableArtwork(
             directory = directory,
             preferCachedOnly = false,
         )
+    }
+
+    @Synchronized
+    fun removeIfDifferentSource(
+        mediaId: String,
+        newSource: moe.rukamori.archivetune.canvas.CanvasSource?,
+    ): Boolean {
+        val entry = map[mediaId] ?: return false
+        val incompatible =
+            if (newSource == null) {
+                entry.artwork.source != null
+            } else {
+                !newSource.accepts(entry.artwork.source)
+            }
+        if (incompatible) {
+            remove(mediaId)
+            return true
+        }
+        return false
     }
 
     @Synchronized

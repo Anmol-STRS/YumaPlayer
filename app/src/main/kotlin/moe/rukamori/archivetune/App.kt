@@ -107,7 +107,10 @@ class App :
                 proxyProvider = { YouTube.streamProxy },
             ),
         )
-        ArchiveTuneCanvas.initialize(BuildConfig.CANVAS_BEARER_TOKEN)
+        ArchiveTuneCanvas.initialize(
+            bearerToken = BuildConfig.CANVAS_BEARER_TOKEN,
+            tidalToken = BuildConfig.CANVAS_TIDAL_TOKEN,
+        )
         SharedLyricsEngine.update()
 
         val locale = Locale.getDefault()

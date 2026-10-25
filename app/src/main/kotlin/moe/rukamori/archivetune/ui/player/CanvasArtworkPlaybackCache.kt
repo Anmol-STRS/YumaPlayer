@@ -27,7 +27,8 @@ object CanvasArtworkPlaybackCache {
     fun get(
         mediaId: String,
         preferCachedOnly: Boolean = false,
-    ): CanvasArtwork? = index.get(mediaId, preferCachedOnly)
+        source: moe.rukamori.archivetune.canvas.CanvasSource = moe.rukamori.archivetune.canvas.CanvasSource.ALL,
+    ): CanvasArtwork? = index.get(mediaId, preferCachedOnly, source)
 
     fun cacheArtworkInBackground(
         mediaId: String,
@@ -49,7 +50,11 @@ object CanvasArtworkPlaybackCache {
     ): CanvasArtwork =
         withContext(Dispatchers.IO) {
             if (index.isCacheDisabled() || mediaId.isBlank()) return@withContext artwork
-            val current = index.getCurrentPlayable(mediaId)
+            downloader.cancelIfDifferentSource(mediaId, artwork.source)
+            val current = index.getCurrentPlayable(mediaId, requiredSource = artwork.source)
+            if (current == null) {
+                index.removeIfDifferentSource(mediaId, artwork.source)
+            }
             cacheArtworkInBackground(
                 mediaId = mediaId,
                 artwork = artwork,

@@ -14,8 +14,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import moe.rukamori.archivetune.canvas.CanvasSource
 import moe.rukamori.archivetune.canvas.models.CanvasArtwork
 import moe.rukamori.archivetune.constants.ArchiveTuneCanvasKey
+import moe.rukamori.archivetune.constants.CanvasSourceKey
 import moe.rukamori.archivetune.ui.player.CanvasArtworkPlaybackCache
 import moe.rukamori.archivetune.ui.player.resolveCanvasArtworkForPlayback
 import moe.rukamori.archivetune.utils.rememberPreference
@@ -46,7 +50,9 @@ fun rememberPlayerCanvasState(
     artistName: String?,
 ): PlayerCanvasState {
     val (isCanvasEnabled) = rememberPreference(ArchiveTuneCanvasKey, defaultValue = false)
-    val canvasState = remember(mediaId, isCanvasEnabled) {
+    val (canvasSourcePreference) = rememberPreference(CanvasSourceKey, defaultValue = CanvasSource.ALL.name)
+    val canvasSource = remember(canvasSourcePreference) { CanvasSource.fromPreference(canvasSourcePreference) }
+    val canvasState = remember(mediaId, isCanvasEnabled, canvasSource) {
         PlayerCanvasState(isCanvasEnabled, null)
     }
 
@@ -54,8 +60,8 @@ fun rememberPlayerCanvasState(
     val currentTitle by rememberUpdatedState(songTitle)
     val currentArtist by rememberUpdatedState(artistName)
 
-    LaunchedEffect(isCanvasEnabled, mediaId, hasMetadata) {
-        Timber.tag("PlayerCanvas").d("Lookup trigger: isCanvasEnabled=$isCanvasEnabled, mediaId=$mediaId, title=$currentTitle, artist=$currentArtist")
+    LaunchedEffect(isCanvasEnabled, canvasSource, mediaId, hasMetadata) {
+        Timber.tag("PlayerCanvas").d("Lookup trigger: isCanvasEnabled=$isCanvasEnabled, source=$canvasSource, mediaId=$mediaId, title=$currentTitle, artist=$currentArtist")
         if (!isCanvasEnabled) {
             canvasState.artwork = null
             Timber.tag("PlayerCanvas").d("Canvas is disabled in settings (archiveTuneCanvas = false)")
@@ -66,11 +72,15 @@ fun rememberPlayerCanvasState(
             Timber.tag("PlayerCanvas").d("mediaId is null or blank, skipping lookup")
             return@LaunchedEffect
         }
-        if (canvasState.artwork != null) {
+        if (canvasState.artwork != null && canvasSource.accepts(canvasState.artwork?.source)) {
             return@LaunchedEffect
         }
 
-        CanvasArtworkPlaybackCache.get(mediaId)?.let { cached ->
+        val cached =
+            withContext(Dispatchers.IO) {
+                CanvasArtworkPlaybackCache.get(mediaId = mediaId, source = canvasSource)
+            }
+        if (cached != null) {
             Timber.tag("PlayerCanvas").d("Cache hit for $mediaId: primaryUrl=${cached.preferredAnimationUrl}, fallbackUrl=${cached.videoUrl}")
             canvasState.artwork = cached
             return@LaunchedEffect
@@ -83,7 +93,7 @@ fun rememberPlayerCanvasState(
         }
 
         canvasState.artwork = null
-        Timber.tag("PlayerCanvas").d("Cache miss, resolving from network for '$currentTitle' by '$currentArtist' (mediaId=$mediaId)...")
+        Timber.tag("PlayerCanvas").d("Cache miss, resolving from network for '$currentTitle' by '$currentArtist' (mediaId=$mediaId, source=$canvasSource)...")
         val resolved =
             resolveCanvasArtworkForPlayback(
                 mediaId = mediaId,
@@ -92,6 +102,7 @@ fun rememberPlayerCanvasState(
                 storefront = "us",
                 requireVertical = false,
                 allowNetwork = true,
+                source = canvasSource,
             )
         Timber.tag("PlayerCanvas").i("Resolved result for $mediaId: ${if (resolved != null) "primaryUrl=${resolved.preferredAnimationUrl}, videoUrl=${resolved.videoUrl}" else "null"}")
         canvasState.artwork = resolved

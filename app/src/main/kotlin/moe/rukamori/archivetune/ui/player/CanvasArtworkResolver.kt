@@ -9,6 +9,7 @@ package moe.rukamori.archivetune.ui.player
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import moe.rukamori.archivetune.canvas.ArchiveTuneCanvas
+import moe.rukamori.archivetune.canvas.CanvasSource
 import moe.rukamori.archivetune.canvas.models.CanvasArtwork
 import timber.log.Timber
 
@@ -21,11 +22,13 @@ internal suspend fun resolveCanvasArtworkForPlayback(
     storefront: String,
     requireVertical: Boolean,
     allowNetwork: Boolean,
+    source: CanvasSource = CanvasSource.ALL,
 ): CanvasArtwork? {
     withContext(Dispatchers.IO) {
         CanvasArtworkPlaybackCache.get(
             mediaId = mediaId,
             preferCachedOnly = !allowNetwork,
+            source = source,
         )
     }?.takeIf { artwork -> artwork.hasRequiredCanvasVariant(requireVertical) }
         ?.let { return it }
@@ -42,12 +45,14 @@ internal suspend fun resolveCanvasArtworkForPlayback(
                 artistNameRaw = artistNameRaw,
                 storefront = storefront,
                 requireVertical = requireVertical,
+                source = source,
             ) ?: fetchCanvasArtworkByAlbumFallback(
                 albumId = albumId,
                 albumTitleRaw = albumTitleRaw,
                 artistNameRaw = artistNameRaw,
                 storefront = storefront,
                 requireVertical = requireVertical,
+                source = source,
             )
 
         if (fetched == null) {
@@ -64,6 +69,7 @@ internal suspend fun fetchCanvasArtworkForPlayback(
     artistNameRaw: String,
     storefront: String,
     requireVertical: Boolean,
+    source: CanvasSource = CanvasSource.ALL,
 ): CanvasArtwork? {
     val songTitle = normalizeCanvasSongTitle(songTitleRaw)
     val artistName = normalizeCanvasArtistName(artistNameRaw)
@@ -83,6 +89,8 @@ internal suspend fun fetchCanvasArtworkForPlayback(
                 song = song,
                 artist = artist,
                 storefront = storefront,
+                source = source,
+                requireVertical = requireVertical,
             )?.takeIf { artwork ->
                 if (requireVertical) {
                     !artwork.preferredVerticalAnimationUrl.isNullOrBlank()
@@ -99,13 +107,19 @@ private suspend fun fetchCanvasArtworkByAlbumFallback(
     artistNameRaw: String,
     storefront: String,
     requireVertical: Boolean,
+    source: CanvasSource = CanvasSource.ALL,
 ): CanvasArtwork? {
     albumId
         ?.trim()
         ?.takeIf { it.isNotBlank() }
         ?.let { nonBlankAlbumId ->
             ArchiveTuneCanvas
-                .getByAlbumId(nonBlankAlbumId)
+                .getByAlbumId(
+                    albumId = nonBlankAlbumId,
+                    storefront = storefront,
+                    source = source,
+                    requireVertical = requireVertical,
+                )
                 ?.takeIf { artwork -> artwork.hasRequiredCanvasVariant(requireVertical) }
                 ?.let { return it }
         }
@@ -119,6 +133,8 @@ private suspend fun fetchCanvasArtworkByAlbumFallback(
             song = albumTitle,
             artist = artistName,
             storefront = storefront,
+            source = source,
+            requireVertical = requireVertical,
         )?.takeIf { artwork -> artwork.hasRequiredCanvasVariant(requireVertical) }
 }
 

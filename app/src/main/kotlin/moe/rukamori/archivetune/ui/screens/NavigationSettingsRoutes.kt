@@ -51,6 +51,9 @@ internal fun NavGraphBuilder.settingsNavigationRoutes(
     composable("settings/appearance") {
         AppearanceSettings(navController)
     }
+    composable("settings/appearance/canvas") {
+        moe.rukamori.archivetune.ui.screens.settings.canvas.CanvasSettings(navController)
+    }
     composable("settings/appearance/icon") {
         IconScreen(navController)
     }
