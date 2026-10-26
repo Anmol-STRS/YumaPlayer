@@ -1239,4 +1239,26 @@
     <string name="good_afternoon">こんにちは</string>
     <string name="good_evening">こんばんは</string>
     <string name="good_night">おやすみ</string>
+    <string name="release_open_failed"></string>
+    <string name="release_state_collapsed"></string>
+    <string name="release_notes_section_other"></string>
+    <string name="release_notes_summary_features"></string>
+    <string name="release_notes_section_documentation"></string>
+    <string name="home_background_none"></string>
+    <string name="release_notes_show_all"></string>
+    <string name="release_notes_open_on_github"></string>
+    <string name="release_notes_section_performance"></string>
+    <string name="release_notes_summary_fixes"></string>
+    <string name="home_background_lava"></string>
+    <string name="release_notes_section_features"></string>
+    <string name="release_badge_prerelease"></string>
+    <string name="release_notes_section_build_ci"></string>
+    <string name="release_notes_show_less"></string>
+    <string name="release_notes_summary_performance"></string>
+    <string name="release_badge_installed"></string>
+    <string name="release_notes_section_improvements"></string>
+    <string name="release_notes_section_fixes"></string>
+    <string name="release_notes_section_refactors"></string>
+    <string name="release_state_expanded"></string>
+    <string name="release_badge_latest"></string>
 </resources>
