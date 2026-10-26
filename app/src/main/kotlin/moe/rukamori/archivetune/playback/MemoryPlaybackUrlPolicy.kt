@@ -134,7 +134,7 @@ internal fun MusicService.buildResolvedPlaybackDataSpec(
             requestedLength = dataSpec.length,
             position = dataSpec.position,
             knownContentLength = knownContentLength,
-            chunkLength = MusicService.CHUNK_LENGTH,
+            chunkLength = PlaybackConstants.CHUNK_LENGTH,
             mimeType = storedFormat?.mimeType,
         )
     return length?.let { nonNullLength ->

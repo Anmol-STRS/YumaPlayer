@@ -38,7 +38,7 @@ internal class DiscordHoldController(
     fun updateActiveDiscordHoldState(nextHoldState: ActiveHoldState?) {
         val previousHoldState = activeHoldState
         activeHoldState = nextHoldState
-        Timber.tag(MusicService.DISCORD_SYNC_TAG).d(
+        Timber.tag(DiscordConstants.DISCORD_SYNC_TAG).d(
             "hold state transition previous=%s next=%s",
             previousHoldState,
             nextHoldState,
@@ -51,7 +51,7 @@ internal class DiscordHoldController(
         nextHoldState: ActiveHoldState?,
     ) {
         if (previousHoldState === nextHoldState) {
-            Timber.tag(MusicService.DISCORD_SYNC_TAG).v("hold timeout job unchanged for holdState=%s", nextHoldState)
+            Timber.tag(DiscordConstants.DISCORD_SYNC_TAG).v("hold timeout job unchanged for holdState=%s", nextHoldState)
             return
         }
 
@@ -59,19 +59,19 @@ internal class DiscordHoldController(
         activeHoldTimeoutJob = null
 
         if (nextHoldState == null) {
-            Timber.tag(MusicService.DISCORD_SYNC_TAG).d("no active hold state, no timeout job scheduled")
+            Timber.tag(DiscordConstants.DISCORD_SYNC_TAG).d("no active hold state, no timeout job scheduled")
             return
         }
 
-        Timber.tag(MusicService.DISCORD_SYNC_TAG).d(
+        Timber.tag(DiscordConstants.DISCORD_SYNC_TAG).d(
             "scheduling hold timeout job state=%s timeoutMs=%d",
             nextHoldState,
-            MusicService.DISCORD_HOLD_TIMEOUT_MS,
+            DiscordConstants.DISCORD_HOLD_TIMEOUT_MS,
         )
         activeHoldTimeoutJob =
             service.scope.launch {
-                delay(MusicService.DISCORD_HOLD_TIMEOUT_MS)
-                Timber.tag(MusicService.DISCORD_SYNC_TAG).d(
+                delay(DiscordConstants.DISCORD_HOLD_TIMEOUT_MS)
+                Timber.tag(DiscordConstants.DISCORD_SYNC_TAG).d(
                     "hold timeout fired state=%s -> enqueue resync",
                     nextHoldState,
                 )
@@ -84,7 +84,7 @@ internal class DiscordHoldController(
 
     fun clearDiscordHoldState() {
         if (activeHoldState != null) {
-            Timber.tag(MusicService.DISCORD_SYNC_TAG).d("clearing active hold state=%s", activeHoldState)
+            Timber.tag(DiscordConstants.DISCORD_SYNC_TAG).d("clearing active hold state=%s", activeHoldState)
         }
         updateActiveDiscordHoldState(null)
     }
@@ -96,7 +96,7 @@ internal class DiscordHoldController(
                 mode = visibleDecision.mode,
                 appliedAtMs = System.currentTimeMillis(),
             )
-        Timber.tag(MusicService.DISCORD_SYNC_TAG).d(
+        Timber.tag(DiscordConstants.DISCORD_SYNC_TAG).d(
             "marked last applied visible presence songId=%s mode=%s",
             visibleDecision.songId,
             visibleDecision.mode,
@@ -108,6 +108,6 @@ internal class DiscordHoldController(
             nowMs = nowMs,
             activeHoldState = activeHoldState,
             lastAppliedVisiblePresence = lastAppliedVisiblePresence,
-            holdTimeoutMs = MusicService.DISCORD_HOLD_TIMEOUT_MS,
+            holdTimeoutMs = DiscordConstants.DISCORD_HOLD_TIMEOUT_MS,
         )
 }

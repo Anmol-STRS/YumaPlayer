@@ -657,7 +657,7 @@ class MusicServiceLifecycle(
                 }
             }.onFailure { error ->
                 if (error is CancellationException) throw error
-                Timber.tag(MusicService.TAG).w(error, "Failed to restore persisted queue, clearing data")
+                Timber.tag(PlaybackConstants.TAG).w(error, "Failed to restore persisted queue, clearing data")
                 delegate.isRestoringPersistentState = false
                 delegate.cancelRestoredQueueHydration()
                 delegate.clearQueuePersistenceFiles()
@@ -820,7 +820,7 @@ class MusicServiceLifecycle(
         startId: Int,
         callSuper: () -> Unit,
     ): Int {
-        if (intent?.action == MusicService.ACTION_MEDIA_NOTIFICATION_DISMISSED) {
+        if (intent?.action == MusicServiceNotification.ACTION_MEDIA_NOTIFICATION_DISMISSED) {
             handleMediaNotificationDismissed(intent)
             return Service.START_NOT_STICKY
         }

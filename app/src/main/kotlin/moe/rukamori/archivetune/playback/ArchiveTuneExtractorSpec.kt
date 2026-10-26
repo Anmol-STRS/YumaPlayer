@@ -12,12 +12,15 @@ import moe.rukamori.archivetune.innertube.YouTube
 import moe.rukamori.archivetune.moriextractor.ArchiveTuneExtractorException
 import moe.rukamori.archivetune.utils.AuthScopedCacheValue
 
+internal const val ArchiveTuneExtractorCacheFingerprintPrefix = "archivetune_extractor:"
+internal const val ArchiveTuneExtractorCacheTtlMs = 5 * 60 * 1000L
+
 internal fun MusicService.resolveArchiveTuneExtractorDataSpec(
     dataSpec: DataSpec,
     mediaId: String,
 ): DataSpec {
     val authState = YouTube.currentPlaybackAuthState()
-    val authFingerprint = MusicService.ArchiveTuneExtractorCacheFingerprintPrefix + authState.fingerprint
+    val authFingerprint = ArchiveTuneExtractorCacheFingerprintPrefix + authState.fingerprint
     val userPoToken = authState.resolveExtractorPoToken()
     val userGvsToken = authState.resolveExtractorGvsToken()
     val userCookies = authState.resolveExtractorCookies()
@@ -46,7 +49,7 @@ internal fun MusicService.resolveArchiveTuneExtractorDataSpec(
     val extractorCacheValue =
         AuthScopedCacheValue(
             url = streamUrl,
-            expiresAtMs = System.currentTimeMillis() + MusicService.ArchiveTuneExtractorCacheTtlMs,
+            expiresAtMs = System.currentTimeMillis() + ArchiveTuneExtractorCacheTtlMs,
             authFingerprint = authFingerprint,
         )
     extractorPlaybackUrlCache[mediaId] = extractorCacheValue

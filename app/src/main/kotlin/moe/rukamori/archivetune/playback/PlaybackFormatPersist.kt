@@ -151,7 +151,7 @@ internal fun MusicService.persistPlaybackFormat(
             requestedLength = dataSpec.length,
             position = dataSpec.position,
             knownContentLength = knownContentLength ?: format.contentLength,
-            chunkLength = MusicService.CHUNK_LENGTH,
+            chunkLength = PlaybackConstants.CHUNK_LENGTH,
             mimeType = format.mimeType,
         )
     return length?.let { nonNullLength ->

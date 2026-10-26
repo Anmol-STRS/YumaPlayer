@@ -5,6 +5,8 @@
  */
 package moe.rukamori.archivetune.playback
 
+import moe.rukamori.archivetune.playback.audio.AudioPolicyConstants
+
 import android.media.audiofx.AudioEffect
 import android.media.audiofx.BassBoost
 import android.media.audiofx.Equalizer
@@ -79,8 +81,8 @@ internal fun MusicService.ensureAudioEffects(sessionId: Int) {
     audioEffectsInitializationJob = null
     if (initializeAudioEffects(sessionId)) return
     audioEffectsInitializationJob = scope.launch {
-        repeat(MusicService.AUDIO_EFFECT_INITIALIZATION_MAX_ATTEMPTS - 1) {
-            delay(MusicService.AUDIO_EFFECT_INITIALIZATION_RETRY_DELAY_MS)
+        repeat(AudioPolicyConstants.AUDIO_EFFECT_INITIALIZATION_MAX_ATTEMPTS - 1) {
+            delay(AudioPolicyConstants.AUDIO_EFFECT_INITIALIZATION_RETRY_DELAY_MS)
             if (localPlayer.audioSessionId != sessionId || !shouldKeepAudioEffectSessionOpen()) return@launch
             if (initializeAudioEffects(sessionId)) return@launch
         }
@@ -104,7 +106,7 @@ internal inline fun <T> MusicService.createAudioEffect(
     sessionId: Int,
     factory: () -> T,
 ): T? = runCatching(factory).onFailure { error ->
-    Timber.tag(MusicService.TAG).w(error, "%s initialization failed for audio session %d", name, sessionId)
+    Timber.tag(PlaybackConstants.TAG).w(error, "%s initialization failed for audio session %d", name, sessionId)
 }.getOrNull()
 
 internal fun MusicService.applyEqSettingsToEffects(settings: EqSettings) {
@@ -218,13 +220,13 @@ internal fun MusicService.updateEffectiveVolume(finalVolume: Float) {
     }
     val startVolume = player.volume.takeIf { it.isFinite() }?.coerceIn(0f, maxSafeGainFactor) ?: finalVolume
     val targetVolume = finalVolume.coerceIn(0f, maxSafeGainFactor)
-    if (abs(targetVolume - startVolume) <= MusicService.EFFECTIVE_VOLUME_RAMP_MIN_DELTA) {
+    if (abs(targetVolume - startVolume) <= AudioPolicyConstants.EFFECTIVE_VOLUME_RAMP_MIN_DELTA) {
         applyEffectiveVolumeImmediately(targetVolume)
         return
     }
     effectiveVolumeRampJob?.cancel()
     effectiveVolumeRampJob = scope.launch {
-        val durationMs = if (targetVolume > startVolume) MusicService.EFFECTIVE_VOLUME_RAMP_UP_MS else MusicService.EFFECTIVE_VOLUME_RAMP_DOWN_MS
+        val durationMs = if (targetVolume > startVolume) AudioPolicyConstants.EFFECTIVE_VOLUME_RAMP_UP_MS else AudioPolicyConstants.EFFECTIVE_VOLUME_RAMP_DOWN_MS
         val startedAtMs = android.os.SystemClock.elapsedRealtime()
         while (isActive) {
             val elapsedMs = android.os.SystemClock.elapsedRealtime() - startedAtMs
@@ -233,7 +235,7 @@ internal fun MusicService.updateEffectiveVolume(finalVolume: Float) {
             val interpolatedVolume = startVolume + ((targetVolume - startVolume) * easedProgress)
             renderEffectiveVolume(interpolatedVolume)
             if (progress >= 1f) break
-            delay(MusicService.EFFECTIVE_VOLUME_RAMP_FRAME_MS)
+            delay(AudioPolicyConstants.EFFECTIVE_VOLUME_RAMP_FRAME_MS)
         }
         renderEffectiveVolume(targetVolume)
         effectiveVolumeRampJob = null
@@ -244,7 +246,7 @@ internal fun MusicService.shouldRampEffectiveVolume(finalVolume: Float): Boolean
     if (isCrossfading || crossfadeHandoffInProgress) return false
     if (!shouldKeepPlaybackAudible()) return false
     if (!finalVolume.isFinite()) return false
-    if (player.volume <= MusicService.STUCK_MUTED_VOLUME_EPSILON) return false
+    if (player.volume <= AudioPolicyConstants.STUCK_MUTED_VOLUME_EPSILON) return false
     return true
 }
 

@@ -3,6 +3,8 @@ package moe.rukamori.archivetune.playback
 import moe.rukamori.archivetune.audiodsp.CrossfadeConstants
 
 object PlaybackConstants {
+    const val TAG = "MusicService"
+
     internal fun shouldStopServiceOnTaskRemoved(
         stopMusicOnTaskClearEnabled: Boolean,
         isHostSessionActive: Boolean,

@@ -143,7 +143,7 @@ internal fun MusicService.ensurePresenceManagerInternal() {
                 token = key,
             )
             DiscordPresenceManager.setOnTransportInvalidated { reason ->
-                Timber.tag(MusicService.DISCORD_SYNC_TAG).w(
+                Timber.tag(moe.rukamori.archivetune.playback.discord.DiscordConstants.DISCORD_SYNC_TAG).w(
                     "transport invalidated reason=%s; requesting forced sync",
                     reason,
                 )

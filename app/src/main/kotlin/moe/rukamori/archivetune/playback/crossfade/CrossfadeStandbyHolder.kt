@@ -9,6 +9,8 @@
 
 package moe.rukamori.archivetune.playback.crossfade
 
+import moe.rukamori.archivetune.playback.PlaybackConstants
+
 import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
@@ -103,11 +105,11 @@ internal fun MusicService.canHandoffWithoutRebuffer(incomingPlayer: ExoPlayer): 
     ) {
         return true
     }
-    if (hasBufferedForSmoothStart(localPlayer, MusicService.CROSSFADE_HANDOFF_BUFFER_MS)) {
+    if (hasBufferedForSmoothStart(localPlayer, PlaybackConstants.CROSSFADE_HANDOFF_BUFFER_MS)) {
         val bufferedPosition = localPlayer.bufferedPosition
         val incomingPosition = incomingPlayer.currentPosition.coerceAtLeast(0L)
         return bufferedPosition == C.TIME_UNSET ||
-            incomingPosition + MusicService.CROSSFADE_HANDOFF_SEEK_GUARD_MS <= bufferedPosition
+            incomingPosition + PlaybackConstants.CROSSFADE_HANDOFF_SEEK_GUARD_MS <= bufferedPosition
     }
     return false
 }
@@ -140,7 +142,7 @@ internal fun MusicService.hasBufferedForSmoothStart(
     if (bufferedDuration >= requiredBufferedMs) return true
 
     return duration != C.TIME_UNSET &&
-        targetPlayer.bufferedPosition >= duration - MusicService.CROSSFADE_END_GUARD_MS
+        targetPlayer.bufferedPosition >= duration - PlaybackConstants.CROSSFADE_END_GUARD_MS
 }
 
 internal fun MusicService.cancelSecondaryCrossfadePreparation() {

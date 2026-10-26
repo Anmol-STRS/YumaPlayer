@@ -57,11 +57,11 @@ internal class DiscordSyncOrchestrator(
                     try {
                         syncDiscordStateInternal(request)
                     } catch (_: StaleDiscordSyncException) {
-                        Timber.tag(MusicService.DISCORD_SYNC_TAG).d("stale sync aborted epoch=%d reason=%s", request.epoch, request.reason)
+                        Timber.tag(DiscordConstants.DISCORD_SYNC_TAG).d("stale sync aborted epoch=%d reason=%s", request.epoch, request.reason)
                     } catch (error: CancellationException) {
                         throw error
                     } catch (error: Exception) {
-                        Timber.tag(MusicService.DISCORD_SYNC_TAG).e(error, "sync failed epoch=%d reason=%s", request.epoch, request.reason)
+                        Timber.tag(DiscordConstants.DISCORD_SYNC_TAG).e(error, "sync failed epoch=%d reason=%s", request.epoch, request.reason)
                     }
                 }
             }
@@ -77,7 +77,7 @@ internal class DiscordSyncOrchestrator(
             force = force,
         )
         if (discordSyncRequests.trySend(request).isFailure) {
-            Timber.tag(MusicService.DISCORD_SYNC_TAG).w("failed to enqueue sync epoch=%d reason=%s", request.epoch, request.reason)
+            Timber.tag(DiscordConstants.DISCORD_SYNC_TAG).w("failed to enqueue sync epoch=%d reason=%s", request.epoch, request.reason)
         }
     }
 
@@ -158,7 +158,7 @@ internal class DiscordSyncOrchestrator(
 
             if (playWhenReady && holdController.pausedPresenceGate != PausedPresenceGate.FollowPreference) {
                 holdController.pausedPresenceGate = PausedPresenceGate.FollowPreference
-                Timber.tag(MusicService.DISCORD_SYNC_TAG).d(
+                Timber.tag(DiscordConstants.DISCORD_SYNC_TAG).d(
                     "sync epoch=%d reason=%s reset paused gate because playback intent resumed",
                     request.epoch,
                     request.reason,
@@ -186,7 +186,7 @@ internal class DiscordSyncOrchestrator(
 
             val effectiveForce = request.force || refreshWaiters.isNotEmpty()
             if (!effectiveForce && decision == holdController.lastDecision) {
-                Timber.tag(MusicService.DISCORD_SYNC_TAG).v(
+                Timber.tag(DiscordConstants.DISCORD_SYNC_TAG).v(
                     "sync epoch=%d reason=%s unchanged decision=%s",
                     request.epoch,
                     request.reason,
@@ -196,7 +196,7 @@ internal class DiscordSyncOrchestrator(
                 return
             }
 
-            Timber.tag(MusicService.DISCORD_SYNC_TAG).d(
+            Timber.tag(DiscordConstants.DISCORD_SYNC_TAG).d(
                 "sync epoch=%d reason=%s force=%s effectiveForce=%s songId=%s playWhenReady=%s playbackState=%d isPlaying=%s semantic=%s raw=%s decision=%s holdState=%s lastAppliedVisible=%s refreshWaiters=%d",
                 request.epoch, request.reason, request.force, effectiveForce, song?.song?.id,
                 playWhenReady, playbackState, isPlaying, semanticState, rawDecision, decision,
@@ -215,18 +215,18 @@ internal class DiscordSyncOrchestrator(
             }
             if (decision is DiscordPresenceDecision.Hold) {
                 requeueDiscordRefreshWaiters(refreshWaiters)
-                Timber.tag(MusicService.DISCORD_SYNC_TAG).d("refresh waiters requeued because decision is Hold count=%d", refreshWaiters.size)
+                Timber.tag(DiscordConstants.DISCORD_SYNC_TAG).d("refresh waiters requeued because decision is Hold count=%d", refreshWaiters.size)
             } else {
                 completeDiscordRefreshWaiters(refreshWaiters, applied)
             }
         } catch (_: StaleDiscordSyncException) {
             requeueDiscordRefreshWaiters(refreshWaiters)
-            Timber.tag(MusicService.DISCORD_SYNC_TAG).d("stale sync aborted epoch=%d reason=%s and refresh waiters requeued=%d", request.epoch, request.reason, refreshWaiters.size)
+            Timber.tag(DiscordConstants.DISCORD_SYNC_TAG).d("stale sync aborted epoch=%d reason=%s and refresh waiters requeued=%d", request.epoch, request.reason, refreshWaiters.size)
         } catch (error: CancellationException) {
             completeDiscordRefreshWaiters(refreshWaiters, false)
             throw error
         } catch (error: Exception) {
-            Timber.tag(MusicService.DISCORD_SYNC_TAG).e(error, "syncDiscordStateInternal failed epoch=%d reason=%s", request.epoch, request.reason)
+            Timber.tag(DiscordConstants.DISCORD_SYNC_TAG).e(error, "syncDiscordStateInternal failed epoch=%d reason=%s", request.epoch, request.reason)
             completeDiscordRefreshWaiters(refreshWaiters, false)
             throw error
         }

@@ -98,7 +98,7 @@ class ExoDeckController(
             secondaryPlayer.prepare()
             true
         }.onFailure { error ->
-            Timber.tag(MusicService.TAG).w(error, "Failed to prepare crossfade player")
+            Timber.tag(PlaybackConstants.TAG).w(error, "Failed to prepare crossfade player")
             releaseTransitionDeck()
         }.getOrDefault(false)
     }

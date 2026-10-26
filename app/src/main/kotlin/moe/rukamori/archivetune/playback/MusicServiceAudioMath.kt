@@ -1,5 +1,7 @@
 package moe.rukamori.archivetune.playback
 
+import moe.rukamori.archivetune.playback.audio.AudioPolicyConstants
+
 import androidx.datastore.preferences.core.Preferences
 import moe.rukamori.archivetune.constants.EqualizerBandLevelsMbKey
 import moe.rukamori.archivetune.constants.EqualizerBassBoostEnabledKey
@@ -47,8 +49,8 @@ internal fun MusicService.resampleLevelsByIndex(levelsMb: List<Int>, targetCount
 
 internal fun MusicService.calculateEffectivePlayerVolume(playerVolume: Float, normalizeFactor: Float, audioFocusVolumeFactor: Float): Float {
     val safePlayerVolume = playerVolume.takeIf { it.isFinite() }?.coerceIn(0f, 1f) ?: 1f
-    val safeNormalizeFactor = normalizeFactor.takeIf { it.isFinite() }?.coerceIn(MusicService.MIN_AUDIO_NORMALIZATION_FACTOR, MusicService.MAX_AUDIO_NORMALIZATION_FACTOR) ?: 1f
-    val safeAudioFocusVolumeFactor = audioFocusVolumeFactor.takeIf { it.isFinite() }?.coerceIn(MusicService.MIN_AUDIO_FOCUS_VOLUME_FACTOR, 1f) ?: 1f
+    val safeNormalizeFactor = normalizeFactor.takeIf { it.isFinite() }?.coerceIn(AudioPolicyConstants.MIN_AUDIO_NORMALIZATION_FACTOR, AudioPolicyConstants.MAX_AUDIO_NORMALIZATION_FACTOR) ?: 1f
+    val safeAudioFocusVolumeFactor = audioFocusVolumeFactor.takeIf { it.isFinite() }?.coerceIn(AudioPolicyConstants.MIN_AUDIO_FOCUS_VOLUME_FACTOR, 1f) ?: 1f
     return (safePlayerVolume * safeNormalizeFactor * safeAudioFocusVolumeFactor).coerceIn(0f, maxSafeGainFactor)
 }
 
@@ -75,7 +77,7 @@ internal fun calculateAudioNormalizationFactor(
     val rawFactor = 10f.pow(-loudnessDb / 20)
     val factor =
         if (rawFactor.isFinite()) {
-            rawFactor.coerceIn(MusicService.MIN_AUDIO_NORMALIZATION_FACTOR, MusicService.MAX_AUDIO_NORMALIZATION_FACTOR)
+            rawFactor.coerceIn(AudioPolicyConstants.MIN_AUDIO_NORMALIZATION_FACTOR, AudioPolicyConstants.MAX_AUDIO_NORMALIZATION_FACTOR)
         } else {
             1f
         }
