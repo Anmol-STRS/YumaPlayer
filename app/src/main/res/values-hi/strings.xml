@@ -1249,4 +1249,7 @@
     <string name="lastfm_login_invalid_api_key"></string>
     <string name="release_badge_latest"></string>
     <string name="wakelock"></string>
+    <string name="stats_axis_12pm">20PM</string>
+    <string name="stats_axis_6am">6AM</string>
+    <string name="stats_axis_6pm">6PM</string>
 </resources>
