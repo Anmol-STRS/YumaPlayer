@@ -67,4 +67,7 @@
     <string name="cached">कैश में संग्रहीत</string>
     <string name="local_files">लोकल फ़ाइलें</string>
     <string name="downloaded_desc">डाउनलोड किए गए</string>
+    <string name="stats_axis_12pm">20PM</string>
+    <string name="stats_axis_6am">6AM</string>
+    <string name="stats_axis_6pm">6PM</string>
 </resources>

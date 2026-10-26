@@ -782,7 +782,7 @@
     <string name="font_preference_system">Sistema</string>
     <string name="font_preference_custom">Personalizado</string>
     <string name="custom_font">Fuente personalizada</string>
-    <string name="custom_font_desc">Elige una fuente .ttf</string>
+    <string name="custom_font_desc">Selecciona una fuente .ttf</string>
     <string name="custom_font_invalid">Elige una fuente .ttf</string>
     <string name="player_background_style_v8_v9_desc">No disponible con los estilos de reproductor V8 y V9</string>
     <string name="haptics">Vibración</string>
@@ -1261,4 +1261,26 @@
     <string name="good_afternoon">Buenas tardes</string>
     <string name="good_evening">Buenas noches</string>
     <string name="good_night">Que tengas buena noche</string>
+    <string name="release_open_failed">No se ha podido abrir la página de la versión</string>
+    <string name="release_state_collapsed">Compactado</string>
+    <string name="release_notes_section_other">Otros cambios</string>
+    <string name="release_notes_summary_features">Características: %1$d</string>
+    <string name="release_notes_section_documentation">Documentación</string>
+    <string name="home_background_none">Ninguno</string>
+    <string name="release_notes_show_all">Mostrar todo (%1$d)</string>
+    <string name="release_notes_open_on_github">Ver en GitHub</string>
+    <string name="release_notes_section_performance">Rendimiento</string>
+    <string name="release_notes_summary_fixes">Correcciones: %1$d</string>
+    <string name="home_background_lava">Lampara de lava</string>
+    <string name="release_notes_section_features">Funciones</string>
+    <string name="release_badge_prerelease">Versión preliminar</string>
+    <string name="release_notes_section_build_ci">Compilación / Integración Continua</string>
+    <string name="release_notes_show_less">Compactar</string>
+    <string name="release_notes_summary_performance">Rendimiento: %1$d</string>
+    <string name="release_badge_installed">Instalado</string>
+    <string name="release_notes_section_improvements">Mejoras</string>
+    <string name="release_notes_section_fixes">Correcciones</string>
+    <string name="release_notes_section_refactors">Refactorizaciones</string>
+    <string name="release_state_expanded">Expandido</string>
+    <string name="release_badge_latest">Último</string>
 </resources>
