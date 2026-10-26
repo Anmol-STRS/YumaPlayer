@@ -805,61 +805,21 @@ async function decipherUrl(requestJson) {
     const inputUrl = normalizedString(request.url);
     const cipher = normalizedString(request.cipher);
 
-    let targetUrlString = inputUrl;
-    let effectiveCipher = cipher;
-    let sp = "signature";
-    let hasSignature = false;
+    let finalUrl;
 
     if (cipher) {
-      const cipherParams = new URLSearchParams(cipher);
-      const extractedUrl = cipherParams.get("url");
-      if (extractedUrl) {
-        targetUrlString = extractedUrl;
-      }
-      const rawSp = cipherParams.get("sp");
-      if (rawSp && rawSp.trim()) {
-        sp = rawSp.trim();
-      } else {
-        sp = "signature";
-        cipherParams.set("sp", "signature");
-        effectiveCipher = cipherParams.toString();
-      }
-      hasSignature = Boolean(cipherParams.get("s"));
+      finalUrl = await player.decipher(undefined, cipher);
+    } else if (inputUrl) {
+      finalUrl = await player.decipher(inputUrl);
+    } else {
+      throw playerError("No valid URL or cipher provided", "INTERNAL");
     }
 
-    if (!targetUrlString) {
-      throw playerError("No valid URL to decipher", "INTERNAL");
+    if (!finalUrl || (!finalUrl.startsWith("https://") && !finalUrl.startsWith("http://"))) {
+      throw playerError("Decipher returned invalid stream URL: " + finalUrl, "DECIPHER");
     }
 
-    const libraryResultStr = await player.decipher(inputUrl, effectiveCipher, undefined, undefined);
-    const libraryResultUrl = new URL(libraryResultStr);
-
-    const outputUrl = new URL(targetUrlString);
-
-    if (hasSignature) {
-      const transformedSig = libraryResultUrl.searchParams.get(sp);
-      if (!transformedSig || !transformedSig.trim()) {
-        throw playerError("Decipher returned blank or missing signature", "DECIPHER");
-      }
-      outputUrl.searchParams.set(sp, transformedSig);
-    }
-
-    if (outputUrl.searchParams.has("n")) {
-      const transformedN = libraryResultUrl.searchParams.get("n");
-      if (!transformedN || !transformedN.trim()) {
-        throw playerError("Failed to decipher n token", "DECIPHER");
-      }
-      if (transformedN.startsWith("enhanced_except_")) {
-        throw playerError(`Decipher returned failure marker: ${transformedN}`, "DECIPHER");
-      }
-      outputUrl.searchParams.set("n", transformedN);
-    }
-
-    if (outputUrl.protocol !== "https:" && outputUrl.protocol !== "http:") {
-      throw playerError("Invalid stream protocol after decipher", "DECIPHER");
-    }
-
-    return JSON.stringify({ ok: true, value: outputUrl.toString() });
+    return JSON.stringify({ ok: true, value: finalUrl });
   } catch (error) {
     return JSON.stringify({ ok: false, error: normalizedFailure(error) });
   }

@@ -66,6 +66,7 @@ internal class QuickJsCipherWorker(
             val error = json.optJSONObject("error")
             val message = error?.optString("message") ?: "youtubei decipher failed"
             val kind = error?.optString("kind") ?: "INTERNAL"
+            CipherTrace.log("JS_ERROR", "kind=$kind msg=$message raw=$response")
             if (kind == "DECIPHER" && message.contains("Player script source missing")) {
                 throw QuickJsMissingSourceException(message)
             }

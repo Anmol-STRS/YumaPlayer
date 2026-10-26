@@ -30,7 +30,7 @@ import timber.log.Timber
 
 internal object PlaybackFallbackLadderResolver {
     private const val TAG = "PlaybackFallbackLadderResolver"
-    private const val DISABLE_VISIONOS_FAST_START = false
+    private const val DISABLE_VISIONOS_FAST_START = true
 
     suspend fun resolve(
         videoId: String,

@@ -51,7 +51,7 @@ internal class PlayerScriptClient(
                         .find(iframeBody)
                         ?.groupValues
                         ?.getOrNull(1)
-                        ?.let { "/s/player/$it/player_ias.vflset/en_US/base.js" }
+                        ?.let { "/s/player/$it/player_es6.vflset/en_US/base.js" }
                     ?: videoId
                         ?.takeIf(VIDEO_ID_PATTERN::matches)
                         ?.let { id ->
@@ -64,11 +64,12 @@ internal class PlayerScriptClient(
                                 .find(embedBody)
                                 ?.groupValues
                                 ?.getOrNull(1)
-                                ?.let { "/s/player/$it/player_ias.vflset/en_US/base.js" }
+                                ?.let { "/s/player/$it/player_es6.vflset/en_US/base.js" }
                         } ?: throw MoriCipherException("YouTube player URL was not found")
 
                 println("PlayerScriptClient: 4. Discovered path: $discoveredPath")
                 val unescapedPath = discoveredPath.replace("\\/", "/")
+                    .replace("/player_ias.vflset/", "/player_es6.vflset/")
                 val playerUrl =
                     when {
                         unescapedPath.startsWith("http") -> unescapedPath
@@ -159,8 +160,8 @@ internal class PlayerScriptClient(
         const val MAX_DISCOVERY_BYTES = 1_000_000
         const val MAX_PLAYER_BYTES = 5_000_000
         const val USER_AGENT =
-            "Mozilla/5.0 (Linux; Android 15) AppleWebKit/537.36 " +
-                "(KHTML, like Gecko) Chrome/137.0 Mobile Safari/537.36"
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+                    "(KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
         val VIDEO_ID_PATTERN = Regex("^[A-Za-z0-9_-]{11}$")
         val PLAYER_ID_PATTERN = Regex("/s/player/([A-Za-z0-9_-]+)/")
 
