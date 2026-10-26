@@ -3,7 +3,7 @@
     <string name="playback_source">Источник</string>
     <string name="source_yt_music">YT Music</string>
     <string name="source_flac">FLAC</string>
-<string name="flac_quality_cd">CD (16-bit/44.1 kHz)</string>
+    <string name="flac_quality_cd">CD (16-bit/44.1 kHz)</string>
     <string name="flac_quality_hi_res">Hi-Res (24-bit/96 kHz)</string>
     <string name="flac_quality_max">Max (24-bit/192 kHz)</string>
     <string name="flac_streaming_quality">Качество FLAC (стриминг)</string>
@@ -770,7 +770,6 @@
     <string name="album_backdrop_desc">Показывать изображение в качестве размытого фона на плеере</string>
     <string name="backdrop_blur_amount">Степень размытия фона</string>
     <string name="backdrop_blur_amount_value">%1$d%%</string>
-
     <string name="update_critical_title">Критическое обновление</string>
     <string name="update_soft_title">Доступно обновление</string>
     <string name="update_version_format">Версия %s</string>
