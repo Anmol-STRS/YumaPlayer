@@ -154,3 +154,17 @@
 -keepclassmembers class androidx.media3.common.ForwardingPlayer {
     private *;
 }
+
+## Strip Timber debug/info logs in release builds
+-assumenosideeffects class timber.log.Timber {
+    public static timber.log.Timber$Tree tag(java.lang.String);
+    public static void v(...);
+    public static void d(...);
+    public static void i(...);
+}
+
+-assumenosideeffects class timber.log.Timber$Tree {
+    public void v(...);
+    public void d(...);
+    public void i(...);
+}
