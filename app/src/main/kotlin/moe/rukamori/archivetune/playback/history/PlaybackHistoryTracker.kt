@@ -35,16 +35,16 @@ internal class PlaybackHistoryTracker(
     private val store: PlaybackHistoryStore = store ?: PlaybackHistoryStore(service, this)
 
     val currentSessionToken: Long
-        get() = service.currentHistorySessionToken
+        get() = service.historyCoordinator.currentHistorySessionToken
 
     val currentMediaId: String?
-        get() = service.currentHistoryMediaId
+        get() = service.historyCoordinator.currentHistoryMediaId
 
     val currentAccumulatedPlayMs: Long
-        get() = service.currentHistoryAccumulatedPlayMs
+        get() = service.historyCoordinator.currentHistoryAccumulatedPlayMs
 
     val isSessionQueued: Boolean
-        get() = service.currentHistorySessionQueued
+        get() = service.historyCoordinator.currentHistorySessionQueued
 
     override fun historyThresholdMs(): Long =
         (runCatching { service.dataStore[HistoryDuration] }.getOrNull() ?: HISTORY_DURATION_DEFAULT)
@@ -55,10 +55,10 @@ internal class PlaybackHistoryTracker(
         nowElapsedMs: Long,
     ): Long {
         val runningPlayMs =
-            service.currentHistoryStartedAtElapsedMs
+            service.historyCoordinator.currentHistoryStartedAtElapsedMs
                 ?.let { (nowElapsedMs - it).coerceAtLeast(0L) }
                 ?: 0L
-        return service.currentHistoryAccumulatedPlayMs + runningPlayMs
+        return service.historyCoordinator.currentHistoryAccumulatedPlayMs + runningPlayMs
     }
 
     fun currentHistoryPlayedMs(): Long =
@@ -67,8 +67,8 @@ internal class PlaybackHistoryTracker(
     fun flushCurrentHistoryPlayedTime(
         nowElapsedMs: Long = SystemClock.elapsedRealtime(),
     ) {
-        service.currentHistoryAccumulatedPlayMs = currentHistoryPlayedMs(nowElapsedMs)
-        service.currentHistoryStartedAtElapsedMs = null
+        service.historyCoordinator.currentHistoryAccumulatedPlayMs = currentHistoryPlayedMs(nowElapsedMs)
+        service.historyCoordinator.currentHistoryStartedAtElapsedMs = null
     }
 
     fun beginHistorySession(
@@ -77,42 +77,42 @@ internal class PlaybackHistoryTracker(
     ) {
         val normalizedMediaId = mediaId?.trim()?.takeIf { it.isNotEmpty() }
         if (!forceNew &&
-            service.currentHistoryMediaId == normalizedMediaId &&
-            service.currentHistorySessionToken != 0L
+            service.historyCoordinator.currentHistoryMediaId == normalizedMediaId &&
+            service.historyCoordinator.currentHistorySessionToken != 0L
         ) {
             updateHistoryTrackingPlaybackState()
             return
         }
 
-        service.historyThresholdJob?.cancel()
-        service.historyThresholdJob = null
+        service.historyCoordinator.historyThresholdJob?.cancel()
+        service.historyCoordinator.historyThresholdJob = null
         flushCurrentHistoryPlayedTime()
         store.enqueueCurrentHistorySessionForFinalization()
 
-        service.currentHistorySessionToken = ++service.nextHistorySessionToken
-        service.currentHistoryMediaId = normalizedMediaId
-        service.currentHistoryAccumulatedPlayMs = 0L
-        service.currentHistoryStartedAtElapsedMs = null
-        service.currentHistoryEventId = null
-        service.currentHistoryRemoteRegistered = false
-        service.currentHistoryImmediateAttempted = false
-        service.currentHistorySessionQueued = false
+        service.historyCoordinator.currentHistorySessionToken = ++service.historyCoordinator.nextHistorySessionToken
+        service.historyCoordinator.currentHistoryMediaId = normalizedMediaId
+        service.historyCoordinator.currentHistoryAccumulatedPlayMs = 0L
+        service.historyCoordinator.currentHistoryStartedAtElapsedMs = null
+        service.historyCoordinator.currentHistoryEventId = null
+        service.historyCoordinator.currentHistoryRemoteRegistered = false
+        service.historyCoordinator.currentHistoryImmediateAttempted = false
+        service.historyCoordinator.currentHistorySessionQueued = false
 
         updateHistoryTrackingPlaybackState()
     }
 
     fun updateHistoryTrackingPlaybackState() {
-        val mediaId = service.currentHistoryMediaId
-        if (mediaId == null || service.currentHistorySessionQueued) {
-            service.historyThresholdJob?.cancel()
-            service.historyThresholdJob = null
-            service.currentHistoryStartedAtElapsedMs = null
+        val mediaId = service.historyCoordinator.currentHistoryMediaId
+        if (mediaId == null || service.historyCoordinator.currentHistorySessionQueued) {
+            service.historyCoordinator.historyThresholdJob?.cancel()
+            service.historyCoordinator.historyThresholdJob = null
+            service.historyCoordinator.currentHistoryStartedAtElapsedMs = null
             return
         }
 
         if (service.player.isPlaying) {
-            if (service.currentHistoryStartedAtElapsedMs == null) {
-                service.currentHistoryStartedAtElapsedMs = SystemClock.elapsedRealtime()
+            if (service.historyCoordinator.currentHistoryStartedAtElapsedMs == null) {
+                service.historyCoordinator.currentHistoryStartedAtElapsedMs = SystemClock.elapsedRealtime()
             }
         } else {
             flushCurrentHistoryPlayedTime()
@@ -122,25 +122,25 @@ internal class PlaybackHistoryTracker(
     }
 
     override fun syncHistoryThresholdJob() {
-        service.historyThresholdJob?.cancel()
-        service.historyThresholdJob = null
+        service.historyCoordinator.historyThresholdJob?.cancel()
+        service.historyCoordinator.historyThresholdJob = null
 
-        val mediaId = service.currentHistoryMediaId ?: return
-        if (service.currentHistorySessionQueued) return
+        val mediaId = service.historyCoordinator.currentHistoryMediaId ?: return
+        if (service.historyCoordinator.currentHistorySessionQueued) return
         if (service.dataStore.get(PauseListenHistoryKey, false)) return
-        if (service.currentHistoryEventId != null && service.currentHistoryRemoteRegistered) return
+        if (service.historyCoordinator.currentHistoryEventId != null && service.historyCoordinator.currentHistoryRemoteRegistered) return
 
         val thresholdMs = historyThresholdMs()
         val playedMs = currentHistoryPlayedMs()
         if (playedMs >= thresholdMs) {
-            if (!service.currentHistoryImmediateAttempted) {
+            if (!service.historyCoordinator.currentHistoryImmediateAttempted) {
                 store.maybeRecordCurrentPlaybackHistory()
             }
             return
         }
         if (!service.player.isPlaying) return
 
-        service.historyThresholdJob =
+        service.historyCoordinator.historyThresholdJob =
             service.scope.launch {
                 delay((thresholdMs - playedMs).coerceAtLeast(0L))
                 store.maybeRecordCurrentPlaybackHistory()
@@ -151,11 +151,11 @@ internal class PlaybackHistoryTracker(
         fun createHistoryDelegate(service: MusicService): MusicServicePlayerListeners.HistoryDelegate =
             object : MusicServicePlayerListeners.HistoryDelegate {
                 override var historyThresholdJob: Job?
-                    get() = service.historyThresholdJob
+                    get() = service.historyCoordinator.historyThresholdJob
                     set(value) {
-                        service.historyThresholdJob = value
+                        service.historyCoordinator.historyThresholdJob = value
                     }
-                override val currentHistoryMediaId: String? get() = service.currentHistoryMediaId
+                override val currentHistoryMediaId: String? get() = service.historyCoordinator.currentHistoryMediaId
                 override fun beginHistorySession(mediaId: String?, forceNew: Boolean) {
                     service.beginHistorySession(mediaId, forceNew)
                 }

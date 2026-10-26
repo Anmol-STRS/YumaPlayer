@@ -61,7 +61,7 @@ internal class PlaybackHistoryStore(
         sessionToken: Long,
         result: ImmediateHistoryResult,
     ) {
-        val pendingSessions = service.pendingHistoryFinalizations[mediaId] ?: return
+        val pendingSessions = service.historyCoordinator.pendingHistoryFinalizations[mediaId] ?: return
         val index = pendingSessions.indexOfFirst { it.sessionToken == sessionToken }
         if (index == -1) return
 
@@ -73,30 +73,30 @@ internal class PlaybackHistoryStore(
     }
 
     fun enqueueCurrentHistorySessionForFinalization() {
-        val mediaId = service.currentHistoryMediaId ?: return
-        if (service.currentHistorySessionQueued) return
+        val mediaId = service.historyCoordinator.currentHistoryMediaId ?: return
+        if (service.historyCoordinator.currentHistorySessionQueued) return
 
-        service.pendingHistoryFinalizations.getOrPut(mediaId) { mutableListOf() }.add(
+        service.historyCoordinator.pendingHistoryFinalizations.getOrPut(mediaId) { mutableListOf() }.add(
             PendingHistoryFinalization(
-                sessionToken = service.currentHistorySessionToken,
-                eventId = service.currentHistoryEventId,
-                remoteRegistered = service.currentHistoryRemoteRegistered,
+                sessionToken = service.historyCoordinator.currentHistorySessionToken,
+                eventId = service.historyCoordinator.currentHistoryEventId,
+                remoteRegistered = service.historyCoordinator.currentHistoryRemoteRegistered,
             ),
         )
-        service.currentHistorySessionQueued = true
+        service.historyCoordinator.currentHistorySessionQueued = true
     }
 
     fun popPendingHistoryFinalization(mediaId: String): PendingHistoryFinalization? {
-        val pendingSessions = service.pendingHistoryFinalizations[mediaId] ?: return null
+        val pendingSessions = service.historyCoordinator.pendingHistoryFinalizations[mediaId] ?: return null
         val pending = pendingSessions.firstOrNull() ?: return null
         pendingSessions.removeAt(0)
-        if (pendingSessions.isEmpty()) service.pendingHistoryFinalizations.remove(mediaId)
+        if (pendingSessions.isEmpty()) service.historyCoordinator.pendingHistoryFinalizations.remove(mediaId)
         return pending
     }
 
     fun maybeRecordCurrentPlaybackHistory() {
-        val mediaId = service.currentHistoryMediaId ?: return
-        if (service.currentHistorySessionQueued) return
+        val mediaId = service.historyCoordinator.currentHistoryMediaId ?: return
+        if (service.historyCoordinator.currentHistorySessionQueued) return
         if (service.dataStore.get(PauseListenHistoryKey, false)) return
 
         val thresholdMs = historyThresholdMs()
@@ -106,12 +106,12 @@ internal class PlaybackHistoryStore(
             return
         }
 
-        val sessionToken = service.currentHistorySessionToken
-        if (service.historyRecordingJobs.containsKey(sessionToken)) return
-        service.currentHistoryImmediateAttempted = true
+        val sessionToken = service.historyCoordinator.currentHistorySessionToken
+        if (service.historyCoordinator.historyRecordingJobs.containsKey(sessionToken)) return
+        service.historyCoordinator.currentHistoryImmediateAttempted = true
 
-        val eventIdSnapshot = service.currentHistoryEventId
-        val remoteRegisteredSnapshot = service.currentHistoryRemoteRegistered
+        val eventIdSnapshot = service.historyCoordinator.currentHistoryEventId
+        val remoteRegisteredSnapshot = service.historyCoordinator.currentHistoryRemoteRegistered
         val mediaMetadataSnapshot = service.player.currentMetadata?.takeIf { it.id == mediaId }
 
         val deferred = service.scope.async {
@@ -122,18 +122,18 @@ internal class PlaybackHistoryStore(
             }
         }
 
-        service.historyRecordingJobs[sessionToken] = deferred
+        service.historyCoordinator.historyRecordingJobs[sessionToken] = deferred
         service.scope.launch {
             val result = runCatching { deferred.await() }.onFailure(::reportException).getOrNull()
-            service.historyRecordingJobs.remove(sessionToken)
+            service.historyCoordinator.historyRecordingJobs.remove(sessionToken)
 
             if (result != null) {
-                if (service.currentHistorySessionToken == sessionToken &&
-                    !service.currentHistorySessionQueued &&
-                    service.currentHistoryMediaId == mediaId
+                if (service.historyCoordinator.currentHistorySessionToken == sessionToken &&
+                    !service.historyCoordinator.currentHistorySessionQueued &&
+                    service.historyCoordinator.currentHistoryMediaId == mediaId
                 ) {
-                    service.currentHistoryEventId = result.eventId ?: service.currentHistoryEventId
-                    service.currentHistoryRemoteRegistered = service.currentHistoryRemoteRegistered || result.remoteRegistered
+                    service.historyCoordinator.currentHistoryEventId = result.eventId ?: service.historyCoordinator.currentHistoryEventId
+                    service.historyCoordinator.currentHistoryRemoteRegistered = service.historyCoordinator.currentHistoryRemoteRegistered || result.remoteRegistered
                 } else {
                     updatePendingHistoryFinalization(mediaId, sessionToken, result)
                 }
@@ -214,7 +214,7 @@ internal class PlaybackHistoryStore(
             service.ioScope.launch {
                 val pendingResult =
                     pendingSession?.let { session ->
-                        service.historyRecordingJobs[session.sessionToken]
+                        service.historyCoordinator.historyRecordingJobs[session.sessionToken]
                             ?.let { deferred ->
                                 runCatching { deferred.await() }
                                     .onFailure(::reportException)

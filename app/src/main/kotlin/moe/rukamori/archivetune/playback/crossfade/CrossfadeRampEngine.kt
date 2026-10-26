@@ -9,6 +9,8 @@
 
 package moe.rukamori.archivetune.playback.crossfade
 
+import moe.rukamori.archivetune.playback.PlaybackConstants
+
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import java.io.EOFException
@@ -67,7 +69,7 @@ internal fun MusicService.startCrossfade(
                     incomingPlayer.seekTo(target.index, cueInMs)
                 }
                 val requiredBufferedMs = requiredCrossfadeStartBufferMs(durationMs)
-                if (!awaitCrossfadePlayerReady(incomingPlayer, MusicService.CROSSFADE_READY_TIMEOUT_MS, requiredBufferedMs)) {
+                if (!awaitCrossfadePlayerReady(incomingPlayer, PlaybackConstants.CROSSFADE_READY_TIMEOUT_MS, requiredBufferedMs)) {
                     cancelCrossfade(resetVolume = true, resetPauseAtEnd = false)
                     return@launch
                 }
@@ -183,7 +185,7 @@ internal fun MusicService.startCrossfade(
                                     standbyPlayer.playerError?.errorCodeName,
                                 )
                             }
-                            if (nowMs - stallStart >= MusicService.CROSSFADE_BUFFERING_TIMEOUT_MS) {
+                            if (nowMs - stallStart >= PlaybackConstants.CROSSFADE_BUFFERING_TIMEOUT_MS) {
                                 Timber.tag("MusicServiceCrossfade").w("Incoming stalled for the whole timeout; cancelling crossfade")
                                 cancelCrossfade(resetVolume = true, resetPauseAtEnd = true)
                                 return@launch
@@ -194,7 +196,7 @@ internal fun MusicService.startCrossfade(
                         bufferingStartMs = null
                     }
                     lastTickMs = nowMs
-                    delay(MusicService.CROSSFADE_FRAME_MS.milliseconds)
+                    delay(PlaybackConstants.CROSSFADE_FRAME_MS.milliseconds)
                 }
                 Timber.tag("MusicServiceCrossfade").d(
                     "Crossfade closed: plannedMs=$durationMs wallMs=${android.os.SystemClock.elapsedRealtime() - fadeStartedMs}" +
@@ -205,7 +207,7 @@ internal fun MusicService.startCrossfade(
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
-                Timber.tag(MusicService.TAG).w(error, "Crossfade failed")
+                Timber.tag(PlaybackConstants.TAG).w(error, "Crossfade failed")
                 cancelCrossfade(resetVolume = true, resetPauseAtEnd = true)
             } finally {
                 if (isCrossfading) {

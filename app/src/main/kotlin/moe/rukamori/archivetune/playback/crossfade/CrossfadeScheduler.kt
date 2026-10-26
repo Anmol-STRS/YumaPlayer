@@ -9,6 +9,8 @@
 
 package moe.rukamori.archivetune.playback.crossfade
 
+import moe.rukamori.archivetune.playback.PlaybackConstants
+
 import androidx.media3.common.C
 import androidx.media3.common.Player
 import kotlin.math.roundToLong
@@ -115,7 +117,7 @@ internal fun MusicService.scheduleCrossfade() {
         triggerOffset = triggerOffset,
         automixPlanTriggerAtMs = automixPlan?.triggerAtMs,
     )
-    var prepareAhead = automixPlan?.prepareAheadMs ?: MusicService.CROSSFADE_PREPARE_AHEAD_MS
+    var prepareAhead = automixPlan?.prepareAheadMs ?: PlaybackConstants.CROSSFADE_PREPARE_AHEAD_MS
 
     activeCrossfadeScheduledKey = currentMediaId to target
     crossfadeTriggerJob =
@@ -165,7 +167,7 @@ internal fun MusicService.scheduleCrossfade() {
                                     triggerOffset = triggerOffset,
                                     automixPlanTriggerAtMs = newPlan.triggerAtMs,
                                 )
-                                prepareAhead = newPlan.prepareAheadMs ?: MusicService.CROSSFADE_PREPARE_AHEAD_MS
+                                prepareAhead = newPlan.prepareAheadMs ?: PlaybackConstants.CROSSFADE_PREPARE_AHEAD_MS
                             }
                         } else {
                             val currentOutgoing = outgoingAnalysis
@@ -190,7 +192,7 @@ internal fun MusicService.scheduleCrossfade() {
                                         triggerOffset = triggerOffset,
                                         automixPlanTriggerAtMs = newPlan.triggerAtMs,
                                     )
-                                    prepareAhead = newPlan.prepareAheadMs ?: MusicService.CROSSFADE_PREPARE_AHEAD_MS
+                                    prepareAhead = newPlan.prepareAheadMs ?: PlaybackConstants.CROSSFADE_PREPARE_AHEAD_MS
                                 }
                             }
                         }
@@ -254,7 +256,7 @@ internal fun MusicService.scheduleCrossfade() {
                                     activeAutomixPlan = newPlan
                                     plannedDuration = newPlan.durationMs
                                     triggerOffset = newPlan.triggerOffsetMs
-                                    prepareAhead = newPlan.prepareAheadMs ?: MusicService.CROSSFADE_PREPARE_AHEAD_MS
+                                    prepareAhead = newPlan.prepareAheadMs ?: PlaybackConstants.CROSSFADE_PREPARE_AHEAD_MS
                                 }
                             }
                         }
@@ -266,12 +268,12 @@ internal fun MusicService.scheduleCrossfade() {
                             duration
                         }
                         val adjustedDuration =
-                            (endLimit - player.currentPosition - MusicService.CROSSFADE_END_GUARD_MS)
+                            (endLimit - player.currentPosition - PlaybackConstants.CROSSFADE_END_GUARD_MS)
                                 .coerceAtMost(plannedDuration)
                         val finalIncomingStartMs = resolveIncomingCueInMs(automixPlan, incomingAnalysis, incomingStartMs)
                         localPlayer.pauseAtEndOfMediaItems = false
                         handedOffToCrossfade = true
-                        val fadeDuration = adjustedDuration.coerceAtLeast(MusicService.MIN_CROSSFADE_DURATION_MS)
+                        val fadeDuration = adjustedDuration.coerceAtLeast(PlaybackConstants.MIN_CROSSFADE_DURATION_MS)
                         startCrossfade(target, fadeDuration, finalIncomingStartMs, automixPlan, triggerAt)
                         return@launch
                     }

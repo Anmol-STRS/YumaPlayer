@@ -95,7 +95,7 @@ class ServiceAudioPolicyHolder(
     val audioNormalizationFactorCache: ConcurrentHashMap<String, Float>
         get() = moe.rukamori.archivetune.playback.audioNormalizationFactorCache
     var audioNormalizationEnabled: Boolean = true
-    val maxSafeGainFactor: Float = MusicService.MAX_AUDIO_NORMALIZATION_FACTOR
+    val maxSafeGainFactor: Float = AudioPolicyConstants.MAX_AUDIO_NORMALIZATION_FACTOR
 
     var isAudioEffectSessionOpened: Boolean = false
     var openedAudioSessionId: Int? = null

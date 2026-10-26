@@ -31,7 +31,7 @@ internal class DiscordPresenceApplier(
         service.ensureDiscordSyncFresh(request.epoch)
 
         val decision = resolution.decision
-        Timber.tag(MusicService.DISCORD_SYNC_TAG).d(
+        Timber.tag(DiscordConstants.DISCORD_SYNC_TAG).d(
             "apply decision epoch=%d decision=%s tokenPresent=%s songId=%s",
             request.epoch,
             decision,
@@ -55,7 +55,7 @@ internal class DiscordPresenceApplier(
                                 token = token.takeIf { it.isNotBlank() } ?: service.lastPresenceToken,
                             )
                         if (!cleared) {
-                            Timber.tag(MusicService.DISCORD_SYNC_TAG).d(
+                            Timber.tag(DiscordConstants.DISCORD_SYNC_TAG).d(
                                 "clear skipped or failed for hidden reason=%s",
                                 decision.reason,
                             )
@@ -70,7 +70,7 @@ internal class DiscordPresenceApplier(
                         service.ensureDiscordSyncFresh(request.epoch)
                         val cleared = DiscordPresenceManager.clearNow(context = service, token = clearToken)
                         if (!cleared) {
-                            Timber.tag(MusicService.DISCORD_SYNC_TAG).d(
+                            Timber.tag(DiscordConstants.DISCORD_SYNC_TAG).d(
                                 "terminal clear skipped or failed for hidden reason=%s",
                                 decision.reason,
                             )
@@ -85,13 +85,13 @@ internal class DiscordPresenceApplier(
                         val clearToken = token.takeIf { it.isNotBlank() } ?: service.lastPresenceToken
                         service.ensureDiscordSyncFresh(request.epoch)
                         if (clearToken.isNullOrBlank()) {
-                            Timber.tag(MusicService.DISCORD_SYNC_TAG).v(
+                            Timber.tag(DiscordConstants.DISCORD_SYNC_TAG).v(
                                 "no token available for terminal clear; stopping manager only",
                             )
                         } else {
                             val cleared = DiscordPresenceManager.clearNow(context = service, token = clearToken)
                             if (!cleared) {
-                                Timber.tag(MusicService.DISCORD_SYNC_TAG).d(
+                                Timber.tag(DiscordConstants.DISCORD_SYNC_TAG).d(
                                     "terminal clear skipped or failed for hidden reason=%s",
                                     decision.reason,
                                 )
@@ -120,7 +120,7 @@ internal class DiscordPresenceApplier(
                         isMusicVideo = service.currentMediaMetadata.value?.isMusicVideo ?: false,
                     )
                 if (!updated) {
-                    Timber.tag(MusicService.DISCORD_SYNC_TAG).d(
+                    Timber.tag(DiscordConstants.DISCORD_SYNC_TAG).d(
                         "visible update failed songId=%s paused=%s",
                         decision.songId,
                         decision.isPaused,

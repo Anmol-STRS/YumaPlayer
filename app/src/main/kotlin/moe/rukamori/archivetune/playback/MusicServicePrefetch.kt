@@ -21,7 +21,6 @@ internal fun MusicService.getOrCreateStreamPrefetcher(): StreamPrefetcher {
     val prefetcher = StreamPrefetcher(
         cacheSpec = PrefetchCacheSpec(
             downloadCache = downloadCache,
-            playbackUrlCache = playbackUrlCache,
             extractorPlaybackUrlCache = extractorPlaybackUrlCache,
             losslessUrlCache = losslessUrlCache,
             remotePlaybackTrackingUrlCache = remotePlaybackTrackingUrlCache,

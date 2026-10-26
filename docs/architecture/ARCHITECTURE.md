@@ -60,9 +60,9 @@ To keep the codebase maintainable as it grows, all modules and layers must stric
   - `playback/engine/PlayerEngineHolder`: ExoPlayer instances, audio decks, connection pools, caches, load control, and renderers.
   - `playback/session/ServiceSessionHolder`: MediaLibrarySession, notifications, and foreground service management.
   - `playback/host/ServiceConfigCollector`: DataStore preferences, metadata state flows, and Together room/session state.
-  - Stream resolving is isolated in specialist classes (`FlacPlaybackResolver`, `YtPlaybackResolver`, `DiskCacheDataSpecProbe`, `MemoryPlaybackUrlPolicy`, `PlaybackFormatPersist`, `ArchiveTuneExtractorSpec`, `PlaybackSpecSupport`).
-  - Queue management is decoupled into `QueuePlayOrchestrator`, `QueueMutationCommands`, and `TogetherGuestCoordinator`.
-  - External integrations are isolated in `playback/discord/` and `playback/history/`.
+  - Stream resolving is isolated in specialist classes (`FlacPlaybackResolver`, `YtPlaybackResolver`, `DiskCacheDataSpecProbe`, `MemoryPlaybackUrlPolicy`, `PlaybackFormatPersist`, `ArchiveTuneExtractorSpec`, `PlaybackSpecSupport`). YouTube in-memory stream URLs are unified in `utils.StreamUrlCache` (keyed by `mediaId`, storing `url`, `itag`, expiry with 60s margin, and `authFingerprint`), shared between playback and prefetch pipelines.
+  - Queue management is decoupled into `QueuePlayOrchestrator`, `QueueMutationCommands`, and `TogetherGuestCoordinator`. Together room coordination behavior (`applyHostControl`, `applyHostAddTrack`, `buildTogetherRoomState`, `applyRemoteRoomState`) is encapsulated in `playback/together/ServiceTogetherCoordinator`.
+  - External integrations are isolated in `playback/discord/` and `playback/history/`. `ServicePlaybackHistoryCoordinator` owns the service-local history session state and pending jobs; `PlaybackHistoryTracker` and `PlaybackHistoryStore` retain tracking and persistence behavior.
 
 #### Spotify Queue Lazy Matching (forward + backward)
 

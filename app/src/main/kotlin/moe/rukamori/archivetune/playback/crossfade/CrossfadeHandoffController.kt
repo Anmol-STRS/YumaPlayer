@@ -9,6 +9,8 @@
 
 package moe.rukamori.archivetune.playback.crossfade
 
+import moe.rukamori.archivetune.playback.PlaybackConstants
+
 import androidx.media3.common.C
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
@@ -81,7 +83,7 @@ internal suspend fun MusicService.finishCrossfade(
 }
 
 internal suspend fun MusicService.awaitPrimaryCrossfadeHandoffReady(incomingPlayer: ExoPlayer): Boolean {
-    val deadlineMs = android.os.SystemClock.elapsedRealtime() + MusicService.CROSSFADE_HANDOFF_READY_TIMEOUT_MS
+    val deadlineMs = android.os.SystemClock.elapsedRealtime() + PlaybackConstants.CROSSFADE_HANDOFF_READY_TIMEOUT_MS
     while (currentCoroutineContext().isActive && android.os.SystemClock.elapsedRealtime() < deadlineMs) {
         if (player.playbackState == Player.STATE_READY && canHandoffWithoutRebuffer(incomingPlayer)) {
             return true

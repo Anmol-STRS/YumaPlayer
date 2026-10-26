@@ -5,6 +5,8 @@
  */
 package moe.rukamori.archivetune.playback
 
+import moe.rukamori.archivetune.playback.audio.AudioPolicyConstants
+
 import android.database.ContentObserver
 import android.media.AudioManager
 import android.os.Handler
@@ -182,7 +184,7 @@ internal fun MusicService.restoreDeviceMusicVolumeForPlayback(): Boolean {
 
 internal fun MusicService.showDeviceMutePlaybackNotice() {
     val now = android.os.SystemClock.elapsedRealtime()
-    if (now - lastDeviceMutePlaybackNoticeAtElapsedMs < MusicService.DEVICE_MUTE_PLAYBACK_NOTICE_INTERVAL_MS) return
+    if (now - lastDeviceMutePlaybackNoticeAtElapsedMs < AudioPolicyConstants.DEVICE_MUTE_PLAYBACK_NOTICE_INTERVAL_MS) return
     lastDeviceMutePlaybackNoticeAtElapsedMs = now
     scope.launch(moe.rukamori.archivetune.extensions.SilentHandler) {
         android.widget.Toast.makeText(this@showDeviceMutePlaybackNotice, moe.rukamori.archivetune.R.string.device_volume_zero_playback_paused, android.widget.Toast.LENGTH_SHORT).show()
@@ -200,9 +202,9 @@ internal fun MusicService.ensureAudiblePlaybackVolume(reason: String) {
     if (!shouldKeepPlaybackAudible()) return
     if (playerVolume.value <= 0f) return
     val expectedVolume = currentEffectivePlayerVolume()
-    if (expectedVolume <= MusicService.MIN_AUDIBLE_EFFECTIVE_VOLUME) return
-    if (player.volume > MusicService.STUCK_MUTED_VOLUME_EPSILON) return
-    Timber.tag(MusicService.TAG).w("Restoring muted primary player volume during active playback: reason=%s expected=%s actual=%s", reason, expectedVolume, player.volume)
+    if (expectedVolume <= AudioPolicyConstants.MIN_AUDIBLE_EFFECTIVE_VOLUME) return
+    if (player.volume > AudioPolicyConstants.STUCK_MUTED_VOLUME_EPSILON) return
+    Timber.tag(PlaybackConstants.TAG).w("Restoring muted primary player volume during active playback: reason=%s expected=%s actual=%s", reason, expectedVolume, player.volume)
     applyEffectiveVolumeImmediately(expectedVolume)
 }
 
@@ -216,7 +218,7 @@ internal fun MusicService.updateAudiblePlaybackRecovery() {
     audiblePlaybackRecoveryJob = scope.launch {
         while (isActive && shouldKeepPlaybackAudible()) {
             ensureAudiblePlaybackVolume("watchdog")
-            delay(MusicService.AUDIBLE_PLAYBACK_VOLUME_CHECK_MS)
+            delay(AudioPolicyConstants.AUDIBLE_PLAYBACK_VOLUME_CHECK_MS)
         }
         audiblePlaybackRecoveryJob = null
     }
@@ -231,7 +233,7 @@ internal fun MusicService.onAudioOutputDeviceChanged() {
     player.setAudioAttributes(playbackAudioAttributes(), false)
     audioRouteRecoveryJob?.cancel()
     audioRouteRecoveryJob = scope.launch {
-        delay(MusicService.AUDIO_ROUTE_CHANGE_DEBOUNCE_MS)
+        delay(AudioPolicyConstants.AUDIO_ROUTE_CHANGE_DEBOUNCE_MS)
         recoverAudioRouteAfterDeviceChange()
     }
 }
@@ -241,7 +243,7 @@ internal suspend fun MusicService.recoverAudioRouteAfterDeviceChange() {
     rebindAudioEffectsAfterRouteChange()
     if (!shouldRebuildPlaybackForAudioRouteChange()) return
     val now = android.os.SystemClock.elapsedRealtime()
-    if (now - lastAudioRouteRecoveryRealtimeMs < MusicService.AUDIO_ROUTE_RECOVERY_MIN_INTERVAL_MS) return
+    if (now - lastAudioRouteRecoveryRealtimeMs < AudioPolicyConstants.AUDIO_ROUTE_RECOVERY_MIN_INTERVAL_MS) return
     lastAudioRouteRecoveryRealtimeMs = now
     val mediaItemIndex = player.currentMediaItemIndex.takeIf { it != androidx.media3.common.C.INDEX_UNSET } ?: return
     val playbackPosition = player.currentPosition.coerceAtLeast(0L)
@@ -255,7 +257,7 @@ internal suspend fun MusicService.recoverAudioRouteAfterDeviceChange() {
     player.playWhenReady = false
     player.prepare()
     player.seekTo(mediaItemIndex, playbackPosition)
-    delay(MusicService.AUDIO_ROUTE_RECOVERY_RESUME_DELAY_MS)
+    delay(AudioPolicyConstants.AUDIO_ROUTE_RECOVERY_RESUME_DELAY_MS)
     if (shouldResumePlayback && player.currentMediaItem != null && player.playbackState != Player.STATE_ENDED && requestAudioFocus()) {
         player.playWhenReady = true
     }
@@ -265,7 +267,7 @@ internal suspend fun MusicService.rebindAudioEffectsAfterRouteChange() {
     if (!isAudioEffectSessionOpened) return
     closeAudioEffectSession()
     if (!player.playWhenReady) return
-    delay(MusicService.AUDIO_EFFECT_ROUTE_REBIND_DELAY_MS)
+    delay(AudioPolicyConstants.AUDIO_EFFECT_ROUTE_REBIND_DELAY_MS)
     openAudioEffectSession()
 }
 

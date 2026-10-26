@@ -11,6 +11,7 @@ import moe.rukamori.archivetune.constants.PlaybackSource
 import moe.rukamori.archivetune.db.entities.FormatEntity
 import moe.rukamori.archivetune.playback.resolvers.StreamUrl
 import moe.rukamori.archivetune.utils.AuthScopedCacheValue
+import moe.rukamori.archivetune.utils.StreamUrlCache
 import moe.rukamori.archivetune.utils.YTPlayerUtils
 import moe.rukamori.archivetune.utils.get
 import timber.log.Timber
@@ -133,7 +134,7 @@ internal fun MusicService.buildResolvedPlaybackDataSpec(
             requestedLength = dataSpec.length,
             position = dataSpec.position,
             knownContentLength = knownContentLength,
-            chunkLength = MusicService.CHUNK_LENGTH,
+            chunkLength = PlaybackConstants.CHUNK_LENGTH,
             mimeType = storedFormat?.mimeType,
         )
     return length?.let { nonNullLength ->
@@ -149,6 +150,7 @@ internal fun MusicService.resolveFromMemoryUrlPolicy(
     knownContentLength: Long?,
     storedFormat: FormatEntity?,
 ): DataSpec? {
+    // 1. Если включен FLAC, сначала проверяем кэш FLAC
     if (effectiveSource == PlaybackSource.FLAC) {
         val cachedLossless = if (enableMemoryCache) {
             losslessUrlCache.get(formatIdForSource(mediaId, PlaybackSource.FLAC))
@@ -158,18 +160,29 @@ internal fun MusicService.resolveFromMemoryUrlPolicy(
             Timber.tag("FLAC_PLAYBACK").d("Using cached lossless URL for $mediaId")
             return buildResolvedFlacDataSpec(dataSpec, mediaId, cachedLossless)
         }
-    } else {
-        val cachedPlayback = playbackUrlCache[formatIdForSource(mediaId, PlaybackSource.YT_MUSIC)]
-            ?.takeIf {
-                it.isValidFor(
-                    authFingerprint = authFingerprint,
-                    minimumRemainingMs = YTPlayerUtils.STREAM_URL_EXPIRY_SAFETY_MS,
-                )
-            }
+    }
 
-        if (cachedPlayback != null) {
-            return buildResolvedPlaybackDataSpec(dataSpec, mediaId, cachedPlayback, knownContentLength, storedFormat)
+    val cachedPlayback = StreamUrlCache.getValidCachedStreamUrl(
+        mediaId = mediaId,
+        authFingerprint = authFingerprint,
+        minimumRemainingMs = YTPlayerUtils.STREAM_URL_EXPIRY_SAFETY_MS,
+    )
+
+    if (cachedPlayback != null) {
+        val dbFormat = storedFormat ?: database.getFormatById(formatIdForSource(mediaId, PlaybackSource.YT_MUSIC))
+        val effectiveFormat = if (dbFormat != null && dbFormat.itag == cachedPlayback.itag) {
+            dbFormat
+        } else {
+            null
         }
+        val resolvedLength = effectiveFormat?.contentLength?.takeIf { it > 0L } ?: knownContentLength
+        return buildResolvedPlaybackDataSpec(
+            dataSpec = dataSpec,
+            mediaId = mediaId,
+            cached = cachedPlayback.toAuthScopedCacheValue(),
+            knownContentLength = resolvedLength,
+            storedFormat = effectiveFormat,
+        )
     }
 
     return null

@@ -9,6 +9,8 @@
 
 package moe.rukamori.archivetune.playback.crossfade
 
+import moe.rukamori.archivetune.playback.PlaybackConstants
+
 import androidx.core.net.toUri
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -149,7 +151,7 @@ internal fun MusicService.kickOffTrackAnalysis(mediaId: String, mediaItem: Media
         try {
             val cached = TrackAnalyzer.getOrFetchCached(mediaId)
             if (cached != null) {
-                Timber.tag(MusicService.TAG).d("kickOffTrackAnalysis ready from cache/Room: mediaId=$mediaId bpm=${cached.bpm}")
+                Timber.tag(PlaybackConstants.TAG).d("kickOffTrackAnalysis ready from cache/Room: mediaId=$mediaId bpm=${cached.bpm}")
                 return@launch
             }
 
@@ -189,12 +191,12 @@ internal fun MusicService.kickOffTrackAnalysis(mediaId: String, mediaItem: Media
             }
 
             if (isTrackFullyCached(mediaId)) {
-                Timber.tag(MusicService.TAG).d("kickOffTrackAnalysis start: offline downloaded track mediaId=$mediaId")
+                Timber.tag(PlaybackConstants.TAG).d("kickOffTrackAnalysis start: offline downloaded track mediaId=$mediaId")
                 analyzeCachedTrack(mediaId, durationSeconds = durationSeconds)
                 return@launch
             }
         } catch (e: Exception) {
-            Timber.tag(MusicService.TAG).v(e, "Background TrackAnalyzer failed for mediaId=$mediaId")
+            Timber.tag(PlaybackConstants.TAG).v(e, "Background TrackAnalyzer failed for mediaId=$mediaId")
         }
     }
 }

@@ -9,6 +9,8 @@
 
 package moe.rukamori.archivetune.playback.crossfade
 
+import moe.rukamori.archivetune.playback.PlaybackConstants
+
 import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
@@ -131,7 +133,7 @@ internal fun advanceCueForLateStart(
     if (cueInMs <= 0L || elapsedBeforeStartMs <= 0L) return cueInMs
     val incomingDuration = incomingPlayer.duration
     val maxPositionMs = if (incomingDuration != C.TIME_UNSET && incomingDuration > 0L) {
-        incomingDuration - MusicService.CROSSFADE_END_GUARD_MS
+        incomingDuration - PlaybackConstants.CROSSFADE_END_GUARD_MS
     } else {
         null
     }

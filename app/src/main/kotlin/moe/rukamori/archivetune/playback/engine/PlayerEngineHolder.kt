@@ -33,6 +33,7 @@ import moe.rukamori.archivetune.playback.ytStreamCacheKey
 import moe.rukamori.archivetune.constants.PlaybackSource
 import moe.rukamori.archivetune.moriextractor.StreamingExtractionManager
 import moe.rukamori.archivetune.playback.resolvers.StreamUrlCache
+import moe.rukamori.archivetune.utils.StreamUrlCache as YouTubeStreamUrlCache
 import moe.rukamori.archivetune.utils.AuthScopedCacheValue
 import moe.rukamori.archivetune.utils.ProxyAuth
 import moe.rukamori.archivetune.utils.StreamClientUtils
@@ -124,19 +125,13 @@ class PlayerEngineHolder {
         runCatching { extractorMediaOkHttpClient.connectionPool.evictAll() }
     }
 
-    val playbackUrlCache = ConcurrentHashMap<String, AuthScopedCacheValue>()
     val losslessUrlCache = StreamUrlCache()
     val extractorPlaybackUrlCache = ConcurrentHashMap<String, AuthScopedCacheValue>()
     val remotePlaybackTrackingUrlCache = ConcurrentHashMap<String, String>()
     val contentLengthCache = ConcurrentHashMap<String, Long>()
 
     fun invalidatePlaybackUrlCache(mediaId: String) {
-        playbackUrlCache.remove(mediaId)
-        playbackUrlCache.remove(flacCacheKey(mediaId))
-        playbackUrlCache.remove("${mediaId}_${PlaybackSource.FLAC.name}")
-        playbackUrlCache.remove(ytStreamCacheKey(mediaId))
-        playbackUrlCache.remove(flacStreamCacheKey(mediaId))
-        playbackUrlCache.remove("${mediaId}_${PlaybackSource.YT_MUSIC.name}")
+        YouTubeStreamUrlCache.invalidateCachedStreamUrls(mediaId)
     }
 
     fun invalidateLosslessUrlCache(mediaId: String) {

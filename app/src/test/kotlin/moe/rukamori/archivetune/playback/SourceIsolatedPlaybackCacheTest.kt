@@ -72,7 +72,6 @@ class SourceIsolatedPlaybackCacheTest {
         every { service.connectivityManager } returns connectivityManager
         every { service.database } returns database
         every { service.contentLengthCache } returns engineHolder.contentLengthCache
-        every { service.playbackUrlCache } returns engineHolder.playbackUrlCache
         every { service.losslessUrlCache } returns engineHolder.losslessUrlCache
         every { service.enableMemoryCache } returns true
         every { service.scope } returns kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Unconfined)

@@ -27,8 +27,8 @@ class ArchiveTuneMediaNotificationProvider(
     private val delegate =
         DefaultMediaNotificationProvider(
             context,
-            { MusicService.NOTIFICATION_ID },
-            MusicService.CHANNEL_ID,
+            { MusicServiceNotification.NOTIFICATION_ID },
+            MusicServiceNotification.CHANNEL_ID,
             R.string.music_player,
         ).apply {
             setSmallIcon(smallIconResId)
@@ -54,9 +54,9 @@ class ArchiveTuneMediaNotificationProvider(
                 context,
                 mediaNotification.notificationId,
                 Intent(context, MusicService::class.java).apply {
-                    action = MusicService.ACTION_MEDIA_NOTIFICATION_DISMISSED
+                    action = MusicServiceNotification.ACTION_MEDIA_NOTIFICATION_DISMISSED
                     putExtra(
-                        MusicService.EXTRA_MEDIA_NOTIFICATION_DELETE_INTENT,
+                        MusicServiceNotification.EXTRA_MEDIA_NOTIFICATION_DELETE_INTENT,
                         originalDeleteIntent,
                     )
                 },
