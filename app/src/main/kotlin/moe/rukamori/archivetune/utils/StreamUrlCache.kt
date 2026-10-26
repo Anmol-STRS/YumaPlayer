@@ -6,6 +6,7 @@
 
 package moe.rukamori.archivetune.utils
 
+import android.util.Log
 import moe.rukamori.archivetune.constants.PlayerStreamClient
 import moe.rukamori.archivetune.innertube.YouTube
 import moe.rukamori.archivetune.innertube.models.YouTubeClient
@@ -22,9 +23,23 @@ object StreamUrlCache {
 
     data class CachedStreamUrl(
         val url: String,
+        val itag: Int,
         val expiresAtMs: Long,
         val authFingerprint: String,
-    )
+    ) {
+        fun isValidFor(
+            authFingerprint: String,
+            nowMs: Long = System.currentTimeMillis(),
+            minimumRemainingMs: Long = STREAM_URL_EXPIRY_SAFETY_MS,
+        ): Boolean = this.authFingerprint == authFingerprint && expiresAtMs > nowMs + minimumRemainingMs
+
+        fun toAuthScopedCacheValue(): AuthScopedCacheValue =
+            AuthScopedCacheValue(
+                url = url,
+                expiresAtMs = expiresAtMs,
+                authFingerprint = authFingerprint,
+            )
+    }
 
     data class CachedPoToken(
         val playerToken: String,
@@ -87,38 +102,78 @@ object StreamUrlCache {
         )
     }
 
-    fun getCachedStreamUrl(cacheKey: String): CachedStreamUrl? = streamUrlCache[cacheKey]
+    fun getCachedStreamUrl(mediaId: String): CachedStreamUrl? {
+        val res = streamUrlCache[mediaId]
+        Timber.tag("StreamUrlCache").d("RAW_GET [$mediaId] -> ${if (res != null) "FOUND" else "NULL"}")
+        return res
+    }
+
+    fun getValidCachedStreamUrl(
+        mediaId: String,
+        authFingerprint: String,
+        nowMs: Long = System.currentTimeMillis(),
+        minimumRemainingMs: Long = STREAM_URL_EXPIRY_SAFETY_MS,
+    ): CachedStreamUrl? {
+        val entry = streamUrlCache[mediaId]
+        if (entry == null) {
+            Timber.tag("StreamUrlCache").d("GET_VALID [$mediaId] -> NULL (no entry)")
+            return null
+        }
+        val fpMatch = entry.authFingerprint == authFingerprint
+        val timeOk = entry.expiresAtMs > nowMs + minimumRemainingMs
+        Timber.tag("StreamUrlCache").d("GET_VALID [$mediaId] -> entryExists=true, fpMatch=$fpMatch (entry='${entry.authFingerprint}', query='$authFingerprint'), timeOk=$timeOk (exp=${entry.expiresAtMs}, need>${nowMs + minimumRemainingMs})")
+        return entry.takeIf { fpMatch && timeOk }
+    }
 
     fun putCachedStreamUrl(
-        cacheKey: String,
+        mediaId: String,
         url: String,
+        itag: Int,
         expiresInSeconds: Int,
         authFingerprint: String,
     ) {
-        streamUrlCache[cacheKey] = CachedStreamUrl(
-            url = url,
-            expiresAtMs = System.currentTimeMillis() + (expiresInSeconds * 1000L),
-            authFingerprint = authFingerprint,
-        )
+        val calculatedExpiryMs = System.currentTimeMillis() + (expiresInSeconds * 1000L)
+        val urlExpiryMs = extractExpireTimestampMsFromUrl(url)
+        val cappedExpiryMs = if (urlExpiryMs != null) {
+            minOf(urlExpiryMs, calculatedExpiryMs)
+        } else {
+            calculatedExpiryMs
+        }
+
+        streamUrlCache.compute(mediaId) { _, existing ->
+            val safeExpiresAtMs = if (existing != null && existing.url == url) {
+                minOf(existing.expiresAtMs, cappedExpiryMs)
+            } else {
+                cappedExpiryMs
+            }
+            Timber.tag("StreamUrlCache").d("PUT [$mediaId]: itag=$itag, fp='$authFingerprint', exp=$safeExpiresAtMs")
+            CachedStreamUrl(
+                url = url,
+                itag = itag,
+                expiresAtMs = safeExpiresAtMs,
+                authFingerprint = authFingerprint,
+            )
+        }
     }
 
     fun clearPlaybackAuthCaches() {
+        val trace = Log.getStackTraceString(Throwable())
+        Timber.tag("StreamUrlCache").e("CLEAR_ALL_AUTH CALLED! StackTrace:\n$trace")
         streamUrlCache.clear()
         failedStreamClientsUntil.clear()
         poTokenCache.clear()
         lastSuccessfulClientKey = null
     }
 
-    fun buildStreamCacheKey(
-        videoId: String,
-        itag: Int,
-        client: YouTubeClient,
-        authFingerprint: String,
-    ): String = "$authFingerprint:$videoId:$itag:${StreamClientUtils.buildClientKey(client)}"
+    fun clearStreamUrls() {
+        val trace = Log.getStackTraceString(Throwable())
+        Timber.tag("StreamUrlCache").e("CLEAR_STREAM_URLS CALLED! StackTrace:\n$trace")
+        streamUrlCache.clear()
+    }
 
     fun invalidateCachedStreamUrls(videoId: String) {
-        val marker = ":$videoId:"
-        streamUrlCache.keys.removeIf { it.contains(marker) }
+        Timber.tag("StreamUrlCache").d("INVALIDATE [$videoId]")
+        streamUrlCache.remove(videoId)
     }
 
     fun isExpiredOrNearExpiredStreamUrl(

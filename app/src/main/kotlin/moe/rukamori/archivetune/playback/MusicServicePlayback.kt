@@ -28,6 +28,7 @@ import moe.rukamori.archivetune.playback.crossfade.isTrackFullyCached
 import moe.rukamori.archivetune.storage.StorageFolderKind
 import moe.rukamori.archivetune.storage.StorageLocationRepository
 import moe.rukamori.archivetune.utils.AuthScopedCacheValue
+import moe.rukamori.archivetune.utils.StreamUrlCache
 import moe.rukamori.archivetune.utils.get
 import timber.log.Timber
 
@@ -232,8 +233,7 @@ internal fun MusicService.createPlaybackRecoveryEngine(): PlaybackRecoveryEngine
                 extractorPlaybackUrlCache.remove(mediaId)
             }
             override fun getCachedFailedPlaybackUrl(mediaId: String, failedUrl: String): AuthScopedCacheValue? {
-                return (playbackUrlCache[mediaId]
-                    ?: playbackUrlCache["${mediaId}_${PlaybackSource.YT_MUSIC.name}"])?.takeIf { it.url == failedUrl }
+                return StreamUrlCache.getCachedStreamUrl(mediaId)?.takeIf { it.url == failedUrl }?.toAuthScopedCacheValue()
             }
             override fun getCachedExtractorFailedPlaybackUrl(mediaId: String, failedUrl: String): AuthScopedCacheValue? {
                 return extractorPlaybackUrlCache[mediaId]?.takeIf { it.url == failedUrl }

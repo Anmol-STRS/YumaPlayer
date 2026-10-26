@@ -26,6 +26,7 @@ import moe.rukamori.archivetune.innertube.models.response.PlayerResponse
 import moe.rukamori.archivetune.playback.crossfade.isSourceFullyCached
 import moe.rukamori.archivetune.playback.engine.PlayerEngineHolder
 import moe.rukamori.archivetune.playback.resolvers.StreamUrl
+import moe.rukamori.archivetune.utils.StreamUrlCache
 import moe.rukamori.archivetune.utils.YTPlayerUtils
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -81,7 +82,6 @@ class SourceIsolatedPolicyTest {
         every { service.playerCache } returns playerCache
         every { service.database } returns database
         every { service.contentLengthCache } returns engineHolder.contentLengthCache
-        every { service.playbackUrlCache } returns engineHolder.playbackUrlCache
         every { service.losslessUrlCache } returns engineHolder.losslessUrlCache
         every { service.enableMemoryCache } returns true
         every { service.scope } returns kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Unconfined)
@@ -133,13 +133,18 @@ class SourceIsolatedPolicyTest {
     @Test
     fun testFlacYtFlacKeepsIndependentUrlContentLengthFormatEntityIds() {
         val savedFormats = mutableListOf<FormatEntity>()
-        every { database.query(any<MusicDatabase.() -> Unit>()) } answers {
-            val block = firstArg<MusicDatabase.() -> Unit>()
+        val handleDbBlock: (MusicDatabase.() -> Unit) -> Unit = { block ->
             val dbScope = mockk<MusicDatabase>(relaxed = true)
             every { dbScope.upsert(any<FormatEntity>()) } answers {
                 savedFormats.add(firstArg())
             }
             dbScope.block()
+        }
+        every { database.query(any<MusicDatabase.() -> Unit>()) } answers {
+            handleDbBlock(firstArg())
+        }
+        every { database.transaction(any<MusicDatabase.() -> Unit>()) } answers {
+            handleDbBlock(firstArg())
         }
 
         val flacStream = StreamUrl("https://qobuz.example/song.flac", System.currentTimeMillis() + 600_000L, origin = "qobuz")
@@ -326,5 +331,112 @@ class SourceIsolatedPolicyTest {
         val savedYt = savedFormats.lastOrNull { it.id == "${mediaId}_YT_MUSIC" }
         assertNotNull(savedYt)
         assertEquals("${mediaId}_YT_MUSIC", savedYt?.id)
+    }
+
+    @Test
+    fun testMemoryPlaybackPolicyMatchingItagHits() {
+        StreamUrlCache.clearPlaybackAuthCaches()
+        StreamUrlCache.putCachedStreamUrl(
+            mediaId = mediaId,
+            url = "https://yt.example/stream.webm",
+            itag = 251,
+            expiresInSeconds = 300,
+            authFingerprint = "auth_fp",
+        )
+        val matchingFormat = FormatEntity(
+            id = "${mediaId}_YT_MUSIC",
+            itag = 251,
+            mimeType = "audio/webm",
+            codecs = "opus",
+            bitrate = 160_000,
+            sampleRate = 48000,
+            contentLength = 4_000_000L,
+            loudnessDb = null,
+            playbackUrl = null,
+        )
+        every { database.getFormatById("${mediaId}_YT_MUSIC") } returns matchingFormat
+
+        val baseSpec = DataSpec.Builder().setUri(mediaId.toUri()).setKey(mediaId).build()
+        val hit = service.resolveFromMemoryUrlPolicy(
+            dataSpec = baseSpec,
+            mediaId = mediaId,
+            authFingerprint = "auth_fp",
+            effectiveSource = PlaybackSource.YT_MUSIC,
+            knownContentLength = null,
+            storedFormat = null,
+        )
+        assertNotNull(hit)
+        assertEquals("https://yt.example/stream.webm", hit?.uri?.toString())
+        assertEquals(ytStreamCacheKey(mediaId), hit?.key)
+    }
+
+    @Test
+    fun testMemoryPlaybackPolicyMismatchedItagFallsBackToResolver() {
+        StreamUrlCache.clearPlaybackAuthCaches()
+        StreamUrlCache.putCachedStreamUrl(
+            mediaId = mediaId,
+            url = "https://yt.example/stream.webm",
+            itag = 251,
+            expiresInSeconds = 300,
+            authFingerprint = "auth_fp",
+        )
+        val staleFormat = FormatEntity(
+            id = "${mediaId}_YT_MUSIC",
+            itag = 140,
+            mimeType = "audio/mp4",
+            codecs = "mp4a.40.2",
+            bitrate = 128_000,
+            sampleRate = 44100,
+            contentLength = 3_000_000L,
+            loudnessDb = null,
+            playbackUrl = null,
+        )
+        every { database.getFormatById("${mediaId}_YT_MUSIC") } returns staleFormat
+
+        val baseSpec = DataSpec.Builder().setUri(mediaId.toUri()).setKey(mediaId).build()
+        val hit = service.resolveFromMemoryUrlPolicy(
+            dataSpec = baseSpec,
+            mediaId = mediaId,
+            authFingerprint = "auth_fp",
+            effectiveSource = PlaybackSource.YT_MUSIC,
+            knownContentLength = null,
+            storedFormat = null,
+        )
+        assertNull(hit)
+    }
+
+    @Test
+    fun testMemoryPlaybackPolicyAuthMismatchFallsBack() {
+        StreamUrlCache.clearPlaybackAuthCaches()
+        StreamUrlCache.putCachedStreamUrl(
+            mediaId = mediaId,
+            url = "https://yt.example/stream.webm",
+            itag = 251,
+            expiresInSeconds = 300,
+            authFingerprint = "auth_fp",
+        )
+        val matchingFormat = FormatEntity(
+            id = "${mediaId}_YT_MUSIC",
+            itag = 251,
+            mimeType = "audio/webm",
+            codecs = "opus",
+            bitrate = 160_000,
+            sampleRate = 48000,
+            contentLength = 4_000_000L,
+            loudnessDb = null,
+            playbackUrl = null,
+        )
+        every { database.getFormatById("${mediaId}_YT_MUSIC") } returns matchingFormat
+
+        val baseSpec = DataSpec.Builder().setUri(mediaId.toUri()).setKey(mediaId).build()
+        val hit = service.resolveFromMemoryUrlPolicy(
+            dataSpec = baseSpec,
+            mediaId = mediaId,
+            authFingerprint = "different_auth",
+            effectiveSource = PlaybackSource.YT_MUSIC,
+            knownContentLength = null,
+            storedFormat = null,
+        )
+        assertNull(hit)
     }
 }

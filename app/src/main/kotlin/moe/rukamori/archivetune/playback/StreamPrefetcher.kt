@@ -30,6 +30,7 @@ import moe.rukamori.archivetune.moriextractor.StreamingExtractionManager
 import moe.rukamori.archivetune.playback.crossfade.isFullyCached
 import moe.rukamori.archivetune.playback.resolvers.LosslessStreamResolver
 import moe.rukamori.archivetune.playback.resolvers.StreamUrlCache
+import moe.rukamori.archivetune.utils.StreamUrlCache as YouTubeStreamUrlCache
 import moe.rukamori.archivetune.utils.AuthScopedCacheValue
 import moe.rukamori.archivetune.utils.YTPlayerUtils
 import moe.rukamori.archivetune.utils.get
@@ -46,7 +47,7 @@ private const val EXTRACTOR_CACHE_FINGERPRINT_PREFIX = "archivetune_extractor:"
 private const val EXTRACTOR_CACHE_TTL_MS = 5 * 60 * 1000L
 
 internal class PrefetchCacheSpec(
-    val downloadCache: Cache, val playbackUrlCache: ConcurrentHashMap<String, AuthScopedCacheValue>,
+    val downloadCache: Cache,
     val extractorPlaybackUrlCache: ConcurrentHashMap<String, AuthScopedCacheValue>, val losslessUrlCache: StreamUrlCache,
     val remotePlaybackTrackingUrlCache: ConcurrentHashMap<String, String>, val contentLengthCache: ConcurrentHashMap<String, Long>,
     val audioNormalizationFactorCache: ConcurrentHashMap<String, Float>,
@@ -199,9 +200,11 @@ internal class StreamPrefetcher(
                     }
                     if (!resolvedFlac) {
                         val authFingerprint = YouTube.currentPlaybackAuthState().fingerprint
-                        val cached = cacheSpec.playbackUrlCache[cacheKey]?.takeIf { it.isValidFor(authFingerprint, YTPlayerUtils.STREAM_URL_EXPIRY_SAFETY_MS) }
-                        if (cached != null) {
-                            cacheSpec.playbackUrlCache["${mediaId}_${PlaybackSource.YT_MUSIC.name}"] = cached
+                        val cached = YouTubeStreamUrlCache.getValidCachedStreamUrl(mediaId, authFingerprint)
+                        val storedFormat = if (cached != null) {
+                            delegate.database.getFormatById("${mediaId}_${PlaybackSource.YT_MUSIC.name}")
+                        } else null
+                        if (cached != null && storedFormat != null && storedFormat.itag == cached.itag) {
                             downloadUrl = cached.url
                             targetCacheKey = ytStreamCacheKey(mediaId)
                         } else {
@@ -220,8 +223,13 @@ internal class StreamPrefetcher(
                                 val formatEntity = FormatEntity(id = "${mediaId}_${PlaybackSource.YT_MUSIC.name}", itag = format.itag, mimeType = format.mimeType.split(";")[0], codecs = codecs, bitrate = format.bitrate, sampleRate = format.audioSampleRate, contentLength = len, loudnessDb = res.audioConfig?.loudnessDb, perceptualLoudnessDb = res.audioConfig?.perceptualLoudnessDb, playbackUrl = res.playbackTracking?.videostatsPlaybackUrl?.baseUrl)
                                 cacheSpec.audioNormalizationFactorCache[mediaId] = delegate.calculateAudioNormalization(formatEntity)
                                 delegate.database.query { upsert(formatEntity) }
-                                val cacheValue = AuthScopedCacheValue(res.streamUrl, System.currentTimeMillis() + (res.streamExpiresInSeconds * 1000L), res.authFingerprint)
-                                cacheSpec.playbackUrlCache["${mediaId}_${PlaybackSource.YT_MUSIC.name}"] = cacheValue
+                                YouTubeStreamUrlCache.putCachedStreamUrl(
+                                    mediaId = mediaId,
+                                    url = res.streamUrl,
+                                    itag = format.itag,
+                                    expiresInSeconds = res.streamExpiresInSeconds,
+                                    authFingerprint = res.authFingerprint,
+                                )
                                 downloadUrl = res.streamUrl
                                 targetCacheKey = ytStreamCacheKey(mediaId)
                             }

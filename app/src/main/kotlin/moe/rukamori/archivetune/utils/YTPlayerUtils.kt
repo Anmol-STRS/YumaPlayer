@@ -81,13 +81,6 @@ object YTPlayerUtils {
             hasGvsPoToken = hasGvsPoToken,
         )
 
-    internal fun buildStreamCacheKey(
-        videoId: String,
-        itag: Int,
-        client: YouTubeClient,
-        authFingerprint: String,
-    ): String = StreamUrlCache.buildStreamCacheKey(videoId, itag, client, authFingerprint)
-
     fun invalidateCachedStreamUrls(videoId: String) {
         StreamUrlCache.invalidateCachedStreamUrls(videoId)
     }

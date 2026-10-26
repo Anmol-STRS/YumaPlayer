@@ -222,7 +222,6 @@ class MusicService :
     internal val audioQuality: AudioQuality get() = configCollector.audioQuality
     internal val preferredStreamClient: PlayerStreamClient get() = configCollector.preferredStreamClient
     internal val enableMemoryCache: Boolean get() = configCollector.enableMemoryCache
-    internal val playbackUrlCache get() = playerEngineHolder.playbackUrlCache
     internal val losslessUrlCache get() = playerEngineHolder.losslessUrlCache
     @Volatile override var isLowDataEnabled: Boolean = true
     internal val extractorPlaybackUrlCache get() = playerEngineHolder.extractorPlaybackUrlCache

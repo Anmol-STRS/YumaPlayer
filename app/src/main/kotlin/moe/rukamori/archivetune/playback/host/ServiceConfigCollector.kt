@@ -22,10 +22,12 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import moe.rukamori.archivetune.constants.AudioQuality
 import moe.rukamori.archivetune.constants.AudioQualityKey
 import moe.rukamori.archivetune.constants.MemoryCacheToggleKey
@@ -33,6 +35,7 @@ import moe.rukamori.archivetune.constants.PlaybackSource
 import moe.rukamori.archivetune.constants.PlaybackSourceKey
 import moe.rukamori.archivetune.constants.PlayerStreamClient
 import moe.rukamori.archivetune.constants.PlayerStreamClientKey
+import moe.rukamori.archivetune.utils.StreamUrlCache
 import moe.rukamori.archivetune.constants.TogetherClientIdKey
 import moe.rukamori.archivetune.db.MusicDatabase
 import moe.rukamori.archivetune.db.entities.FormatEntity
@@ -76,6 +79,18 @@ internal class ServiceConfigCollector(
         MemoryCacheToggleKey,
         true,
     )
+
+    init {
+        scope.launch(Dispatchers.IO) {
+            dataStore.data
+                .map { it[AudioQualityKey] }
+                .distinctUntilChanged()
+                .drop(1)
+                .collect {
+                    StreamUrlCache.clearStreamUrls()
+                }
+        }
+    }
 
     val currentMediaMetadata = MutableStateFlow<MediaMetadata?>(null)
 

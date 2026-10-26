@@ -20,6 +20,7 @@ import moe.rukamori.archivetune.constants.PlaybackSource
 import moe.rukamori.archivetune.db.MusicDatabase
 import moe.rukamori.archivetune.db.entities.FormatEntity
 import moe.rukamori.archivetune.utils.AuthScopedCacheValue
+import moe.rukamori.archivetune.utils.StreamUrlCache
 import moe.rukamori.archivetune.utils.YTPlayerUtils
 import moe.rukamori.archivetune.utils.dataStore
 import moe.rukamori.archivetune.utils.get
@@ -135,15 +136,13 @@ internal fun MusicService.persistPlaybackFormat(
 
     val streamUrl = playbackData.streamUrl
 
-    val trackingExpiryMs = System.currentTimeMillis() + (playbackData.streamExpiresInSeconds * 1000L)
-
-    val cacheValue =
-        AuthScopedCacheValue(
-            url = streamUrl,
-            expiresAtMs = trackingExpiryMs,
-            authFingerprint = playbackData.authFingerprint,
-        )
-    playbackUrlCache[formatIdForSource(mediaId, PlaybackSource.YT_MUSIC)] = cacheValue
+    StreamUrlCache.putCachedStreamUrl(
+        mediaId = mediaId,
+        url = streamUrl,
+        itag = format.itag,
+        expiresInSeconds = playbackData.streamExpiresInSeconds,
+        authFingerprint = playbackData.authFingerprint,
+    )
     val targetDataKey = resolveTargetDataKey(mediaId, PlaybackSource.YT_MUSIC)
     val specWithKey = if (dataSpec.key != targetDataKey) dataSpec.buildUpon().setKey(targetDataKey).build() else dataSpec
     val resolvedDataSpec = specWithKey.withUri(streamUrl.toUri())

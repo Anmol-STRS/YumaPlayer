@@ -90,10 +90,9 @@ internal object VisionOsFastPathResolver {
                         if (PlaybackFormatSelector.isLikelyPreview(candidate, expectedDurationMs)) continue
                         if (PlaybackFormatSelector.shouldSkipCipheredWebCandidate(VISIONOS, candidate, authState)) continue
 
-                        val cacheKey = StreamUrlCache.buildStreamCacheKey(videoId, candidate.itag, VISIONOS, authState.fingerprint)
-                        val cached = StreamUrlCache.getCachedStreamUrl(cacheKey)
+                        val cached = StreamUrlCache.getValidCachedStreamUrl(videoId, authState.fingerprint)
                         val candidateUrl =
-                            if (cached != null && cached.expiresAtMs > System.currentTimeMillis() + StreamUrlCache.STREAM_URL_EXPIRY_SAFETY_MS) {
+                            if (cached != null && cached.itag == candidate.itag) {
                                 cached.url
                             } else {
                                 PlaybackStreamUrlDecipher.findUrlOrNull(candidate, videoId, VISIONOS, authState)
@@ -114,10 +113,11 @@ internal object VisionOsFastPathResolver {
                             )
 
                         StreamUrlCache.putCachedStreamUrl(
-                            StreamUrlCache.buildStreamCacheKey(videoId, selectedFormat.itag, VISIONOS, authState.fingerprint),
-                            selectedUrl,
-                            streamExpiresInSeconds,
-                            authState.fingerprint,
+                            mediaId = videoId,
+                            url = selectedUrl,
+                            itag = selectedFormat.itag,
+                            expiresInSeconds = streamExpiresInSeconds,
+                            authFingerprint = authState.fingerprint,
                         )
 
                         val formatType = when {

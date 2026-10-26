@@ -27,6 +27,7 @@ import moe.rukamori.archivetune.playback.recovery.NetworkStallReviver
 import moe.rukamori.archivetune.playback.recovery.StreamErrorRouter
 import moe.rukamori.archivetune.playback.resolvers.StreamUrl
 import moe.rukamori.archivetune.utils.AuthScopedCacheValue
+import moe.rukamori.archivetune.utils.StreamUrlCache
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -65,13 +66,13 @@ class SourceIsolatedRecoveryTest {
         val v2FlacKey = flacStreamCacheKey(mediaId)
         val legacyFlacKey = flacCacheKey(mediaId)
 
-        val ytValue = AuthScopedCacheValue("https://yt.example", System.currentTimeMillis() + 100_000L, "auth")
-        engineHolder.playbackUrlCache[mediaId] = ytValue
-        engineHolder.playbackUrlCache[v2YtKey] = ytValue
-        engineHolder.playbackUrlCache[v2FlacKey] = ytValue
-        engineHolder.playbackUrlCache[legacyFlacKey] = ytValue
-        engineHolder.playbackUrlCache[ytFormatId] = ytValue
-        engineHolder.playbackUrlCache[flacFormatId] = ytValue
+        StreamUrlCache.putCachedStreamUrl(
+            mediaId = mediaId,
+            url = "https://yt.example",
+            itag = 251,
+            expiresInSeconds = 300,
+            authFingerprint = "auth",
+        )
 
         val flacValue = StreamUrl("https://flac.example", System.currentTimeMillis() + 100_000L, origin = "qobuz")
         engineHolder.losslessUrlCache.put(mediaId, flacValue)
@@ -83,12 +84,7 @@ class SourceIsolatedRecoveryTest {
 
         engineHolder.invalidatePlaybackUrlCache(mediaId)
 
-        assertNull(engineHolder.playbackUrlCache[mediaId])
-        assertNull(engineHolder.playbackUrlCache[v2YtKey])
-        assertNull(engineHolder.playbackUrlCache[v2FlacKey])
-        assertNull(engineHolder.playbackUrlCache[legacyFlacKey])
-        assertNull(engineHolder.playbackUrlCache[ytFormatId])
-        assertNull(engineHolder.playbackUrlCache[flacFormatId])
+        assertNull(StreamUrlCache.getCachedStreamUrl(mediaId))
 
         assertEquals(flacValue, engineHolder.losslessUrlCache.get(v2FlacKey))
         assertEquals(flacValue, engineHolder.losslessUrlCache.get(flacFormatId))
