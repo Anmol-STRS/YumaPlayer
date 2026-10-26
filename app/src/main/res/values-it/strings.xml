@@ -1267,4 +1267,26 @@
     <string name="good_night">Buonanotte</string>
     <string name="marquee_enabled">Testo scorrevole</string>
     <string name="marquee_enabled_desc">Abilita testo scorrevole per titoli lunghi</string>
+    <string name="release_open_failed">Impossibile aprire la pagina</string>
+    <string name="release_state_collapsed">Minimizzato</string>
+    <string name="release_notes_section_other">Altro</string>
+    <string name="release_notes_summary_features">Features: %1$d</string>
+    <string name="release_notes_section_documentation">Documentazione</string>
+    <string name="home_background_none">Nessuno</string>
+    <string name="release_notes_show_all">Mostra tutto (%1$d)</string>
+    <string name="release_notes_open_on_github">Vai su GitHub</string>
+    <string name="release_notes_section_performance">Performance</string>
+    <string name="release_notes_summary_fixes">Fix: %1$d</string>
+    <string name="home_background_lava">Lampada Lava</string>
+    <string name="release_notes_section_features">Features</string>
+    <string name="release_badge_prerelease">Prerelease</string>
+    <string name="release_notes_section_build_ci">Build / CI</string>
+    <string name="release_notes_show_less">Minimizza</string>
+    <string name="release_notes_summary_performance">Performance: %1$d</string>
+    <string name="release_badge_installed">Installato</string>
+    <string name="release_notes_section_improvements">Migliorie</string>
+    <string name="release_notes_section_fixes">Fix</string>
+    <string name="release_notes_section_refactors">Refactor</string>
+    <string name="release_state_expanded">Espanso</string>
+    <string name="release_badge_latest">Ultimo</string>
 </resources>
