@@ -13,16 +13,10 @@ import io.mockk.unmockkAll
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.resetMain
-import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import moe.rukamori.archivetune.auth.SwitchSavedYouTubeAccountUseCase
 import moe.rukamori.archivetune.constants.InnerTubeCookieKey
@@ -41,10 +35,8 @@ import org.junit.Before
 import org.junit.Test
 import java.util.concurrent.atomic.AtomicBoolean
 
-@OptIn(ExperimentalCoroutinesApi::class)
 class HomeAccountCoordinatorTest {
 
-    private val testDispatcher = StandardTestDispatcher()
     private val context: Context = mockk(relaxed = true)
     private val syncUtils: SyncUtils = mockk(relaxed = true)
     private val switchSavedYouTubeAccount: SwitchSavedYouTubeAccountUseCase = mockk(relaxed = true)
@@ -55,7 +47,6 @@ class HomeAccountCoordinatorTest {
 
     @Before
     fun setUp() {
-        Dispatchers.setMain(testDispatcher)
         mockkObject(YouTube)
         mockkStatic("moe.rukamori.archivetune.utils.DataStoreKt")
 
@@ -79,7 +70,6 @@ class HomeAccountCoordinatorTest {
 
     @After
     fun tearDown() {
-        Dispatchers.resetMain()
         unmockkAll()
     }
 
@@ -90,15 +80,19 @@ class HomeAccountCoordinatorTest {
     }
 
     @Test
-    fun initialEmission_whenLoggedIn_refreshesIdentityWithoutStartupSync() = runTest {
+    fun initialEmission_whenLoggedIn_refreshesIdentityWithoutStartupSync() = runBlocking {
         preferencesFlow.emit(mockPreferences("SAPISID=valid_cookie_123"))
 
+        val authSuccess = CompletableDeferred<Unit>()
         val scope = CoroutineScope(Dispatchers.Default + Job())
         try {
-            coordinator.observeCookies(scope)
+            coordinator.observeCookies(
+                scope = scope,
+                onAuthSuccess = { authSuccess.complete(Unit) },
+            )
 
             withTimeout(5_000) {
-                coordinator.accountName.filter { it == "Test User" }.first()
+                authSuccess.await()
             }
 
             assertEquals("Test User", coordinator.accountName.value)
@@ -111,22 +105,30 @@ class HomeAccountCoordinatorTest {
     }
 
     @Test
-    fun validLogin_thenLogout_clearsPriorProfile() = runTest {
+    fun validLogin_thenLogout_clearsPriorProfile() = runBlocking {
         preferencesFlow.emit(mockPreferences("SAPISID=valid_cookie_123"))
 
+        var authSuccess: CompletableDeferred<Unit>? = CompletableDeferred()
+        val authCleared = CompletableDeferred<Unit>()
         val scope = CoroutineScope(Dispatchers.Default + Job())
         try {
-            coordinator.observeCookies(scope)
+            coordinator.observeCookies(
+                scope = scope,
+                onAuthSuccess = { authSuccess?.complete(Unit) },
+                onAuthCleared = { authCleared.complete(Unit) },
+            )
 
             withTimeout(5_000) {
-                coordinator.accountName.filter { it == "Test User" }.first()
+                authSuccess?.await()
             }
             assertEquals("Test User", coordinator.accountName.value)
+            assertEquals("https://example.com/avatar.jpg", coordinator.accountImageUrl.value)
 
+            authSuccess = null
             preferencesFlow.emit(mockPreferences(null))
 
             withTimeout(5_000) {
-                coordinator.accountName.filter { it.isEmpty() }.first()
+                authCleared.await()
             }
 
             assertEquals("", coordinator.accountName.value)
@@ -138,8 +140,11 @@ class HomeAccountCoordinatorTest {
     }
 
     @Test
-    fun loginTransition_triggersExactlyOneSyncAndRefreshesIdentity() = runTest {
+    fun loginTransition_triggersExactlyOneSyncAndRefreshesIdentity() = runBlocking {
+        val initialCleared = CompletableDeferred<Unit>()
+        val loginSuccess = CompletableDeferred<Unit>()
         val syncInvoked = CompletableDeferred<Unit>()
+
         coEvery { syncUtils.performFullSync() } coAnswers {
             syncInvoked.complete(Unit)
         }
@@ -148,7 +153,15 @@ class HomeAccountCoordinatorTest {
 
         val scope = CoroutineScope(Dispatchers.Default + Job())
         try {
-            coordinator.observeCookies(scope)
+            coordinator.observeCookies(
+                scope = scope,
+                onAuthCleared = { initialCleared.complete(Unit) },
+                onAuthSuccess = { loginSuccess.complete(Unit) },
+            )
+
+            withTimeout(5_000) {
+                initialCleared.await()
+            }
 
             preferencesFlow.emit(mockPreferences("SAPISID=login_cookie_456"))
 
@@ -156,7 +169,7 @@ class HomeAccountCoordinatorTest {
                 syncInvoked.await()
             }
             withTimeout(5_000) {
-                coordinator.accountName.filter { it == "Test User" }.first()
+                loginSuccess.await()
             }
 
             assertEquals("Test User", coordinator.accountName.value)
@@ -169,8 +182,12 @@ class HomeAccountCoordinatorTest {
     }
 
     @Test
-    fun multipleSubscribers_shareSingleObserverJob_withoutDuplicatingRefreshesOrSync() = runTest {
+    fun multipleSubscribers_shareSingleObserverJob_withoutDuplicatingRefreshesOrSync() = runBlocking {
+        val initialCleared = CompletableDeferred<Unit>()
+        val loginSuccess1 = CompletableDeferred<Unit>()
+        val loginSuccess2 = CompletableDeferred<Unit>()
         val syncInvoked = CompletableDeferred<Unit>()
+
         coEvery { syncUtils.performFullSync() } coAnswers {
             syncInvoked.complete(Unit)
         }
@@ -180,8 +197,19 @@ class HomeAccountCoordinatorTest {
         val scope1 = CoroutineScope(Dispatchers.Default + Job())
         val scope2 = CoroutineScope(Dispatchers.Default + Job())
         try {
-            coordinator.observeCookies(scope1)
-            coordinator.observeCookies(scope2)
+            coordinator.observeCookies(
+                scope = scope1,
+                onAuthCleared = { initialCleared.complete(Unit) },
+                onAuthSuccess = { loginSuccess1.complete(Unit) },
+            )
+            coordinator.observeCookies(
+                scope = scope2,
+                onAuthSuccess = { loginSuccess2.complete(Unit) },
+            )
+
+            withTimeout(5_000) {
+                initialCleared.await()
+            }
 
             preferencesFlow.emit(mockPreferences("SAPISID=shared_login_123"))
 
@@ -189,29 +217,50 @@ class HomeAccountCoordinatorTest {
                 syncInvoked.await()
             }
             withTimeout(5_000) {
-                coordinator.accountName.filter { it == "Test User" }.first()
+                loginSuccess1.await()
             }
+            withTimeout(5_000) {
+                loginSuccess2.await()
+            }
+
+            assertEquals("Test User", coordinator.accountName.value)
+            assertEquals("https://example.com/avatar.jpg", coordinator.accountImageUrl.value)
 
             coVerify(exactly = 1) { YouTube.accountInfo() }
             coVerify(exactly = 1) { syncUtils.performFullSync() }
         } finally {
-            scope1.coroutineContext[Job]?.cancelAndJoin()
-            scope2.coroutineContext[Job]?.cancelAndJoin()
+            scope1.coroutineContext[Job]?.cancel()
+            scope2.coroutineContext[Job]?.cancel()
+            scope1.coroutineContext[Job]?.join()
+            scope2.coroutineContext[Job]?.join()
         }
     }
 
     @Test
-    fun subscriberCancellation_transfersObserverToRemainingSubscriber() = runTest {
+    fun subscriberCancellation_transfersObserverToRemainingSubscriber() = runBlocking {
+        val initialLoginSuccess = CompletableDeferred<Unit>()
+        val handoffLoginSuccess = CompletableDeferred<Unit>()
+
         preferencesFlow.emit(mockPreferences("SAPISID=valid_cookie_123"))
 
         val scope1 = CoroutineScope(Dispatchers.Default + Job())
         val scope2 = CoroutineScope(Dispatchers.Default + Job())
         try {
-            coordinator.observeCookies(scope1)
-            coordinator.observeCookies(scope2)
+            coordinator.observeCookies(
+                scope = scope1,
+                onAuthSuccess = { initialLoginSuccess.complete(Unit) },
+            )
+            coordinator.observeCookies(
+                scope = scope2,
+                onAuthSuccess = {
+                    if (coordinator.accountName.value == "Updated User") {
+                        handoffLoginSuccess.complete(Unit)
+                    }
+                },
+            )
 
             withTimeout(5_000) {
-                coordinator.accountName.filter { it == "Test User" }.first()
+                initialLoginSuccess.await()
             }
 
             scope1.coroutineContext[Job]?.cancelAndJoin()
@@ -228,36 +277,50 @@ class HomeAccountCoordinatorTest {
             preferencesFlow.emit(mockPreferences("SAPISID=changed_cookie_789"))
 
             withTimeout(5_000) {
-                coordinator.accountName.filter { it == "Updated User" }.first()
+                handoffLoginSuccess.await()
             }
 
             assertEquals("Updated User", coordinator.accountName.value)
             assertEquals("https://example.com/new_avatar.jpg", coordinator.accountImageUrl.value)
         } finally {
+            scope1.coroutineContext[Job]?.cancelAndJoin()
             scope2.coroutineContext[Job]?.cancelAndJoin()
         }
     }
 
     @Test
-    fun allSubscribersCancelled_andResubscribe_restartsObserverCorrectly() = runTest {
+    fun allSubscribersCancelled_andResubscribe_restartsObserverCorrectly() = runBlocking {
+        val loginSuccess = CompletableDeferred<Unit>()
+        val logoutCleared = CompletableDeferred<Unit>()
+
         preferencesFlow.emit(mockPreferences("SAPISID=valid_cookie_123"))
 
         val scope1 = CoroutineScope(Dispatchers.Default + Job())
-        coordinator.observeCookies(scope1)
+        try {
+            coordinator.observeCookies(
+                scope = scope1,
+                onAuthSuccess = { loginSuccess.complete(Unit) },
+            )
 
-        withTimeout(5_000) {
-            coordinator.accountName.filter { it == "Test User" }.first()
+            withTimeout(5_000) {
+                loginSuccess.await()
+            }
+            assertEquals("Test User", coordinator.accountName.value)
+        } finally {
+            scope1.coroutineContext[Job]?.cancelAndJoin()
         }
-        scope1.coroutineContext[Job]?.cancelAndJoin()
 
         preferencesFlow.emit(mockPreferences(null))
 
         val scope2 = CoroutineScope(Dispatchers.Default + Job())
         try {
-            coordinator.observeCookies(scope2)
+            coordinator.observeCookies(
+                scope = scope2,
+                onAuthCleared = { logoutCleared.complete(Unit) },
+            )
 
             withTimeout(5_000) {
-                coordinator.accountName.filter { it.isEmpty() }.first()
+                logoutCleared.await()
             }
 
             assertEquals("", coordinator.accountName.value)
@@ -268,18 +331,26 @@ class HomeAccountCoordinatorTest {
     }
 
     @Test
-    fun cancelledScope_doesNotReceiveCallbacks() = runTest {
+    fun cancelledScope_doesNotReceiveCallbacks() = runBlocking {
+        val initialCleared = CompletableDeferred<Unit>()
         preferencesFlow.emit(mockPreferences(null))
 
         val scope1 = CoroutineScope(Dispatchers.Default + Job())
         val cancelledCallbackInvoked = AtomicBoolean(false)
 
-        coordinator.observeCookies(
-            scope = scope1,
-            onAuthSuccess = { cancelledCallbackInvoked.set(true) },
-        )
+        try {
+            coordinator.observeCookies(
+                scope = scope1,
+                onAuthCleared = { initialCleared.complete(Unit) },
+                onAuthSuccess = { cancelledCallbackInvoked.set(true) },
+            )
 
-        scope1.coroutineContext[Job]?.cancelAndJoin()
+            withTimeout(5_000) {
+                initialCleared.await()
+            }
+        } finally {
+            scope1.coroutineContext[Job]?.cancelAndJoin()
+        }
 
         val scope2 = CoroutineScope(Dispatchers.Default + Job())
         val activeCallbackInvoked = CompletableDeferred<Unit>()

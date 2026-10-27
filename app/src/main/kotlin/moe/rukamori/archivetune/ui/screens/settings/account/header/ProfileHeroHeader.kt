@@ -38,10 +38,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Fill
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -87,7 +87,7 @@ fun ProfileHeroHeader(
     onAccountActionClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val isPlayerExpanded = !LocalGlobalVisibility.current
+    val isGlobalVisible = LocalGlobalVisibility.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var isLifecycleResumed by remember {
         mutableStateOf(lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED))
@@ -101,20 +101,7 @@ fun ProfileHeroHeader(
             lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
-    val effectiveEffectActive = isEffectActive && isLifecycleResumed && !isPlayerExpanded
-
-    val frontRotation = rememberOrbitRotation(
-        durationMillis = 32000L,
-        startAngle = 0f,
-        endAngle = 360f,
-        isPaused = !isViewportVisible,
-    )
-    val backRotation = rememberOrbitRotation(
-        durationMillis = 48000L,
-        startAngle = 360f,
-        endAngle = 0f,
-        isPaused = !isViewportVisible,
-    )
+    val effectiveEffectActive = isEffectActive && isLifecycleResumed && isGlobalVisible
 
     val resolvedActionLabel = actionLabel ?: if (isLoggedIn) {
         stringResource(R.string.settings)
@@ -146,10 +133,8 @@ fun ProfileHeroHeader(
                 contentAlignment = Alignment.Center
             ) {
                 if (effectiveEffectActive) {
-                    OrbitRing(
-                        stars = BackOrbitStars,
-                        rotation = backRotation,
-                        radius = 56.dp
+                    ActiveBackOrbitRing(
+                        isPaused = !isViewportVisible,
                     )
                 }
 
@@ -172,10 +157,8 @@ fun ProfileHeroHeader(
                 )
 
                 if (effectiveEffectActive) {
-                    OrbitRing(
-                        stars = FrontOrbitStars,
-                        rotation = frontRotation,
-                        radius = 48.dp
+                    ActiveFrontOrbitRing(
+                        isPaused = !isViewportVisible,
                     )
                 }
             }
@@ -241,12 +224,50 @@ fun ProfileHeroHeader(
 }
 
 @Composable
+private fun ActiveBackOrbitRing(
+    isPaused: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val rotationProvider = rememberOrbitRotation(
+        durationMillis = 48000L,
+        startAngle = 360f,
+        endAngle = 0f,
+        isPaused = isPaused,
+    )
+    OrbitRing(
+        stars = BackOrbitStars,
+        rotationProvider = rotationProvider,
+        radius = 56.dp,
+        modifier = modifier,
+    )
+}
+
+@Composable
+private fun ActiveFrontOrbitRing(
+    isPaused: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val rotationProvider = rememberOrbitRotation(
+        durationMillis = 32000L,
+        startAngle = 0f,
+        endAngle = 360f,
+        isPaused = isPaused,
+    )
+    OrbitRing(
+        stars = FrontOrbitStars,
+        rotationProvider = rotationProvider,
+        radius = 48.dp,
+        modifier = modifier,
+    )
+}
+
+@Composable
 private fun rememberOrbitRotation(
     durationMillis: Long,
     startAngle: Float,
     endAngle: Float,
     isPaused: Boolean,
-): Float {
+): () -> Float {
     var progress by rememberSaveable { mutableFloatStateOf(0f) }
     var currentRotation by rememberSaveable { mutableFloatStateOf(startAngle) }
     val isPausedState by rememberUpdatedState(isPaused)
@@ -260,7 +281,7 @@ private fun rememberOrbitRotation(
                 lastFrameMs = withInfiniteAnimationFrameMillis { it }
             }
             withInfiniteAnimationFrameMillis { frameMs ->
-                val delta = (frameMs - lastFrameMs).coerceIn(0L, 100L)
+                val delta = (frameMs - lastFrameMs).coerceAtLeast(0L)
                 lastFrameMs = frameMs
                 if (!isPausedState) {
                     val progressDelta = delta.toFloat() / durationMillis.toFloat()
@@ -270,21 +291,23 @@ private fun rememberOrbitRotation(
             }
         }
     }
-    return currentRotation
+    return remember { { currentRotation } }
 }
 
 @Composable
 private fun OrbitRing(
     stars: List<StarPoint>,
-    rotation: Float,
+    rotationProvider: () -> Float,
     radius: Dp,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .rotate(rotation),
-        contentAlignment = Alignment.Center
+            .graphicsLayer {
+                rotationZ = rotationProvider()
+            },
+        contentAlignment = Alignment.Center,
     ) {
         stars.forEach { star ->
             val rad = Math.toRadians(star.angle.toDouble())

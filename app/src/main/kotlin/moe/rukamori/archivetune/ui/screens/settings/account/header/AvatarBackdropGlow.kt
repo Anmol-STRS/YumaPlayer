@@ -214,7 +214,7 @@ private fun AgslBackdropGlow(
                 lastFrameMs = withInfiniteAnimationFrameMillis { it }
             }
             withInfiniteAnimationFrameMillis { frameMs ->
-                val delta = (frameMs - lastFrameMs).coerceIn(0L, 100L)
+                val delta = (frameMs - lastFrameMs).coerceAtLeast(0L)
                 lastFrameMs = frameMs
                 if (!isPausedState) {
                     val progressDelta = delta.toFloat() / 55000f
