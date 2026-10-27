@@ -95,7 +95,7 @@ internal fun AccountSettingsContent(
                         handle = state.accountHandle.ifBlank { state.accountEmail },
                         accentColor = extractedColor ?: MaterialTheme.colorScheme.primary,
                         isLoggedIn = state.isLoggedIn,
-                        onAccountActionClick = actions.onOpenTokenEditor
+                        onAccountActionClick = actions.onOpenAccountMenu
                     )
                 }
 

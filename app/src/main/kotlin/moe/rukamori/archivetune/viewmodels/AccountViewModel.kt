@@ -73,7 +73,6 @@ constructor(
     private val _uiState = MutableStateFlow<AccountScreenUiState>(AccountScreenUiState.Loading)
     val uiState: StateFlow<AccountScreenUiState> = _uiState.asStateFlow()
 
-    // Стримим реальные данные профиля
     val accountProfile: StateFlow<AccountProfileData> =
         combine(
             accountCoordinator.accountName,
@@ -92,6 +91,7 @@ constructor(
         )
 
     init {
+        accountCoordinator.observeCookies(viewModelScope)
         loadAccountContent()
     }
 

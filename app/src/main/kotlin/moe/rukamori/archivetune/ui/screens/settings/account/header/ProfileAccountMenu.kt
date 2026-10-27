@@ -6,37 +6,47 @@
 
 package moe.rukamori.archivetune.ui.screens.settings.account.header
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedIconButton
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import moe.rukamori.archivetune.R
 import moe.rukamori.archivetune.home.state.AccountChannelUiModel
 import moe.rukamori.archivetune.home.state.AccountChannelsState
+import moe.rukamori.archivetune.ui.component.IconButton
 import moe.rukamori.archivetune.utils.SavedAccount
 import moe.rukamori.archivetune.utils.SavedAccountCollection
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun ProfileAccountMenu(
+fun ProfileAccountMenu(
     expanded: Boolean,
     onDismissRequest: () -> Unit,
     accountChannelsState: AccountChannelsState,
-    activeDataSyncId: String,
+    activeDataSyncId: String?,
     onSwitchAccountChannel: (AccountChannelUiModel) -> Unit,
     savedAccounts: SavedAccountCollection,
     activeInnerTubeCookie: String,
@@ -45,167 +55,229 @@ internal fun ProfileAccountMenu(
     isLoggedIn: Boolean,
     onSaveAccount: () -> Unit,
     onAddAnotherAccount: () -> Unit,
-    modifier: Modifier = Modifier,
+    onLogout: () -> Unit = {},
 ) {
-    DropdownMenu(
-        expanded = expanded,
+    if (!expanded) return
+
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(
         onDismissRequest = onDismissRequest,
-        modifier = modifier,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        dragHandle = { BottomSheetDefaults.DragHandle() },
     ) {
-        val accountChannels = (accountChannelsState as? AccountChannelsState.Success)?.channels
-        if (accountChannels != null && accountChannels.items.size > 1) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 36.dp)
+        ) {
             Text(
-                text = stringResource(R.string.youtube_channels),
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                text = stringResource(R.string.account),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(bottom = 16.dp)
             )
-            accountChannels.items.forEach { channel ->
-                val isActive = channel.isSelected || channel.dataSyncId == activeDataSyncId
-                DropdownMenuItem(
-                    text = {
-                        Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                            Text(
-                                text = channel.name,
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Normal,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
+
+            // 1. Каналы YouTube (если они получены в Success)
+            if (accountChannelsState is AccountChannelsState.Success) {
+                val channelList: List<AccountChannelUiModel> = accountChannelsState.channels
+                if (channelList.size > 1) {
+                    channelList.forEach { channel ->
+                        val isSelected = channel.dataSyncId == activeDataSyncId
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(
+                                    if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+                                    else MaterialTheme.colorScheme.surfaceContainer
+                                )
+                                .clickable { onSwitchAccountChannel(channel) }
+                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.person),
+                                contentDescription = null,
+                                modifier = Modifier.size(24.dp),
+                                tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            val channelSubtitle = channel.channelHandle.ifBlank { channel.byline }
-                            if (channelSubtitle.isNotBlank()) {
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = channelSubtitle,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
+                                    text = channel.name,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                if (!channel.handle.isNullOrBlank()) {
+                                    Text(
+                                        text = channel.handle,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                            if (isSelected) {
+                                Icon(
+                                    painter = painterResource(R.drawable.check),
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
                                 )
                             }
                         }
-                    },
-                    leadingIcon = {
+                        Spacer(modifier = Modifier.height(6.dp))
+                    }
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(vertical = 12.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                    )
+                }
+            }
+
+            // 2. Сохраненные аккаунты
+            if (savedAccounts.accounts.isNotEmpty()) {
+                savedAccounts.accounts.forEach { account ->
+                    val isCurrent = account.innerTubeCookie == activeInnerTubeCookie
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(
+                                if (isCurrent) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+                                else MaterialTheme.colorScheme.surfaceContainer
+                            )
+                            .clickable { if (!isCurrent) onSwitchAccount(account) }
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
                         Icon(
                             painter = painterResource(R.drawable.account),
                             contentDescription = null,
-                            tint = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(20.dp),
+                            modifier = Modifier.size(24.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                    },
-                    onClick = {
-                        if (!isActive) onSwitchAccountChannel(channel)
-                        onDismissRequest()
-                    },
-                )
-            }
-            Spacer(modifier = Modifier.padding(vertical = 4.dp))
-        }
-
-        if (savedAccounts.accounts.isNotEmpty()) {
-            Text(
-                text = stringResource(R.string.saved_accounts),
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
-            )
-            savedAccounts.accounts.forEach { account ->
-                val isActive = account.innerTubeCookie == activeInnerTubeCookie
-                DropdownMenuItem(
-                    text = {
-                        Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = account.name.ifBlank { account.email },
+                                text = account.name.ifBlank { stringResource(R.string.account) },
                                 style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Normal,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
+                                fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                             if (account.email.isNotBlank()) {
                                 Text(
                                     text = account.email,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
-                    },
-                    leadingIcon = {
-                        Icon(
-                            painter = painterResource(R.drawable.account),
-                            contentDescription = null,
-                            tint = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(20.dp),
-                        )
-                    },
-                    trailingIcon = {
-                        OutlinedIconButton(
-                            onClick = { onRemoveAccount(account) },
-                            modifier = Modifier.size(32.dp),
-                            border = null,
-                            colors = IconButtonDefaults.outlinedIconButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.delete),
-                                contentDescription = stringResource(R.string.remove_account),
-                                modifier = Modifier.size(16.dp),
-                            )
+                        if (!isCurrent) {
+                            IconButton(
+                                onClick = { onRemoveAccount(account) },
+                                onLongClick = {}
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.close),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                    tint = MaterialTheme.colorScheme.error
+                                )
+                            }
                         }
-                    },
-                    onClick = {
-                        if (!isActive) onSwitchAccount(account)
-                        onDismissRequest()
-                    },
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
+                }
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 12.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
                 )
             }
-            Spacer(modifier = Modifier.padding(vertical = 4.dp))
-        }
 
-        if (isLoggedIn) {
-            DropdownMenuItem(
-                text = {
-                    Text(
-                        text = stringResource(R.string.save_current_account),
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                },
-                leadingIcon = {
+            val isCurrentSaved = savedAccounts.accounts.any { it.innerTubeCookie == activeInnerTubeCookie }
+            if (isLoggedIn && !isCurrentSaved) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .clickable { onSaveAccount() }
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
                     Icon(
-                        painter = painterResource(R.drawable.bookmark),
+                        painter = painterResource(R.drawable.download),
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp),
+                        modifier = Modifier.size(22.dp)
                     )
-                },
-                onClick = {
-                    onSaveAccount()
-                    onDismissRequest()
-                },
-            )
-
-            DropdownMenuItem(
-                text = {
                     Text(
-                        text = stringResource(R.string.add_another_account),
-                        style = MaterialTheme.typography.bodyMedium,
+                        text = stringResource(R.string.save),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
-                },
-                leadingIcon = {
+                }
+                Spacer(modifier = Modifier.height(6.dp))
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .clickable { onAddAnotherAccount() }
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.add),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(22.dp)
+                )
+                Text(
+                    text = stringResource(R.string.login),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+
+            if (isLoggedIn) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .clickable {
+                            onDismissRequest()
+                            onLogout()
+                        }
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
                     Icon(
-                        painter = painterResource(R.drawable.add_circle),
+                        painter = painterResource(R.drawable.logout),
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(22.dp)
                     )
-                },
-                onClick = {
-                    onDismissRequest()
-                    onAddAnotherAccount()
-                },
-            )
+                    Text(
+                        text = stringResource(R.string.action_logout),
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
         }
     }
 }

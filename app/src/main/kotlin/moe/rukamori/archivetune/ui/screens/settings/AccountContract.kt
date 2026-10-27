@@ -101,6 +101,7 @@ data class AccountSettingsUiActions(
     val onNavigateUp: () -> Unit = {},
     val onNavigateHome: () -> Unit = {},
     val onOpenTokenEditor: () -> Unit = {},
+    val onOpenAccountMenu: () -> Unit,
     val onOpenUpdateDownload: () -> Unit = {},
     val onAvatarPixelsReady: (IntArray) -> Unit = {},
     val onPrimaryAction: () -> Unit = {},

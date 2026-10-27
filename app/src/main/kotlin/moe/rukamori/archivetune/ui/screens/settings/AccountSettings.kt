@@ -48,6 +48,7 @@ import moe.rukamori.archivetune.spotify.SpotifyAccountViewModel
 import moe.rukamori.archivetune.ui.screens.buildLoginRoute
 import moe.rukamori.archivetune.ui.screens.settings.account.AccountSettingsContent
 import moe.rukamori.archivetune.ui.screens.settings.account.AccountSettingsViewModel
+import moe.rukamori.archivetune.ui.screens.settings.account.header.ProfileAccountMenu
 import moe.rukamori.archivetune.ui.screens.settings.account.providers.AccountDialogsHost
 import moe.rukamori.archivetune.ui.state.UpdateState
 import moe.rukamori.archivetune.ui.theme.TestThemeWrapper
@@ -65,6 +66,7 @@ import moe.rukamori.archivetune.utils.putLegacyPoToken
 import moe.rukamori.archivetune.utils.rememberPreference
 import moe.rukamori.archivetune.viewmodels.HomeViewModel
 import java.util.UUID
+import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 fun AccountSettings(
@@ -95,6 +97,8 @@ fun AccountSettings(
         remember(savedAccountsJson) {
             SavedAccountCollection(decodeSavedAccounts(savedAccountsJson))
         }
+
+    var showAccountMenu by remember { mutableStateOf(false) }
 
     val onLegacyPoTokenChange: (String) -> Unit = { value ->
         PreferenceStore.launchEdit(context.dataStore) { putLegacyPoToken(value) }
@@ -144,7 +148,7 @@ fun AccountSettings(
 
     LaunchedEffect(showToken) {
         if (showToken) {
-            delay(5000)
+            delay(5000.milliseconds)
             showToken = false
         }
     }
@@ -230,6 +234,13 @@ fun AccountSettings(
             onNavigateUp = navController::navigateUp,
             onNavigateHome = navController::backToMain,
             onOpenTokenEditor = { showTokenEditor = true },
+            onOpenAccountMenu = {
+                if (isLoggedIn) {
+                    showAccountMenu = true
+                } else {
+                    showLoginChoiceDialog = true
+                }
+            },
             onOpenUpdateDownload = { uriHandler.openUri(Updater.getLatestDownloadUrl()) },
             onAvatarPixelsReady = accountSettingsViewModel::processAvatarPixels,
             onPrimaryAction = {
@@ -335,6 +346,34 @@ fun AccountSettings(
         state = dialogsState,
         actions = dialogsActions,
     )
+    if (showAccountMenu) {
+        ProfileAccountMenu(
+            expanded = true,
+            onDismissRequest = { showAccountMenu = false },
+            accountChannelsState = uiState.accountChannelsState,
+            activeDataSyncId = uiState.activeDataSyncId,
+            onSwitchAccountChannel = { channel ->
+                showAccountMenu = false
+                uiActions.onSwitchAccountChannel(channel)
+            },
+            savedAccounts = uiState.savedAccounts,
+            activeInnerTubeCookie = uiState.activeInnerTubeCookie,
+            onRemoveAccount = uiActions.onRemoveAccount,
+            onSwitchAccount = { account ->
+                showAccountMenu = false
+                uiActions.onSwitchAccount(account)
+            },
+            isLoggedIn = uiState.isLoggedIn,
+            onSaveAccount = {
+                uiActions.onSaveAccount()
+            },
+            onAddAnotherAccount = {
+                showAccountMenu = false
+                uiActions.onAddAnotherAccount()
+            },
+            onLogout = uiActions.onSecondaryAction,
+        )
+    }
 }
 
 @ThemePreviews

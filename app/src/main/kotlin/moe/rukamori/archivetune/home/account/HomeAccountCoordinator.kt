@@ -12,6 +12,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -46,7 +47,9 @@ import moe.rukamori.archivetune.utils.reportException
 import moe.rukamori.archivetune.utils.toPlaybackAuthState
 import timber.log.Timber
 import javax.inject.Inject
+import javax.inject.Singleton
 
+@Singleton
 class HomeAccountCoordinator
     @Inject
     constructor(
@@ -212,66 +215,132 @@ class HomeAccountCoordinator
             }
         }
 
+        private val observerLock = Any()
+        private var activeObserverJob: Job? = null
+        private var activeScope: CoroutineScope? = null
+        private val activeSubscribers = mutableMapOf<Job, SubscriberCallbacks>()
+
+        private class SubscriberCallbacks(
+            val scope: CoroutineScope,
+            val onAuthSuccess: suspend () -> Unit,
+            val onAuthCleared: () -> Unit,
+        )
+
         fun observeCookies(
             scope: CoroutineScope,
             onAuthSuccess: suspend () -> Unit = {},
             onAuthCleared: () -> Unit = {},
         ) {
-            scope.launch(Dispatchers.IO) {
-                var isFirstEmission = true
-                var wasLoggedIn = false
-                context.dataStore.data
-                    .map { it[InnerTubeCookieKey] }
-                    .distinctUntilChanged()
-                    .collect { cookie ->
-                        try {
-                            val isLoggedIn = hasYouTubeLoginCookie(cookie)
-                            if (isFirstEmission) {
-                                wasLoggedIn = isLoggedIn
-                                isFirstEmission = false
-                                return@collect
-                            }
-                            val loginTransition = isLoggedIn && !wasLoggedIn
-                            wasLoggedIn = isLoggedIn
+            val callerJob = scope.coroutineContext[Job]
+            if (callerJob != null && !callerJob.isActive) {
+                return
+            }
 
-                            if (isLoggedIn && cookie != null && cookie.isNotEmpty()) {
-                                if (!prepareYouTubeAccount(cookie)) {
-                                    clearAccountData()
-                                    onAuthCleared()
-                                    return@collect
-                                }
-
-                                supervisorScope {
-                                    delay(100)
-                                    launch { refreshIdentity() }
-                                    launch { refreshPlaylists() }
-                                }
-
-                                if (loginTransition) {
-                                    scope.launch(Dispatchers.IO) {
-                                        try {
-                                            if (context.dataStore.get(YtmSyncKey, true)) {
-                                                syncUtils.performFullSync()
-                                            }
-                                        } catch (e: Exception) {
-                                            Timber.e(e, "Error during login-triggered sync")
-                                            reportException(e)
-                                        }
+            synchronized(observerLock) {
+                if (callerJob != null) {
+                    if (!activeSubscribers.containsKey(callerJob)) {
+                        callerJob.invokeOnCompletion {
+                            synchronized(observerLock) {
+                                activeSubscribers.remove(callerJob)
+                                if (activeScope == scope) {
+                                    activeObserverJob?.cancel()
+                                    activeObserverJob = null
+                                    activeScope = null
+                                    val next = activeSubscribers.entries.firstOrNull { it.key.isActive }?.value
+                                    if (next != null) {
+                                        startObserverLocked(next.scope)
                                     }
                                 }
-                                onAuthSuccess()
-                            } else {
-                                clearAccountData()
-                                onAuthCleared()
                             }
-                        } catch (e: CancellationException) {
-                            throw e
-                        } catch (e: Exception) {
-                            Timber.e(e, "Error processing cookie change")
-                            clearAccountData()
-                            onAuthCleared()
                         }
                     }
+                    activeSubscribers[callerJob] = SubscriberCallbacks(scope, onAuthSuccess, onAuthCleared)
+                }
+
+                if (activeObserverJob?.isActive != true) {
+                    startObserverLocked(scope)
+                }
+            }
+        }
+
+        private fun startObserverLocked(scope: CoroutineScope) {
+            activeScope = scope
+            activeObserverJob =
+                scope.launch(Dispatchers.IO) {
+                    var isFirstEmission = true
+                    var wasLoggedIn = false
+                    context.dataStore.data
+                        .map { it[InnerTubeCookieKey] }
+                        .distinctUntilChanged()
+                        .collect { cookie ->
+                            try {
+                                val isLoggedIn = hasYouTubeLoginCookie(cookie)
+                                val loginTransition = !isFirstEmission && isLoggedIn && !wasLoggedIn
+                                wasLoggedIn = isLoggedIn
+                                isFirstEmission = false
+
+                                if (isLoggedIn && !cookie.isNullOrEmpty()) {
+                                    if (!prepareYouTubeAccount(cookie)) {
+                                        clearAccountData()
+                                        notifyAuthCleared()
+                                        return@collect
+                                    }
+
+                                    supervisorScope {
+                                        delay(100)
+                                        launch { refreshIdentity() }
+                                        launch { refreshPlaylists() }
+                                    }
+
+                                    if (loginTransition) {
+                                        scope.launch(Dispatchers.IO) {
+                                            try {
+                                                if (context.dataStore.get(YtmSyncKey, true)) {
+                                                    syncUtils.performFullSync()
+                                                }
+                                            } catch (e: Exception) {
+                                                Timber.e(e, "Error during login-triggered sync")
+                                                reportException(e)
+                                            }
+                                        }
+                                    }
+                                    notifyAuthSuccess()
+                                } else {
+                                    clearAccountData()
+                                    notifyAuthCleared()
+                                }
+                            } catch (e: CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                                Timber.e(e, "Error processing cookie change")
+                                clearAccountData()
+                                notifyAuthCleared()
+                            }
+                        }
+                }
+        }
+
+        private suspend fun notifyAuthSuccess() {
+            val callbacks = synchronized(observerLock) { activeSubscribers.values.toList() }
+            for (cb in callbacks) {
+                try {
+                    cb.onAuthSuccess()
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Timber.e(e, "Error in onAuthSuccess callback")
+                }
+            }
+        }
+
+        private fun notifyAuthCleared() {
+            val callbacks = synchronized(observerLock) { activeSubscribers.values.toList() }
+            for (cb in callbacks) {
+                try {
+                    cb.onAuthCleared()
+                } catch (e: Exception) {
+                    Timber.e(e, "Error in onAuthCleared callback")
+                }
             }
         }
     }

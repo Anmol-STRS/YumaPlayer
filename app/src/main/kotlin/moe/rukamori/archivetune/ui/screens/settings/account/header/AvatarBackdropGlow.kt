@@ -202,7 +202,7 @@ private fun AgslBackdropGlow(
         initialValue = 0f,
         targetValue = 4.0f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 45000, easing = LinearEasing),
+            animation = tween(durationMillis = 55000, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "shaderTime"
