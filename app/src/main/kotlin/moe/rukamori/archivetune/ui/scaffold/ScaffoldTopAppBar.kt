@@ -72,6 +72,7 @@ fun ScaffoldTopAppBar(
     splashDone: Boolean,
     updateState: UpdateState,
     modifier: Modifier = Modifier,
+    avatarUrl: String? = null,
 ) {
     if (!visible) return
 
@@ -174,36 +175,50 @@ fun ScaffoldTopAppBar(
                 }
             },
             actions = {
-                IconButton(onClick = { navController.navigate("history") }, onLongClick = {}) {
-                    Icon(painterResource(R.drawable.history), stringResource(R.string.history))
-                }
-                TooltipBox(
-                    positionProvider = if (hasUnreadNews) TooltipDefaults.rememberRichTooltipPositionProvider() else TooltipDefaults.rememberPlainTooltipPositionProvider(),
-                    tooltip = {
-                        if (hasUnreadNews) {
-                            RichTooltip(title = { Text(stringResource(R.string.news_tooltip_title)) }) { Text(stringResource(R.string.news_tooltip_body)) }
-                        } else {
-                            PlainTooltip { Text(stringResource(R.string.news)) }
-                        }
-                    },
-                    state = rememberTooltipState(),
-                ) {
-                    IconButton(onClick = { navController.navigate("news") }, onLongClick = {}) {
-                        BadgedBox(badge = { if (hasUnreadNews) Badge() }) {
-                            Icon(painterResource(R.drawable.newspaper), stringResource(R.string.news))
+                if (currentRoute == Screens.Home.route) {
+                    val hasUpdate = splashDone && (updateState is UpdateState.SoftUpdate || updateState is UpdateState.CriticalUpdate)
+                    HomeTopBarAccountMenu(
+                        avatarUrl = avatarUrl,
+                        hasUnreadNews = hasUnreadNews,
+                        hasUpdate = hasUpdate,
+                        onNavigateProfile = { navController.navigate("settings/account") },
+                        onNavigateHistory = { navController.navigate("history") },
+                        onNavigateNews = { navController.navigate("news") },
+                        onNavigateNewRelease = { navController.navigate("new_release") },
+                        onNavigateSettings = { navController.navigate("settings") },
+                    )
+                } else {
+                    IconButton(onClick = { navController.navigate("history") }, onLongClick = {}) {
+                        Icon(painterResource(R.drawable.history), stringResource(R.string.history))
+                    }
+                    TooltipBox(
+                        positionProvider = if (hasUnreadNews) TooltipDefaults.rememberRichTooltipPositionProvider() else TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                        tooltip = {
+                            if (hasUnreadNews) {
+                                RichTooltip(title = { Text(stringResource(R.string.news_tooltip_title)) }) { Text(stringResource(R.string.news_tooltip_body)) }
+                            } else {
+                                PlainTooltip { Text(stringResource(R.string.news)) }
+                            }
+                        },
+                        state = rememberTooltipState(),
+                    ) {
+                        IconButton(onClick = { navController.navigate("news") }, onLongClick = {}) {
+                            BadgedBox(badge = { if (hasUnreadNews) Badge() }) {
+                                Icon(painterResource(R.drawable.newspaper), stringResource(R.string.news))
+                            }
                         }
                     }
-                }
-                IconButton(onClick = { navController.navigate("new_release") }, onLongClick = {}) {
-                    Icon(painterResource(R.drawable.new_release), stringResource(R.string.new_release_albums))
-                }
-                IconButton(onClick = { navController.navigate("settings") }, onLongClick = {}) {
-                    BadgedBox(badge = {
-                        if (splashDone && (updateState is UpdateState.SoftUpdate || updateState is UpdateState.CriticalUpdate)) {
-                            Badge()
+                    IconButton(onClick = { navController.navigate("new_release") }, onLongClick = {}) {
+                        Icon(painterResource(R.drawable.new_release), stringResource(R.string.new_release_albums))
+                    }
+                    IconButton(onClick = { navController.navigate("settings") }, onLongClick = {}) {
+                        BadgedBox(badge = {
+                            if (splashDone && (updateState is UpdateState.SoftUpdate || updateState is UpdateState.CriticalUpdate)) {
+                                Badge()
+                            }
+                        }) {
+                            Icon(painterResource(R.drawable.ic_settings), stringResource(R.string.settings), Modifier.size(24.dp))
                         }
-                    }) {
-                        Icon(painterResource(R.drawable.ic_settings), stringResource(R.string.settings), Modifier.size(24.dp))
                     }
                 }
             },

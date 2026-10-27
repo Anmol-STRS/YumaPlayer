@@ -16,6 +16,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -25,6 +26,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import com.valentinilk.shimmer.LocalShimmerTheme
 import dev.chrisbanes.haze.hazeSource
@@ -131,13 +133,15 @@ fun ScaffoldShell(
                 Box(
                     modifier = Modifier.fillMaxSize().nestedScroll(barScrollVisibility.nestedScrollConnection),
                 ) {
+                    val accountImageUrl by appState.homeViewModel.accountImageUrl.collectAsStateWithLifecycle()
+
                     Scaffold(
                         topBar = {
                             ScaffoldTopAppBar(
                                 visible = appState.shouldShowTopBar, navController = navController,
                                 navBackStackEntry = appState.navBackStackEntry, scrollController = appState.scrollController,
                                 useRail = appState.useRail, pureBlack = pureBlack, splashDone = splashDone,
-                                updateState = appState.updateState,
+                                updateState = appState.updateState, avatarUrl = accountImageUrl,
                             )
                             ScaffoldSearchBarHost(
                                 searchState = appState.searchState, navController = navController,
