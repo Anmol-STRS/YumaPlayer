@@ -94,7 +94,8 @@ internal fun AccountSettingsContent(
                         displayName = state.displayName,
                         handle = state.accountHandle.ifBlank { state.accountEmail },
                         accentColor = extractedColor ?: MaterialTheme.colorScheme.primary,
-                        onSettingsClick = actions.onOpenTokenEditor
+                        isLoggedIn = state.isLoggedIn,
+                        onAccountActionClick = actions.onOpenTokenEditor
                     )
                 }
 
@@ -166,21 +167,6 @@ internal fun AccountSettingsContent(
                     }
                 },
                 actions = {
-                    OutlinedIconButton(
-                        onClick = actions.onOpenTokenEditor,
-                        colors = IconButtonDefaults.outlinedIconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.5f),
-                            contentColor = MaterialTheme.colorScheme.primary,
-                        ),
-                        border = null,
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.token),
-                            contentDescription = null,
-                            modifier = Modifier.size(20.dp),
-                        )
-                    }
-
                     if (state.hasUpdate) {
                         BadgedBox(
                             badge = { Badge(containerColor = MaterialTheme.colorScheme.error) },

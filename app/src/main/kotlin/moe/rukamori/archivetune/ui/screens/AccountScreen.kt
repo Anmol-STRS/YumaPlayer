@@ -92,7 +92,7 @@ fun AccountScreen(
     val coroutineScope = rememberCoroutineScope()
 
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-
+    val profile by viewModel.accountProfile.collectAsStateWithLifecycle()
     Scaffold(
         modifier = Modifier
             .fillMaxSize()
@@ -147,10 +147,11 @@ fun AccountScreen(
         ) {
             item(span = { GridItemSpan(maxLineSpan) }) {
                 ProfileHeroHeader(
-                    avatarUrl = null, // сюда привяжешь url аватара из сессии/БД
-                    displayName = "MuwMix",
-                    handle = "muwmix",
-                    onSettingsClick = { navController.navigate("settings/account") }
+                    avatarUrl = profile.avatarUrl,
+                    displayName = profile.name.ifBlank { stringResource(R.string.account) },
+                    handle = profile.handle,
+                    isLoggedIn = profile.name.isNotBlank(),
+                    onAccountActionClick = { navController.navigate("settings/account") }
                 )
             }
 

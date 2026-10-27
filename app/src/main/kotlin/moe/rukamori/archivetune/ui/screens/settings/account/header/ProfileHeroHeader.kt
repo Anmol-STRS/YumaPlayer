@@ -71,7 +71,8 @@ fun ProfileHeroHeader(
     displayName: String,
     handle: String?,
     accentColor: Color = MaterialTheme.colorScheme.primary,
-    onSettingsClick: () -> Unit,
+    isLoggedIn: Boolean = true,
+    onAccountActionClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val transition = rememberInfiniteTransition(label = "heroOrbits")
@@ -174,7 +175,7 @@ fun ProfileHeroHeader(
                 modifier = Modifier
                     .padding(top = 12.dp)
                     .height(36.dp)
-                    .yumaClickable(pressedScale = 0.95f, onClick = onSettingsClick)
+                    .yumaClickable(pressedScale = 0.95f, onClick = onAccountActionClick)
                     .border(
                         width = 1.dp,
                         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f),
@@ -187,13 +188,19 @@ fun ProfileHeroHeader(
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Icon(
-                        painter = painterResource(R.drawable.settings),
+                        painter = painterResource(
+                            if (isLoggedIn) R.drawable.account else R.drawable.login
+                        ),
                         contentDescription = null,
-                        modifier = Modifier.size(15.dp),
+                        modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = stringResource(R.string.settings),
+                        text = if (isLoggedIn) {
+                            stringResource(R.string.account)
+                        } else {
+                            stringResource(R.string.login)
+                        },
                         style = MaterialTheme.typography.labelMedium.copy(
                             fontWeight = FontWeight.SemiBold
                         )
