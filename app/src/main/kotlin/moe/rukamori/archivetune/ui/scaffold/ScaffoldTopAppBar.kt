@@ -175,7 +175,7 @@ fun ScaffoldTopAppBar(
                     accentColor = accentColor,
                     hasUnreadNews = hasUnreadNews,
                     hasUpdate = hasUpdate,
-                    onNavigateProfile = { navController.navigate("settings/account") },
+                    onNavigateProfile = { navController.navigate("account") },
                     onNavigateHistory = { navController.navigate("history") },
                     onNavigateNews = { navController.navigate("news") },
                     onNavigateNewRelease = { navController.navigate("new_release") },

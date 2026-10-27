@@ -10,11 +10,7 @@ package moe.rukamori.archivetune.ui.screens.settings
 
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
@@ -22,51 +18,24 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
-import kotlinx.coroutines.delay
-import moe.rukamori.archivetune.App.Companion.forgetAccount
 import moe.rukamori.archivetune.BuildConfig
 import moe.rukamori.archivetune.R
-import moe.rukamori.archivetune.constants.AccountChannelHandleKey
-import moe.rukamori.archivetune.constants.AccountEmailKey
-import moe.rukamori.archivetune.constants.AccountNameKey
-import moe.rukamori.archivetune.constants.DataSyncIdKey
-import moe.rukamori.archivetune.constants.ForceSyncOnAccountSwitchKey
-import moe.rukamori.archivetune.constants.HideYtmLikedSongsKey
-import moe.rukamori.archivetune.constants.InnerTubeCookieKey
-import moe.rukamori.archivetune.constants.SavedAccountsKey
-import moe.rukamori.archivetune.constants.SelectedYtmPlaylistsKey
-import moe.rukamori.archivetune.constants.ShowSpotifyPlaylistsKey
-import moe.rukamori.archivetune.constants.SpotifySyncLikesKey
-import moe.rukamori.archivetune.constants.UseLoginForBrowse
-import moe.rukamori.archivetune.constants.UseSpotifyHomeKey
-import moe.rukamori.archivetune.constants.VisitorDataKey
-import moe.rukamori.archivetune.constants.YtmSyncKey
-import moe.rukamori.archivetune.home.state.AccountChannelUiModel
-import moe.rukamori.archivetune.innertube.YouTube
-import moe.rukamori.archivetune.innertube.utils.hasYouTubeLoginCookie
 import moe.rukamori.archivetune.spotify.SpotifyAccountViewModel
 import moe.rukamori.archivetune.ui.screens.buildLoginRoute
 import moe.rukamori.archivetune.ui.screens.settings.account.AccountSettingsContent
 import moe.rukamori.archivetune.ui.screens.settings.account.AccountSettingsViewModel
+import moe.rukamori.archivetune.ui.screens.settings.account.actions.createAccountActionHandlers
 import moe.rukamori.archivetune.ui.screens.settings.account.header.ProfileAccountMenu
+import moe.rukamori.archivetune.ui.screens.settings.account.modals.rememberAccountModalsCoordinator
 import moe.rukamori.archivetune.ui.screens.settings.account.providers.AccountDialogsHost
+import moe.rukamori.archivetune.ui.screens.settings.account.session.rememberAccountSessionBinding
 import moe.rukamori.archivetune.ui.state.UpdateState
 import moe.rukamori.archivetune.ui.theme.TestThemeWrapper
 import moe.rukamori.archivetune.ui.theme.ThemePreviews
 import moe.rukamori.archivetune.ui.utils.appBarScrollBehavior
 import moe.rukamori.archivetune.ui.utils.backToMain
-import moe.rukamori.archivetune.utils.PreferenceStore
-import moe.rukamori.archivetune.utils.SavedAccount
-import moe.rukamori.archivetune.utils.SavedAccountCollection
 import moe.rukamori.archivetune.utils.Updater
-import moe.rukamori.archivetune.utils.dataStore
-import moe.rukamori.archivetune.utils.decodeSavedAccounts
-import moe.rukamori.archivetune.utils.encodeSavedAccounts
-import moe.rukamori.archivetune.utils.putLegacyPoToken
-import moe.rukamori.archivetune.utils.rememberPreference
 import moe.rukamori.archivetune.viewmodels.HomeViewModel
-import java.util.UUID
-import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 fun AccountSettings(
@@ -81,34 +50,7 @@ fun AccountSettings(
     val loginLabel = stringResource(R.string.login)
     val tokenDescription = stringResource(R.string.token_adv_login_description)
 
-    val (accountNamePref, onAccountNameChange) = rememberPreference(AccountNameKey, "")
-    val (accountEmail, onAccountEmailChange) = rememberPreference(AccountEmailKey, "")
-    val (accountChannelHandle, onAccountChannelHandleChange) = rememberPreference(AccountChannelHandleKey, "")
-    val (innerTubeCookie, onInnerTubeCookieChange) = rememberPreference(InnerTubeCookieKey, "")
-    val (visitorData, onVisitorDataChange) = rememberPreference(VisitorDataKey, "")
-    val (dataSyncId, onDataSyncIdChange) = rememberPreference(DataSyncIdKey, "")
-    val (useLoginForBrowse, onUseLoginForBrowseChange) = rememberPreference(UseLoginForBrowse, true)
-    val (ytmSync, onYtmSyncChange) = rememberPreference(YtmSyncKey, true)
-    val (forceSyncOnAccountSwitch, onForceSyncOnAccountSwitchChange) =
-        rememberPreference(ForceSyncOnAccountSwitchKey, false)
-    val (selectedYtmPlaylists, _) = rememberPreference(SelectedYtmPlaylistsKey, "")
-    val (savedAccountsJson, onSavedAccountsJsonChange) = rememberPreference(SavedAccountsKey, "")
-    val savedAccounts =
-        remember(savedAccountsJson) {
-            SavedAccountCollection(decodeSavedAccounts(savedAccountsJson))
-        }
-
-    var showAccountMenu by remember { mutableStateOf(false) }
-
-    val onLegacyPoTokenChange: (String) -> Unit = { value ->
-        PreferenceStore.launchEdit(context.dataStore) { putLegacyPoToken(value) }
-    }
-
-    val isLoggedIn = remember(innerTubeCookie) { hasYouTubeLoginCookie(innerTubeCookie) }
-
-    LaunchedEffect(useLoginForBrowse) {
-        YouTube.useLoginForBrowse = useLoginForBrowse
-    }
+    val session = rememberAccountSessionBinding(context)
 
     val viewModel: HomeViewModel = hiltViewModel()
     val accountNameFromViewModel by viewModel.accountName.collectAsStateWithLifecycle()
@@ -118,40 +60,33 @@ fun AccountSettings(
     val accountSettingsViewModel: AccountSettingsViewModel = hiltViewModel()
     val accountUiState by accountSettingsViewModel.uiState.collectAsStateWithLifecycle()
 
+    val spotifyAccountViewModel: SpotifyAccountViewModel = hiltViewModel()
+    val spotifyState by spotifyAccountViewModel.uiState.collectAsStateWithLifecycle()
+
+    val actions =
+        createAccountActionHandlers(
+            viewModel = viewModel,
+            session = session,
+            accountNameFromViewModel = accountNameFromViewModel,
+            context = context,
+        )
+
+    val modals =
+        rememberAccountModalsCoordinator(
+            session = session,
+            spotifyAccountViewModel = spotifyAccountViewModel,
+            spotifyState = spotifyState,
+            navController = navController,
+            onSaveCurrentAccount = actions.saveCurrentAccount,
+        )
+
     val displayName =
         when {
             accountNameFromViewModel.isNotBlank() -> accountNameFromViewModel
-            accountNamePref.isNotBlank() -> accountNamePref
-            isLoggedIn -> accountLabel
+            session.accountNamePref.isNotBlank() -> session.accountNamePref
+            session.isLoggedIn -> accountLabel
             else -> loginLabel
         }
-
-    val spotifyAccountViewModel: SpotifyAccountViewModel = hiltViewModel()
-    val spotifyState by spotifyAccountViewModel.uiState.collectAsStateWithLifecycle()
-    val (showSpotifyPlaylists, onShowSpotifyPlaylistsChange) = rememberPreference(ShowSpotifyPlaylistsKey, true)
-    val (useSpotifyHome, onUseSpotifyHomeChange) = rememberPreference(UseSpotifyHomeKey, false)
-    val (spotifySyncLikes, onSpotifySyncLikesChange) = rememberPreference(SpotifySyncLikesKey, false)
-    val (hideYtmLikedSongs, onHideYtmLikedSongsChange) = rememberPreference(HideYtmLikedSongsKey, false)
-    var showSpotifyOptionsDialog by remember { mutableStateOf(false) }
-    var showSpotifyLogin by remember { mutableStateOf(false) }
-
-    var showToken by remember { mutableStateOf(false) }
-    var showTokenEditor by remember { mutableStateOf(false) }
-    var showUnsavedAccountDialog by remember { mutableStateOf(false) }
-    var showLoginChoiceDialog by remember { mutableStateOf(false) }
-
-    LaunchedEffect(isLoggedIn) {
-        if (!isLoggedIn) {
-            showToken = false
-        }
-    }
-
-    LaunchedEffect(showToken) {
-        if (showToken) {
-            delay(5000.milliseconds)
-            showToken = false
-        }
-    }
 
     val hasUpdate = updateState is UpdateState.SoftUpdate || updateState is UpdateState.CriticalUpdate
     val latestVersionName = when (updateState) {
@@ -160,176 +95,77 @@ fun AccountSettings(
         else -> BuildConfig.VERSION_NAME
     }
 
-    val tokenActionTitle =
-        when {
-            !isLoggedIn -> stringResource(R.string.advanced_login)
-            showToken -> stringResource(R.string.token_shown)
-            else -> stringResource(R.string.token_hidden)
-        }
-
-    val tokenPreview = if (isLoggedIn && innerTubeCookie.isNotBlank()) previewSecureValue(innerTubeCookie) else null
-
-    val saveCurrentAccount: () -> Unit = {
-        val existing = decodeSavedAccounts(savedAccountsJson)
-        if (isLoggedIn && existing.none { it.innerTubeCookie == innerTubeCookie }) {
-            val newAccount =
-                SavedAccount(
-                    id = UUID.randomUUID().toString(),
-                    name = if (accountNameFromViewModel.isNotBlank()) accountNameFromViewModel else accountNamePref,
-                    email = accountEmail,
-                    channelHandle = accountChannelHandle,
-                    innerTubeCookie = innerTubeCookie,
-                    visitorData = visitorData,
-                    dataSyncId = dataSyncId,
-                    ytmSync = ytmSync,
-                    selectedYtmPlaylists = selectedYtmPlaylists,
-                )
-            onSavedAccountsJsonChange(encodeSavedAccounts(existing + newAccount))
-        }
-    }
-
-    val switchToAccount: (SavedAccount) -> Unit = { account ->
-        viewModel.switchToAccount(account = account, forceSyncOnSwitch = forceSyncOnAccountSwitch)
-    }
-
-    val switchToAccountChannel: (AccountChannelUiModel) -> Unit = { channel ->
-        viewModel.switchToAccountChannel(channel = channel, forceSyncOnSwitch = forceSyncOnAccountSwitch)
-    }
-
-    val removeAccount: (SavedAccount) -> Unit = { account ->
-        val existing = decodeSavedAccounts(savedAccountsJson)
-        onSavedAccountsJsonChange(encodeSavedAccounts(existing.filter { it.id != account.id }))
-    }
-
     val uiState =
         AccountSettingsUiState(
             displayName = displayName,
-            accountEmail = accountEmail,
-            accountHandle = accountChannelHandle,
+            accountEmail = session.accountEmail,
+            accountHandle = session.accountChannelHandle,
             accountImageUrl = accountImageUrl,
-            isLoggedIn = isLoggedIn,
-            savedAccounts = savedAccounts,
-            activeInnerTubeCookie = innerTubeCookie,
-            activeDataSyncId = dataSyncId,
+            isLoggedIn = session.isLoggedIn,
+            savedAccounts = session.savedAccounts,
+            activeInnerTubeCookie = session.innerTubeCookie,
+            activeDataSyncId = session.dataSyncId,
             accountChannelsState = accountChannelsState,
             extractedColorHex = accountUiState.extractedColorHex,
-            useLoginForBrowse = useLoginForBrowse,
-            ytmSync = ytmSync,
-            forceSyncOnAccountSwitch = forceSyncOnAccountSwitch,
+            useLoginForBrowse = session.useLoginForBrowse,
+            ytmSync = session.ytmSync,
+            forceSyncOnAccountSwitch = session.forceSyncOnAccountSwitch,
             spotifyState = spotifyState,
-            useSpotifyHome = useSpotifyHome,
-            showSpotifyPlaylists = showSpotifyPlaylists,
-            spotifySyncLikes = spotifySyncLikes,
-            hideYtmLikedSongs = hideYtmLikedSongs,
+            useSpotifyHome = session.useSpotifyHome,
+            showSpotifyPlaylists = session.showSpotifyPlaylists,
+            spotifySyncLikes = session.spotifySyncLikes,
+            hideYtmLikedSongs = session.hideYtmLikedSongs,
             hasUpdate = hasUpdate,
             latestVersionName = latestVersionName,
-            showToken = showToken,
-            tokenActionTitle = tokenActionTitle,
+            showToken = modals.showToken,
+            tokenActionTitle = modals.tokenActionTitle,
             tokenDescription = tokenDescription,
-            tokenPreview = tokenPreview,
+            tokenPreview = modals.tokenPreview,
         )
 
     val uiActions =
         AccountSettingsUiActions(
             onNavigateUp = navController::navigateUp,
             onNavigateHome = navController::backToMain,
-            onOpenTokenEditor = { showTokenEditor = true },
-            onOpenAccountMenu = {
-                showAccountMenu = true
-            },
+            onOpenTokenEditor = modals.openTokenEditor,
+            onOpenAccountMenu = modals.openAccountMenu,
             onOpenUpdateDownload = { uriHandler.openUri(Updater.getLatestDownloadUrl()) },
             onAvatarPixelsReady = accountSettingsViewModel::processAvatarPixels,
             onPrimaryAction = {
-                if (isLoggedIn) navController.navigate("account") else showLoginChoiceDialog = true
+                if (session.isLoggedIn) navController.navigate("account") else modals.openLoginChoice()
             },
             onSecondaryAction = {
-                if (isLoggedIn) {
-                    showToken = false
-                    onInnerTubeCookieChange("")
-                    forgetAccount(context, clearWebAuthSession = true)
+                if (session.isLoggedIn) {
+                    modals.hideToken()
+                    actions.logoutCurrentAccount()
                 } else {
-                    showTokenEditor = true
+                    modals.openTokenEditor()
                 }
             },
-            onSaveAccount = saveCurrentAccount,
-            onSwitchAccount = switchToAccount,
-            onSwitchAccountChannel = switchToAccountChannel,
-            onRemoveAccount = removeAccount,
+            onSaveAccount = actions.saveCurrentAccount,
+            onSwitchAccount = actions.switchToAccount,
+            onSwitchAccountChannel = actions.switchToAccountChannel,
+            onRemoveAccount = actions.removeAccount,
             onAddAnotherAccount = {
-                val isSaved = savedAccounts.accounts.any { it.innerTubeCookie == innerTubeCookie }
-                if (isLoggedIn && !isSaved) showUnsavedAccountDialog = true else navController.navigate(buildLoginRoute())
+                val isSaved = session.savedAccounts.accounts.any { it.innerTubeCookie == session.innerTubeCookie }
+                if (session.isLoggedIn && !isSaved) modals.openUnsavedAccountDialog() else navController.navigate(buildLoginRoute())
             },
-            onUseLoginForBrowseChange = onUseLoginForBrowseChange,
-            onYtmSyncChange = onYtmSyncChange,
-            onForceSyncOnAccountSwitchChange = onForceSyncOnAccountSwitchChange,
+            onUseLoginForBrowseChange = session.onUseLoginForBrowseChange,
+            onYtmSyncChange = session.onYtmSyncChange,
+            onForceSyncOnAccountSwitchChange = session.onForceSyncOnAccountSwitchChange,
             onSpotifyClick = {
-                if (spotifyState.isAuthenticated) showSpotifyOptionsDialog = true else showSpotifyLogin = true
+                if (spotifyState.isAuthenticated) modals.openSpotifyOptions() else modals.openSpotifyLogin()
             },
             onUseSpotifyHomeChange = { isSpotify ->
-                if (isSpotify && !spotifyState.isAuthenticated) showSpotifyLogin = true else onUseSpotifyHomeChange(isSpotify)
+                if (isSpotify && !spotifyState.isAuthenticated) modals.openSpotifyLogin() else session.onUseSpotifyHomeChange(isSpotify)
             },
-            onSpotifySyncLikesChange = onSpotifySyncLikesChange,
-            onHideYtmLikedSongsChange = onHideYtmLikedSongsChange,
+            onSpotifySyncLikesChange = session.onSpotifySyncLikesChange,
+            onHideYtmLikedSongsChange = session.onHideYtmLikedSongsChange,
             onNavigateIntegration = { navController.navigate("settings/integration") },
             onNavigateMusicTogether = { navController.navigate("settings/music_together") },
             onNavigateHiddenPlaylists = { navController.navigate("settings/hidden_playlists") },
-            onTokenRowClick = { showTokenEditor = true },
-            onRevealToken = { showToken = true },
-        )
-
-    val dialogsState =
-        AccountDialogsState(
-            showSpotifyLogin = showSpotifyLogin,
-            showSpotifyOptionsDialog = showSpotifyOptionsDialog,
-            showLoginChoiceDialog = showLoginChoiceDialog,
-            showTokenEditor = showTokenEditor,
-            showUnsavedAccountDialog = showUnsavedAccountDialog,
-            spotifyState = spotifyState,
-            showSpotifyPlaylists = showSpotifyPlaylists,
-            tokenEditorState =
-                TokenEditorDialogState(
-                    innerTubeCookie = innerTubeCookie,
-                    visitorData = visitorData,
-                    dataSyncId = dataSyncId,
-                    accountNamePref = accountNamePref,
-                    accountEmail = accountEmail,
-                    accountChannelHandle = accountChannelHandle,
-                ),
-        )
-
-    val dialogsActions =
-        AccountDialogsActions(
-            onDismissSpotifyLogin = { showSpotifyLogin = false },
-            onCookiesCaptured = { spDc, spKey ->
-                spotifyAccountViewModel.connectWithCookies(spDc = spDc, spKey = spKey)
-                showSpotifyLogin = false
-            },
-            onShowSpotifyPlaylistsChange = onShowSpotifyPlaylistsChange,
-            onConnectSpotify = { showSpotifyOptionsDialog = false; showSpotifyLogin = true },
-            onSpotifyLogout = { spotifyAccountViewModel.logout(); showSpotifyOptionsDialog = false },
-            onDismissSpotifyOptions = { showSpotifyOptionsDialog = false },
-            onDismissLoginChoice = { showLoginChoiceDialog = false },
-            onBrowserLogin = { showLoginChoiceDialog = false; navController.navigate(buildLoginRoute()) },
-            onAdvancedLogin = { showLoginChoiceDialog = false; showTokenEditor = true },
-            tokenEditorActions =
-                TokenEditorDialogActions(
-                    onInnerTubeCookieChange = onInnerTubeCookieChange,
-                    onPoTokenChange = onLegacyPoTokenChange,
-                    onVisitorDataChange = onVisitorDataChange,
-                    onDataSyncIdChange = onDataSyncIdChange,
-                    onAccountNameChange = onAccountNameChange,
-                    onAccountEmailChange = onAccountEmailChange,
-                    onAccountChannelHandleChange = onAccountChannelHandleChange,
-                    onDismiss = { showTokenEditor = false },
-                ),
-            onDismissUnsavedAccount = { showUnsavedAccountDialog = false },
-            onCancelUnsavedAccount = { showUnsavedAccountDialog = false },
-            onNoThanksUnsavedAccount = { showUnsavedAccountDialog = false; navController.navigate(buildLoginRoute()) },
-            onSaveYesUnsavedAccount = {
-                showUnsavedAccountDialog = false
-                saveCurrentAccount()
-                navController.navigate(buildLoginRoute())
-            },
+            onTokenRowClick = modals.openTokenEditor,
+            onRevealToken = modals.revealToken,
         )
 
     AccountSettingsContent(
@@ -339,24 +175,24 @@ fun AccountSettings(
     )
 
     AccountDialogsHost(
-        state = dialogsState,
-        actions = dialogsActions,
+        state = modals.dialogsState,
+        actions = modals.dialogsActions,
     )
-    if (showAccountMenu) {
+    if (modals.showAccountMenu) {
         ProfileAccountMenu(
             expanded = true,
-            onDismissRequest = { showAccountMenu = false },
+            onDismissRequest = modals.dismissAccountMenu,
             accountChannelsState = uiState.accountChannelsState,
             activeDataSyncId = uiState.activeDataSyncId,
             onSwitchAccountChannel = { channel ->
-                showAccountMenu = false
+                modals.dismissAccountMenu()
                 uiActions.onSwitchAccountChannel(channel)
             },
             savedAccounts = uiState.savedAccounts,
             activeInnerTubeCookie = uiState.activeInnerTubeCookie,
             onRemoveAccount = uiActions.onRemoveAccount,
             onSwitchAccount = { account ->
-                showAccountMenu = false
+                modals.dismissAccountMenu()
                 uiActions.onSwitchAccount(account)
             },
             isLoggedIn = uiState.isLoggedIn,
@@ -364,20 +200,20 @@ fun AccountSettings(
                 uiActions.onSaveAccount()
             },
             onAddAnotherAccount = {
-                showAccountMenu = false
+                modals.dismissAccountMenu()
                 uiActions.onAddAnotherAccount()
             },
             onLogout = {
-                showAccountMenu = false
+                modals.dismissAccountMenu()
                 uiActions.onSecondaryAction()
             },
             onBrowserLogin = {
-                showAccountMenu = false
-                dialogsActions.onBrowserLogin()
+                modals.dismissAccountMenu()
+                modals.dialogsActions.onBrowserLogin()
             },
             onAdvancedLogin = {
-                showAccountMenu = false
-                dialogsActions.onAdvancedLogin()
+                modals.dismissAccountMenu()
+                modals.dialogsActions.onAdvancedLogin()
             },
         )
     }
