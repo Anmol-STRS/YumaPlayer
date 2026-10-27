@@ -106,7 +106,7 @@ fun ProfileHeroHeader(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 0.dp, bottom = 20.dp),
+                .padding(top = 40.dp, bottom = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Box(
@@ -152,7 +152,7 @@ fun ProfileHeroHeader(
                 ),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(top = 8.dp)
+                modifier = Modifier.padding(top = 0.dp)
             )
 
             if (!handle.isNullOrBlank()) {

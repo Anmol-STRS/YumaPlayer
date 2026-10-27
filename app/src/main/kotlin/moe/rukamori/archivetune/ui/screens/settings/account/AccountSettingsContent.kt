@@ -73,7 +73,7 @@ internal fun AccountSettingsContent(
                         LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Horizontal)
                     ),
                 contentPadding = PaddingValues(
-                    top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding(),
+                    top = 0.dp,
                     bottom = SettingsDimensions.ScreenBottomPadding + playerAwareBottomInset(),
                 ),
                 verticalArrangement = Arrangement.spacedBy(SettingsDimensions.SectionSpacing),

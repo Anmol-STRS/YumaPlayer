@@ -15,8 +15,11 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -38,8 +41,8 @@ layout(color) uniform half4 baseColor;
 // ==========================================
 // VISUAL CONTROLS
 // ==========================================
-const float2 GLOW_CENTER = float2(0.50, 0.28);
-const float GLOW_WIDTH = 1.35;
+const float2 GLOW_CENTER = float2(0.50, 0.32);
+const float GLOW_WIDTH = 1.20;
 const float GLOW_HEIGHT = 1.30;
 const float GLOW_SOFTNESS = 1.70;
 
@@ -147,27 +150,20 @@ vec2 warpedNoise(vec2 uv, float t) {
 half4 main(float2 fragCoord) {
     vec2 uv = fragCoord / resolution;
 
-    // 1. Считаем вектор деформации жидкого шума
     vec2 warp = warpedNoise(uv, time);
 
-    // 2. Искажаем координаты самого купола (вот тут появляется осязаемая масса)
     vec2 domeUv = (uv - GLOW_CENTER) + warp * WARP_AMOUNT;
 
-    // 3. Слой 1: Широкая мягкая подложка (рассеянный свет)
     float dBase = length(domeUv * vec2(1.0, GLOW_HEIGHT)) * GLOW_WIDTH;
     float baseGlow = exp(-GLOW_SOFTNESS * dBase * dBase);
 
-    // 4. Слой 2: Плотное горячее ядро за аватаркой (создает глубину и 3D-центр)
     float dCore = length(domeUv * vec2(1.0, 1.6)) * 2.1;
     float coreGlow = exp(-3.8 * dCore * dCore) * 0.45;
 
-    // Суммарный объем света
     float totalGlow = baseGlow + coreGlow;
 
-    // 5. Затухание вниз без резкого среза
     float bottomFade = smoothstep(FADE_END, FADE_START, uv.y);
 
-    // 6. Дизеринг против ступеней
     float dither = (fract(dot(fragCoord, vec2(0.7548776662, 0.5698402909))) - 0.5) / 255.0;
 
     float finalAlpha = clamp(totalGlow * bottomFade * baseColor.a + dither, 0.0, 1.0);
@@ -201,31 +197,24 @@ private fun AgslBackdropGlow(
     accentColor: Color,
     modifier: Modifier = Modifier,
 ) {
-    val transition = rememberInfiniteTransition(
-        label = "avatarBackdropTransition"
-    )
-
+    val transition = rememberInfiniteTransition(label = "avatarBackdropTransition")
     val time by transition.animateFloat(
         initialValue = 0f,
         targetValue = 4.0f,
         animationSpec = infiniteRepeatable(
-            animation = tween(
-                durationMillis = 45000,
-                easing = LinearEasing
-            ),
+            animation = tween(durationMillis = 45000, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "shaderTime"
     )
 
-    val shader = remember {
-        RuntimeShader(AVATAR_WARP_SHADER)
-    }
+    val shader = remember { RuntimeShader(AVATAR_WARP_SHADER) }
+    val statusBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
 
     Canvas(
         modifier = modifier
             .fillMaxWidth()
-            .height(260.dp)
+            .height(260.dp + statusBarHeight)
     ) {
         shader.setFloatUniform("resolution", size.width, size.height)
         shader.setFloatUniform("time", time)
