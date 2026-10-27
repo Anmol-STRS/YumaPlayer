@@ -88,8 +88,9 @@ fun HomeTopBarAccountMenu(
                 accountName = accountName,
                 accentColor = accentColor,
                 onClick = {
-                    onNavigateProfile()
                     expanded = false
+                    onNavigateProfile()
+
                 },
             )
 
