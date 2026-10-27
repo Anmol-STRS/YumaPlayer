@@ -16,12 +16,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,7 +39,6 @@ import androidx.compose.ui.unit.dp
 import moe.rukamori.archivetune.R
 import moe.rukamori.archivetune.home.state.AccountChannelUiModel
 import moe.rukamori.archivetune.home.state.AccountChannelsState
-import moe.rukamori.archivetune.ui.component.DefaultDialog
 import moe.rukamori.archivetune.ui.component.IconButton
 import moe.rukamori.archivetune.ui.screens.settings.segmentedSettingsItemShape
 import moe.rukamori.archivetune.ui.settings.SettingsDimensions
@@ -44,6 +46,7 @@ import moe.rukamori.archivetune.ui.theme.yumaClickable
 import moe.rukamori.archivetune.utils.SavedAccount
 import moe.rukamori.archivetune.utils.SavedAccountCollection
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileAccountMenu(
     expanded: Boolean,
@@ -64,29 +67,26 @@ fun ProfileAccountMenu(
 ) {
     if (!expanded) return
 
-    DefaultDialog(
-        onDismiss = onDismissRequest,
-        contentScrollable = true,
-        title = {
-            Text(
-                text = stringResource(R.string.account),
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-            )
-        },
-        buttons = {
-            TextButton(
-                onClick = onDismissRequest,
-                shapes = ButtonDefaults.shapes(),
-            ) {
-                Text(stringResource(R.string.close))
-            }
-        },
+    ModalBottomSheet(
+        onDismissRequest = onDismissRequest,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        dragHandle = { BottomSheetDefaults.DragHandle() },
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(SettingsDimensions.SectionSpacing),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 36.dp),
+            verticalArrangement = Arrangement.spacedBy(SettingsDimensions.SectionSpacing)
         ) {
+            Text(
+                text = stringResource(R.string.account),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+
             if (isLoggedIn) {
                 when (accountChannelsState) {
                     is AccountChannelsState.Loading -> {
@@ -129,15 +129,15 @@ fun ProfileAccountMenu(
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
+                                            .yumaClickable(pressedScale = 0.98f) {
+                                                onDismissRequest()
+                                                onSwitchAccountChannel(channel)
+                                            }
                                             .clip(shape)
                                             .background(
                                                 if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
                                                 else MaterialTheme.colorScheme.surfaceContainer
                                             )
-                                            .yumaClickable {
-                                                onDismissRequest()
-                                                onSwitchAccountChannel(channel)
-                                            }
                                             .padding(horizontal = 16.dp, vertical = 12.dp),
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -190,15 +190,15 @@ fun ProfileAccountMenu(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .yumaClickable(enabled = !isCurrent, pressedScale = 0.98f) {
+                                    onDismissRequest()
+                                    onSwitchAccount(account)
+                                }
                                 .clip(shape)
                                 .background(
                                     if (isCurrent) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
                                     else MaterialTheme.colorScheme.surfaceContainer
                                 )
-                                .yumaClickable(enabled = !isCurrent) {
-                                    onDismissRequest()
-                                    onSwitchAccount(account)
-                                }
                                 .padding(horizontal = 16.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -347,9 +347,9 @@ private fun AccountActionItem(
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .yumaClickable(pressedScale = 0.98f, onClick = onClick) // yumaClickable перед clip, сжимается вся плашка
             .clip(shape)
             .background(MaterialTheme.colorScheme.surfaceContainer)
-            .yumaClickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),

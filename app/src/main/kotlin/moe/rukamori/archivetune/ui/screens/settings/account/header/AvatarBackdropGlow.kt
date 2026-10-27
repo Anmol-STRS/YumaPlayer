@@ -5,7 +5,10 @@
 
 package moe.rukamori.archivetune.ui.screens.settings.account.header
 
+import android.graphics.Bitmap
+import android.graphics.BitmapShader
 import android.graphics.RuntimeShader
+import android.graphics.Shader
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.core.withInfiniteAnimationFrameMillis
@@ -20,25 +23,31 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.flow.first
 import org.intellij.lang.annotations.Language
 import kotlin.math.exp
+
+// ==========================================
+// ANIMATION TIMING CONTROLS
+// ==========================================
+private const val GLOW_LOOP_DURATION_MS = 45000f
+private const val GLOW_LOOP_DISTANCE = 4.0f
+private const val GLOW_SPEED = GLOW_LOOP_DISTANCE / GLOW_LOOP_DURATION_MS
 
 @Language("AGSL")
 private const val AVATAR_WARP_SHADER = """
 uniform float2 resolution;
 uniform float time;
 layout(color) uniform half4 baseColor;
+uniform float hasAvatar;
+uniform shader avatarTex;
 
 // ==========================================
 // VISUAL CONTROLS
@@ -53,9 +62,7 @@ const float NOISE_DETAIL = 0.90;
 const float NOISE_WARP = 2.20;
 const float WARP_AMOUNT = 0.12;
 
-const float LIGHT_VARIATION = 0.18;
 const float LOOP_DISTANCE = 4.0;
-
 const float FADE_START = 0.40;
 const float FADE_END = 0.88;
 
@@ -153,7 +160,6 @@ half4 main(float2 fragCoord) {
     vec2 uv = fragCoord / resolution;
 
     vec2 warp = warpedNoise(uv, time);
-
     vec2 domeUv = (uv - GLOW_CENTER) + warp * WARP_AMOUNT;
 
     float dBase = length(domeUv * vec2(1.0, GLOW_HEIGHT)) * GLOW_WIDTH;
@@ -163,27 +169,35 @@ half4 main(float2 fragCoord) {
     float coreGlow = exp(-3.8 * dCore * dCore) * 0.45;
 
     float totalGlow = baseGlow + coreGlow;
-
     float bottomFade = smoothstep(FADE_END, FADE_START, uv.y);
 
     float dither = (fract(dot(fragCoord, vec2(0.7548776662, 0.5698402909))) - 0.5) / 255.0;
+    float finalAlpha = clamp(totalGlow * bottomFade + dither, 0.0, 1.0);
 
-    float finalAlpha = clamp(totalGlow * bottomFade * baseColor.a + dither, 0.0, 1.0);
-    half3 finalRgb = baseColor.rgb * finalAlpha;
+    half3 rgb;
+    if (hasAvatar > 0.5) {
+        vec2 texUv = clamp(domeUv * 0.85 + 0.5, 0.0, 1.0);
+        half4 texColor = avatarTex.eval(texUv * resolution);
+        rgb = texColor.rgb * finalAlpha;
+    } else {
+        rgb = baseColor.rgb * (finalAlpha * baseColor.a);
+    }
 
-    return half4(finalRgb, finalAlpha);
+    return half4(rgb, finalAlpha);
 }
 """
 
 @Composable
 fun AvatarBackdropGlow(
     accentColor: Color,
+    avatarBitmap: Bitmap? = null,
     modifier: Modifier = Modifier,
     isPaused: Boolean = false,
 ) {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         AgslBackdropGlow(
             accentColor = accentColor,
+            avatarBitmap = avatarBitmap,
             isPaused = isPaused,
             modifier = modifier,
         )
@@ -199,34 +213,33 @@ fun AvatarBackdropGlow(
 @Composable
 private fun AgslBackdropGlow(
     accentColor: Color,
+    avatarBitmap: Bitmap?,
     isPaused: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    var progress by rememberSaveable { mutableFloatStateOf(0f) }
     var currentTime by rememberSaveable { mutableFloatStateOf(0f) }
-    val isPausedState by rememberUpdatedState(isPaused)
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(isPaused) {
+        if (isPaused) return@LaunchedEffect
+
         var lastFrameMs = withInfiniteAnimationFrameMillis { it }
         while (true) {
-            if (isPausedState) {
-                snapshotFlow { isPausedState }.first { !it }
-                lastFrameMs = withInfiniteAnimationFrameMillis { it }
-            }
             withInfiniteAnimationFrameMillis { frameMs ->
                 val delta = (frameMs - lastFrameMs).coerceAtLeast(0L)
                 lastFrameMs = frameMs
-                if (!isPausedState) {
-                    val progressDelta = delta.toFloat() / 55000f
-                    progress = (progress + progressDelta) % 1f
-                    currentTime = progress * 4.0f
-                }
+                currentTime = (currentTime + delta * GLOW_SPEED) % GLOW_LOOP_DISTANCE
             }
         }
     }
 
     val shader = remember { RuntimeShader(AVATAR_WARP_SHADER) }
     val statusBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+
+    val bitmapShader = remember(avatarBitmap) {
+        avatarBitmap?.let {
+            BitmapShader(it, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
+        }
+    }
 
     Canvas(
         modifier = modifier
@@ -244,6 +257,17 @@ private fun AgslBackdropGlow(
                 0.70f
             )
         )
+
+        if (bitmapShader != null) {
+            val matrix = android.graphics.Matrix()
+            matrix.setScale(size.width / avatarBitmap!!.width.toFloat(), size.height / avatarBitmap.height.toFloat())
+            bitmapShader.setLocalMatrix(matrix)
+
+            shader.setFloatUniform("hasAvatar", 1.0f)
+            shader.setInputShader("avatarTex", bitmapShader)
+        } else {
+            shader.setFloatUniform("hasAvatar", 0.0f)
+        }
 
         drawRect(brush = ShaderBrush(shader))
     }

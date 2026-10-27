@@ -59,6 +59,12 @@ import moe.rukamori.archivetune.ui.theme.yumaClickable
 import moe.rukamori.archivetune.ui.utils.LocalPlayerIsExpanded
 import kotlin.math.cos
 import kotlin.math.sin
+import android.graphics.Bitmap
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import androidx.compose.runtime.rememberCoroutineScope
+import moe.rukamori.archivetune.utils.ImageBlurUtils
 
 private data class StarPoint(val angle: Float, val scale: Float, val alpha: Float)
 
@@ -84,6 +90,7 @@ fun ProfileHeroHeader(
     actionLabel: String? = null,
     isEffectActive: Boolean = true,
     isViewportVisible: Boolean = true,
+    onAvatarPixelsReady: ((IntArray) -> Unit)? = null,
     onAccountActionClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -101,26 +108,29 @@ fun ProfileHeroHeader(
             lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
-    val effectiveEffectActive = isEffectActive && isLifecycleResumed && !isPlayerExpanded
+
+    val shouldPauseAnimation = !isEffectActive || !isLifecycleResumed || isPlayerExpanded || !isViewportVisible
 
     val resolvedActionLabel = actionLabel ?: if (isLoggedIn) {
-        stringResource(R.string.settings)
+        stringResource(R.string.account)
     } else {
         stringResource(R.string.login)
     }
-    val actionIcon = if (isLoggedIn) R.drawable.settings else R.drawable.login
+    val actionIcon = if (isLoggedIn) R.drawable.account else R.drawable.login
+
+    var blurredAvatar by remember { mutableStateOf<Bitmap?>(null) }
+    val coroutineScope = rememberCoroutineScope()
 
     Box(
         modifier = modifier.fillMaxWidth(),
         contentAlignment = Alignment.TopCenter
     ) {
-        if (effectiveEffectActive) {
-            AvatarBackdropGlow(
-                accentColor = accentColor,
-                isPaused = !isViewportVisible,
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
+        AvatarBackdropGlow(
+            accentColor = accentColor,
+            avatarBitmap = blurredAvatar,
+            isPaused = shouldPauseAnimation,
+            modifier = Modifier.fillMaxWidth()
+        )
 
         Column(
             modifier = Modifier
@@ -132,11 +142,7 @@ fun ProfileHeroHeader(
                 modifier = Modifier.size(140.dp),
                 contentAlignment = Alignment.Center
             ) {
-                if (effectiveEffectActive) {
-                    ActiveBackOrbitRing(
-                        isPaused = !isViewportVisible,
-                    )
-                }
+                ActiveBackOrbitRing(isPaused = shouldPauseAnimation)
 
                 AsyncImage(
                     model = avatarUrl,
@@ -145,6 +151,27 @@ fun ProfileHeroHeader(
                     fallback = painterResource(R.drawable.person),
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
+                    onSuccess = { successResult ->
+                        val drawable = successResult.result.image
+                        val bitmap = (drawable as? coil3.BitmapImage)?.bitmap
+                        if (bitmap != null) {
+                            // 1. Отдаем пиксели для извлечения доминирующего цвета (для fallback и окантовок)
+                            if (onAvatarPixelsReady != null) {
+                                val pixels = IntArray(bitmap.width * bitmap.height)
+                                bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+                                onAvatarPixelsReady(pixels)
+                            }
+
+                            // 2. В фоне блюрим картинку через встроенный ImageBlurUtils
+                            coroutineScope.launch(Dispatchers.Default) {
+                                val scaled = Bitmap.createScaledBitmap(bitmap, 128, 128, true)
+                                val blurred = ImageBlurUtils.blur(scaled, 8f)
+                                withContext(Dispatchers.Main) {
+                                    blurredAvatar = blurred
+                                }
+                            }
+                        }
+                    },
                     modifier = Modifier
                         .size(88.dp)
                         .clip(CircleShape)
@@ -156,11 +183,7 @@ fun ProfileHeroHeader(
                         )
                 )
 
-                if (effectiveEffectActive) {
-                    ActiveFrontOrbitRing(
-                        isPaused = !isViewportVisible,
-                    )
-                }
+                ActiveFrontOrbitRing(isPaused = shouldPauseAnimation)
             }
 
             Text(
@@ -222,7 +245,6 @@ fun ProfileHeroHeader(
         }
     }
 }
-
 @Composable
 private fun ActiveBackOrbitRing(
     isPaused: Boolean,
@@ -268,26 +290,20 @@ private fun rememberOrbitRotation(
     endAngle: Float,
     isPaused: Boolean,
 ): () -> Float {
-    var progress by rememberSaveable { mutableFloatStateOf(0f) }
     var currentRotation by rememberSaveable { mutableFloatStateOf(startAngle) }
-    val isPausedState by rememberUpdatedState(isPaused)
 
-    LaunchedEffect(durationMillis, startAngle, endAngle) {
+    LaunchedEffect(durationMillis, startAngle, endAngle, isPaused) {
+        if (isPaused) return@LaunchedEffect
+
         val sweep = endAngle - startAngle
+        val speed = sweep / durationMillis.toFloat()
         var lastFrameMs = withInfiniteAnimationFrameMillis { it }
+
         while (true) {
-            if (isPausedState) {
-                snapshotFlow { isPausedState }.first { !it }
-                lastFrameMs = withInfiniteAnimationFrameMillis { it }
-            }
             withInfiniteAnimationFrameMillis { frameMs ->
                 val delta = (frameMs - lastFrameMs).coerceAtLeast(0L)
                 lastFrameMs = frameMs
-                if (!isPausedState) {
-                    val progressDelta = delta.toFloat() / durationMillis.toFloat()
-                    progress = (progress + progressDelta) % 1f
-                    currentRotation = startAngle + (sweep * progress)
-                }
+                currentRotation = startAngle + ((currentRotation - startAngle + delta * speed) % sweep)
             }
         }
     }
