@@ -1,11 +1,11 @@
 /*
- * YumaPlayer (2026) | Modified work by MuwMix
- * ArchiveTune (2026) | Original work by © Rukamori
- * GPL-3.0 License | Contributors: see git history
+ * YumaPlayer (2026) | Original work by MuwMix
+ *  * GPL-3.0 License | Contributors: see git history
  */
 
 package moe.rukamori.archivetune.utils
 
+import android.annotation.SuppressLint
 import com.google.android.material.color.utilities.Hct
 import com.google.android.material.color.utilities.QuantizerCelebi
 import com.google.android.material.color.utilities.Scheme
@@ -15,6 +15,7 @@ import com.google.android.material.color.utilities.Score
  * Pure JVM color extraction utility.
  * Free of Android Context and Jetpack Compose framework dependencies.
  */
+@SuppressLint("RestrictedApi")
 object ColorExtractor {
     /**
      * Extracts vibrant accent color as ARGB hex string (#AARRGGBB) from raw ARGB pixel array.
@@ -31,7 +32,7 @@ object ColorExtractor {
             val hct = Hct.fromInt(topColorInt)
             val darkScheme = Scheme.dark(hct.toInt())
             String.format("#%08X", darkScheme.primary)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             null
         }
     }

@@ -56,7 +56,6 @@ import moe.rukamori.archivetune.ui.utils.LocalGlobalVisibility
 import moe.rukamori.archivetune.ui.utils.LocalPlayerIsExpanded
 import moe.rukamori.archivetune.utils.SyncUtils
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ScaffoldShell(
     activity: ComponentActivity, navController: NavHostController, database: MusicDatabase, downloadUtil: DownloadUtil,
@@ -64,11 +63,12 @@ fun ScaffoldShell(
     bottomSheetPageState: BottomSheetPageState, menuState: MenuState, updateChannel: UpdateChannel, isHomeScreenVisible: Boolean,
     onExpansionFraction: (() -> Float) -> Unit, disableAnimations: Boolean, marqueeEnabled: Boolean = true, splashEnabled: Boolean, useDarkTheme: Boolean,
     pureBlack: Boolean, homeBackgroundStyle: HomeBackgroundStyle, homeBackgroundParallaxEnabled: Boolean, homeBackgroundParallaxStrength: Float,
-    homeBackgroundBrightness: Float, contentAlpha: Float, contentVisible: Boolean, coldSplash: Boolean, onBurstStart: () -> Unit,
+    homeBackgroundBrightness: Float, contentAlpha: Float, contentVisible: Boolean, onBurstStart: () -> Unit,
     splashDone: Boolean, onSplashDismiss: () -> Unit, pendingIntent: Intent?, onClearPendingIntent: () -> Unit,
     pendingBackupRestoreUri: Uri?, onClearPendingBackupRestoreUri: () -> Unit, aodModeLaunchRequestCount: Int,
     onResetAodLaunchRequestCount: () -> Unit, onHandleIntent: (Intent?, NavHostController) -> Unit,
 ) {
+
     BoxWithConstraints(
         modifier = Modifier.fillMaxSize().background(if (pureBlack) Color.Black else MaterialTheme.colorScheme.surface),
     ) {
@@ -133,15 +133,24 @@ fun ScaffoldShell(
                 Box(
                     modifier = Modifier.fillMaxSize().nestedScroll(barScrollVisibility.nestedScrollConnection),
                 ) {
+                    val accountName by appState.homeViewModel.accountName.collectAsStateWithLifecycle()
                     val accountImageUrl by appState.homeViewModel.accountImageUrl.collectAsStateWithLifecycle()
-
+                    val accountAccentColor by appState.homeViewModel.accountAccentColor.collectAsStateWithLifecycle()
+                    @Suppress("UnusedMaterial3ScaffoldPaddingParameter")
                     Scaffold(
                         topBar = {
                             ScaffoldTopAppBar(
-                                visible = appState.shouldShowTopBar, navController = navController,
-                                navBackStackEntry = appState.navBackStackEntry, scrollController = appState.scrollController,
-                                useRail = appState.useRail, pureBlack = pureBlack, splashDone = splashDone,
-                                updateState = appState.updateState, avatarUrl = accountImageUrl,
+                                visible = appState.shouldShowTopBar,
+                                navController = navController,
+                                navBackStackEntry = appState.navBackStackEntry,
+                                scrollController = appState.scrollController,
+                                useRail = appState.useRail,
+                                pureBlack = pureBlack,
+                                splashDone = splashDone,
+                                updateState = appState.updateState,
+                                avatarUrl = accountImageUrl,
+                                accountName = accountName,
+                                accentColor = accountAccentColor,
                             )
                             ScaffoldSearchBarHost(
                                 searchState = appState.searchState, navController = navController,

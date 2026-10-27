@@ -224,7 +224,6 @@ fun YumaApp(
             homeBackgroundBrightness = homeBackgroundBrightness,
             contentAlpha = splashState.contentAlpha,
             contentVisible = splashState.contentVisible,
-            coldSplash = splashState.coldSplash,
             onBurstStart = splashState.onBurstStart,
             splashDone = splashState.splashDone,
             onSplashDismiss = splashState.onSplashDismiss,

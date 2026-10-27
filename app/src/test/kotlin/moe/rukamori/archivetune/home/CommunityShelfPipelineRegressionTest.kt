@@ -251,7 +251,6 @@ class CommunityShelfPipelineRegressionTest {
             syncUtils = syncUtils,
             switchSavedYouTubeAccount = switchSavedYouTubeAccount,
             observeHomePresentationPreferences = observePreferences,
-            observeAiContentFilter = observeAiContentFilter,
             loadAiContentFilterPolicy = loadAiPolicy,
             filterAiContent = filterAiContent,
             prepareCommunityHomePage = prepareCommunityUseCase,

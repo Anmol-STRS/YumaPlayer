@@ -22,20 +22,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.drop
-import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import moe.rukamori.archivetune.R
 import moe.rukamori.archivetune.aicontentfilter.FilterAiContentUseCase
 import moe.rukamori.archivetune.aicontentfilter.LoadAiContentFilterPolicyUseCase
-import moe.rukamori.archivetune.aicontentfilter.ObserveAiContentFilterUseCase
 import moe.rukamori.archivetune.auth.SwitchSavedYouTubeAccountUseCase
-import moe.rukamori.archivetune.constants.SpeedDialSongIdsKey
 import moe.rukamori.archivetune.db.MusicDatabase
 import moe.rukamori.archivetune.db.entities.Album
 import moe.rukamori.archivetune.db.entities.LocalItem
@@ -51,7 +44,6 @@ import moe.rukamori.archivetune.home.feed.HomeFeedCoordinator
 import moe.rukamori.archivetune.home.quickpicks.HomeQuickPicksManager
 import moe.rukamori.archivetune.home.recommendations.HomeLocalRecommendationsUseCase
 import moe.rukamori.archivetune.home.recommendations.HomeSimilarRecommendationsUseCase
-import moe.rukamori.archivetune.home.state.AccountChannelCollection
 import moe.rukamori.archivetune.home.state.AccountChannelUiModel
 import moe.rukamori.archivetune.home.state.AccountChannelsState
 import moe.rukamori.archivetune.home.state.HomeContent
@@ -63,54 +55,62 @@ import moe.rukamori.archivetune.innertube.pages.HomePage
 import moe.rukamori.archivetune.models.SimilarRecommendation
 import moe.rukamori.archivetune.utils.SavedAccount
 import moe.rukamori.archivetune.utils.SyncUtils
-import moe.rukamori.archivetune.utils.dataStore
 import moe.rukamori.archivetune.utils.reportException
 import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
+import kotlin.time.Duration.Companion.milliseconds
+import androidx.compose.ui.graphics.Color
+import coil3.ImageLoader
+import coil3.request.ImageRequest
+import coil3.request.allowHardware
+import coil3.toBitmap
+import moe.rukamori.archivetune.utils.ColorExtractor
+import androidx.core.graphics.toColorInt
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import moe.rukamori.archivetune.constants.SpeedDialSongIdsKey
+import moe.rukamori.archivetune.utils.dataStore
 
 @HiltViewModel
 class HomeViewModel
-    @Inject
+@Inject
+constructor(
+    @ApplicationContext private val context: Context,
+    private val syncUtils: SyncUtils,
+    observeHomePresentationPreferences: ObserveHomePresentationPreferencesUseCase,
+    private val prepareCommunityHomePage: PrepareCommunityHomePageUseCase,
+    private val loadCommunityPlaylistPreviews: LoadCommunityPlaylistPreviewsUseCase,
+    private val filterCommunityPreviews: FilterCommunityPreviewsUseCase,
+    private val quickPicksManager: HomeQuickPicksManager,
+    private val localRecommendations: HomeLocalRecommendationsUseCase,
+    private val similarRecommendationsUseCase: HomeSimilarRecommendationsUseCase,
+    private val accountCoordinator: HomeAccountCoordinator,
+    private val feedCoordinator: HomeFeedCoordinator,
+) : ViewModel() {
     constructor(
-        @ApplicationContext private val context: Context,
-        private val syncUtils: SyncUtils,
+        context: Context,
+        database: MusicDatabase,
+        syncUtils: SyncUtils,
+        switchSavedYouTubeAccount: SwitchSavedYouTubeAccountUseCase,
         observeHomePresentationPreferences: ObserveHomePresentationPreferencesUseCase,
-        observeAiContentFilter: ObserveAiContentFilterUseCase,
-        private val prepareCommunityHomePage: PrepareCommunityHomePageUseCase,
-        private val loadCommunityPlaylistPreviews: LoadCommunityPlaylistPreviewsUseCase,
-        private val filterCommunityPreviews: FilterCommunityPreviewsUseCase,
-        private val quickPicksManager: HomeQuickPicksManager,
-        private val localRecommendations: HomeLocalRecommendationsUseCase,
-        private val similarRecommendationsUseCase: HomeSimilarRecommendationsUseCase,
-        private val accountCoordinator: HomeAccountCoordinator,
-        private val feedCoordinator: HomeFeedCoordinator,
-    ) : ViewModel() {
-        constructor(
-            context: Context,
-            database: MusicDatabase,
-            syncUtils: SyncUtils,
-            switchSavedYouTubeAccount: SwitchSavedYouTubeAccountUseCase,
-            observeHomePresentationPreferences: ObserveHomePresentationPreferencesUseCase,
-            observeAiContentFilter: ObserveAiContentFilterUseCase,
-            loadAiContentFilterPolicy: LoadAiContentFilterPolicyUseCase,
-            filterAiContent: FilterAiContentUseCase,
-            prepareCommunityHomePage: PrepareCommunityHomePageUseCase,
-            loadCommunityPlaylistPreviews: LoadCommunityPlaylistPreviewsUseCase,
-            filterCommunityPreviews: FilterCommunityPreviewsUseCase,
-        ) : this(
-            context = context,
-            syncUtils = syncUtils,
-            observeHomePresentationPreferences = observeHomePresentationPreferences,
-            observeAiContentFilter = observeAiContentFilter,
-            prepareCommunityHomePage = prepareCommunityHomePage,
-            loadCommunityPlaylistPreviews = loadCommunityPlaylistPreviews,
-            filterCommunityPreviews = filterCommunityPreviews,
-            quickPicksManager = HomeQuickPicksManager(context, database),
-            localRecommendations = HomeLocalRecommendationsUseCase(context, database),
-            similarRecommendationsUseCase = HomeSimilarRecommendationsUseCase(context, database, loadAiContentFilterPolicy, filterAiContent),
-            accountCoordinator = HomeAccountCoordinator(context, syncUtils, switchSavedYouTubeAccount),
-            feedCoordinator = HomeFeedCoordinator(context, database, loadAiContentFilterPolicy, filterAiContent),
-        )
+        loadAiContentFilterPolicy: LoadAiContentFilterPolicyUseCase,
+        filterAiContent: FilterAiContentUseCase,
+        prepareCommunityHomePage: PrepareCommunityHomePageUseCase,
+        loadCommunityPlaylistPreviews: LoadCommunityPlaylistPreviewsUseCase,
+        filterCommunityPreviews: FilterCommunityPreviewsUseCase,
+    ) : this(
+        context = context,
+        syncUtils = syncUtils,
+        observeHomePresentationPreferences = observeHomePresentationPreferences,
+        prepareCommunityHomePage = prepareCommunityHomePage,
+        loadCommunityPlaylistPreviews = loadCommunityPlaylistPreviews,
+        filterCommunityPreviews = filterCommunityPreviews,
+        quickPicksManager = HomeQuickPicksManager(context, database),
+        localRecommendations = HomeLocalRecommendationsUseCase(context, database),
+        similarRecommendationsUseCase = HomeSimilarRecommendationsUseCase(context, database, loadAiContentFilterPolicy, filterAiContent),
+        accountCoordinator = HomeAccountCoordinator(context, syncUtils, switchSavedYouTubeAccount),
+        feedCoordinator = HomeFeedCoordinator(context, database, loadAiContentFilterPolicy, filterAiContent),
+    )
 
         private val isRefreshing = MutableStateFlow(false)
         private val isLoading = MutableStateFlow(false)
@@ -141,13 +141,11 @@ class HomeViewModel
         val accountImageUrl: StateFlow<String?> = accountCoordinator.accountImageUrl
         val accountChannelsState: StateFlow<AccountChannelsState> = accountCoordinator.accountChannelsState
 
+        private val _accountAccentColor = MutableStateFlow<Color?>(null)
+        val accountAccentColor: StateFlow<Color?> = _accountAccentColor.asStateFlow()
         private val presentationPreferences = observeHomePresentationPreferences()
-        private val aiContentFilterSettings =
-            observeAiContentFilter()
-                .map { (settings, _) -> settings }
-                .distinctUntilChanged()
 
-        private val localContent =
+    private val localContent =
             combine(
                 quickPicks,
                 speedDialItems,
@@ -268,12 +266,8 @@ class HomeViewModel
                 }
         }
 
-        fun loadCommunityPreviews(section: HomePage.Section? = _communitySection.value) {
-            updateCommunitySection(section)
-        }
-
-        private suspend fun load() {
-            delay(150)
+    private suspend fun load() {
+            delay(150.milliseconds)
             if (isLoading.value) return
             isLoading.value = true
             loadError.value = null
@@ -456,41 +450,72 @@ class HomeViewModel
             }
         }
 
-        init {
-            viewModelScope.launch(Dispatchers.IO) {
-                quickPicks.collect {
+    init {
+        viewModelScope.launch(Dispatchers.IO) {
+            quickPicks.collect {
+                updateAllLocalItems()
+            }
+        }
+
+        viewModelScope.launch(Dispatchers.IO) {
+            load()
+        }
+
+        viewModelScope.launch(Dispatchers.IO) {
+            context.dataStore.data
+                .map { it[SpeedDialSongIdsKey].orEmpty() }
+                .distinctUntilChanged()
+                .collect {
+                    speedDialItems.value = localRecommendations.loadSpeedDial()
                     updateAllLocalItems()
                 }
-            }
+        }
 
-            viewModelScope.launch(Dispatchers.IO) {
-                load()
-            }
+        viewModelScope.launch(Dispatchers.IO) {
+            delay(3000.milliseconds)
+            syncUtils.cleanupDuplicatePlaylists()
+        }
 
-            viewModelScope.launch(Dispatchers.IO) {
-                aiContentFilterSettings
-                    .drop(1)
-                    .collectLatest {
-                        isLoading.filter { loading -> !loading }.first()
-                        load()
+        accountCoordinator.observeCookies(viewModelScope)
+
+        viewModelScope.launch(Dispatchers.IO) {
+            val imageLoader = ImageLoader(context)
+            accountImageUrl.collectLatest { url ->
+                if (url.isNullOrBlank()) {
+                    _accountAccentColor.value = null
+                    return@collectLatest
+                }
+
+                try {
+                    val request = ImageRequest.Builder(context)
+                        .data(url)
+                        .size(96, 96)
+                        .allowHardware(false)
+                        .build()
+
+                    val result = imageLoader.execute(request)
+                    val bitmap = result.image?.toBitmap()
+
+                    if (bitmap != null) {
+                        val pixels = IntArray(bitmap.width * bitmap.height)
+                        bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+                        val hex = ColorExtractor.extractVibrantHex(pixels)
+                        val extractedColor = hex?.let {
+                            try {
+                                Color(it.toColorInt())
+                            } catch (_: Exception) {
+                                null
+                            }
+                        }
+                        _accountAccentColor.value = extractedColor
                     }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Timber.tag("HomeViewModel").w(e, "Failed to extract avatar color")
+                }
             }
-
-            viewModelScope.launch(Dispatchers.IO) {
-                context.dataStore.data
-                    .map { it[SpeedDialSongIdsKey].orEmpty() }
-                    .distinctUntilChanged()
-                    .collect {
-                        speedDialItems.value = localRecommendations.loadSpeedDial()
-                        updateAllLocalItems()
-                    }
-            }
-
-            viewModelScope.launch(Dispatchers.IO) {
-                delay(3000)
-                syncUtils.cleanupDuplicatePlaylists()
-            }
-
-            accountCoordinator.observeCookies(viewModelScope)
         }
     }
+    }
+
