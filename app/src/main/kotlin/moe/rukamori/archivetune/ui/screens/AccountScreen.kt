@@ -29,6 +29,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -42,7 +43,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -138,7 +141,16 @@ fun AccountScreen(
             )
         },
     ) { innerPadding ->
+        val lazyGridState = rememberLazyGridState()
+        val isHeaderInViewport by remember {
+            derivedStateOf {
+                val visible = lazyGridState.layoutInfo.visibleItemsInfo
+                visible.isEmpty() || visible.any { it.index == 0 }
+            }
+        }
+
         LazyVerticalGrid(
+            state = lazyGridState,
             columns = GridCells.Adaptive(minSize = GridThumbnailHeight + 24.dp),
             contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
             modifier = Modifier
@@ -151,7 +163,8 @@ fun AccountScreen(
                     displayName = profile.name.ifBlank { stringResource(R.string.account) },
                     handle = profile.handle,
                     isLoggedIn = profile.name.isNotBlank(),
-                    onAccountActionClick = { navController.navigate("settings/account") }
+                    isViewportVisible = isHeaderInViewport,
+                    onAccountActionClick = { navController.navigate("settings/account") },
                 )
             }
 

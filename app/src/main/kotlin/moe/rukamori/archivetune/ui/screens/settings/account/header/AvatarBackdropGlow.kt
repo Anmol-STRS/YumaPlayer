@@ -8,12 +8,7 @@ package moe.rukamori.archivetune.ui.screens.settings.account.header
 import android.graphics.RuntimeShader
 import android.os.Build
 import androidx.annotation.RequiresApi
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.withInfiniteAnimationFrameMillis
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
@@ -21,14 +16,21 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.flow.first
 import org.intellij.lang.annotations.Language
 import kotlin.math.exp
 
@@ -177,16 +179,18 @@ half4 main(float2 fragCoord) {
 fun AvatarBackdropGlow(
     accentColor: Color,
     modifier: Modifier = Modifier,
+    isPaused: Boolean = false,
 ) {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         AgslBackdropGlow(
             accentColor = accentColor,
-            modifier = modifier
+            isPaused = isPaused,
+            modifier = modifier,
         )
     } else {
         FallbackBackdropGlow(
             accentColor = accentColor,
-            modifier = modifier
+            modifier = modifier,
         )
     }
 }
@@ -195,18 +199,31 @@ fun AvatarBackdropGlow(
 @Composable
 private fun AgslBackdropGlow(
     accentColor: Color,
+    isPaused: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    val transition = rememberInfiniteTransition(label = "avatarBackdropTransition")
-    val time by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 4.0f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 55000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "shaderTime"
-    )
+    var progress by rememberSaveable { mutableFloatStateOf(0f) }
+    var currentTime by rememberSaveable { mutableFloatStateOf(0f) }
+    val isPausedState by rememberUpdatedState(isPaused)
+
+    LaunchedEffect(Unit) {
+        var lastFrameMs = withInfiniteAnimationFrameMillis { it }
+        while (true) {
+            if (isPausedState) {
+                snapshotFlow { isPausedState }.first { !it }
+                lastFrameMs = withInfiniteAnimationFrameMillis { it }
+            }
+            withInfiniteAnimationFrameMillis { frameMs ->
+                val delta = (frameMs - lastFrameMs).coerceIn(0L, 100L)
+                lastFrameMs = frameMs
+                if (!isPausedState) {
+                    val progressDelta = delta.toFloat() / 55000f
+                    progress = (progress + progressDelta) % 1f
+                    currentTime = progress * 4.0f
+                }
+            }
+        }
+    }
 
     val shader = remember { RuntimeShader(AVATAR_WARP_SHADER) }
     val statusBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
@@ -217,7 +234,7 @@ private fun AgslBackdropGlow(
             .height(260.dp + statusBarHeight)
     ) {
         shader.setFloatUniform("resolution", size.width, size.height)
-        shader.setFloatUniform("time", time)
+        shader.setFloatUniform("time", currentTime)
         shader.setColorUniform(
             "baseColor",
             android.graphics.Color.valueOf(

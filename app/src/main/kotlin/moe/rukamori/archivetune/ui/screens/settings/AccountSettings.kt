@@ -235,11 +235,7 @@ fun AccountSettings(
             onNavigateHome = navController::backToMain,
             onOpenTokenEditor = { showTokenEditor = true },
             onOpenAccountMenu = {
-                if (isLoggedIn) {
-                    showAccountMenu = true
-                } else {
-                    showLoginChoiceDialog = true
-                }
+                showAccountMenu = true
             },
             onOpenUpdateDownload = { uriHandler.openUri(Updater.getLatestDownloadUrl()) },
             onAvatarPixelsReady = accountSettingsViewModel::processAvatarPixels,
@@ -371,7 +367,18 @@ fun AccountSettings(
                 showAccountMenu = false
                 uiActions.onAddAnotherAccount()
             },
-            onLogout = uiActions.onSecondaryAction,
+            onLogout = {
+                showAccountMenu = false
+                uiActions.onSecondaryAction()
+            },
+            onBrowserLogin = {
+                showAccountMenu = false
+                dialogsActions.onBrowserLogin()
+            },
+            onAdvancedLogin = {
+                showAccountMenu = false
+                dialogsActions.onAdvancedLogin()
+            },
         )
     }
 }

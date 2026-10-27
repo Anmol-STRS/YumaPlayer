@@ -10,18 +10,20 @@ import io.mockk.mockk
 import io.mockk.mockkObject
 import io.mockk.mockkStatic
 import io.mockk.unmockkAll
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.advanceTimeBy
-import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.withTimeout
 import moe.rukamori.archivetune.auth.SwitchSavedYouTubeAccountUseCase
 import moe.rukamori.archivetune.constants.InnerTubeCookieKey
 import moe.rukamori.archivetune.constants.YtmSyncKey
@@ -33,9 +35,11 @@ import moe.rukamori.archivetune.utils.dataStore
 import moe.rukamori.archivetune.utils.get
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
+import java.util.concurrent.atomic.AtomicBoolean
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class HomeAccountCoordinatorTest {
@@ -86,116 +90,215 @@ class HomeAccountCoordinatorTest {
     }
 
     @Test
-    fun initialEmission_whenLoggedIn_refreshesIdentityWithoutStartupSync() = runTest(testDispatcher) {
+    fun initialEmission_whenLoggedIn_refreshesIdentityWithoutStartupSync() = runTest {
         preferencesFlow.emit(mockPreferences("SAPISID=valid_cookie_123"))
 
-        val scope = CoroutineScope(testDispatcher + Job())
-        coordinator.observeCookies(scope)
+        val scope = CoroutineScope(Dispatchers.Default + Job())
+        try {
+            coordinator.observeCookies(scope)
 
-        advanceTimeBy(150)
-        advanceUntilIdle()
+            withTimeout(5_000) {
+                coordinator.accountName.filter { it == "Test User" }.first()
+            }
 
-        assertEquals("Test User", coordinator.accountName.value)
-        assertEquals("https://example.com/avatar.jpg", coordinator.accountImageUrl.value)
+            assertEquals("Test User", coordinator.accountName.value)
+            assertEquals("https://example.com/avatar.jpg", coordinator.accountImageUrl.value)
 
-        coVerify(exactly = 0) { syncUtils.performFullSync(any()) }
-        scope.cancel()
+            coVerify(exactly = 0) { syncUtils.performFullSync(any()) }
+        } finally {
+            scope.coroutineContext[Job]?.cancelAndJoin()
+        }
     }
 
     @Test
-    fun initialEmission_whenLoggedOut_clearsIdentity() = runTest(testDispatcher) {
+    fun validLogin_thenLogout_clearsPriorProfile() = runTest {
+        preferencesFlow.emit(mockPreferences("SAPISID=valid_cookie_123"))
+
+        val scope = CoroutineScope(Dispatchers.Default + Job())
+        try {
+            coordinator.observeCookies(scope)
+
+            withTimeout(5_000) {
+                coordinator.accountName.filter { it == "Test User" }.first()
+            }
+            assertEquals("Test User", coordinator.accountName.value)
+
+            preferencesFlow.emit(mockPreferences(null))
+
+            withTimeout(5_000) {
+                coordinator.accountName.filter { it.isEmpty() }.first()
+            }
+
+            assertEquals("", coordinator.accountName.value)
+            assertNull(coordinator.accountImageUrl.value)
+            assertNull(coordinator.accountPlaylists.value)
+        } finally {
+            scope.coroutineContext[Job]?.cancelAndJoin()
+        }
+    }
+
+    @Test
+    fun loginTransition_triggersExactlyOneSyncAndRefreshesIdentity() = runTest {
+        val syncInvoked = CompletableDeferred<Unit>()
+        coEvery { syncUtils.performFullSync() } coAnswers {
+            syncInvoked.complete(Unit)
+        }
+
         preferencesFlow.emit(mockPreferences(null))
 
-        val scope = CoroutineScope(testDispatcher + Job())
-        coordinator.observeCookies(scope)
+        val scope = CoroutineScope(Dispatchers.Default + Job())
+        try {
+            coordinator.observeCookies(scope)
 
-        advanceTimeBy(150)
-        advanceUntilIdle()
+            preferencesFlow.emit(mockPreferences("SAPISID=login_cookie_456"))
 
-        assertEquals("", coordinator.accountName.value)
-        assertNull(coordinator.accountImageUrl.value)
+            withTimeout(5_000) {
+                syncInvoked.await()
+            }
+            withTimeout(5_000) {
+                coordinator.accountName.filter { it == "Test User" }.first()
+            }
 
-        coVerify(exactly = 0) { YouTube.accountInfo() }
-        coVerify(exactly = 0) { syncUtils.performFullSync(any()) }
-        scope.cancel()
+            assertEquals("Test User", coordinator.accountName.value)
+            assertEquals("https://example.com/avatar.jpg", coordinator.accountImageUrl.value)
+
+            coVerify(exactly = 1) { syncUtils.performFullSync() }
+        } finally {
+            scope.coroutineContext[Job]?.cancelAndJoin()
+        }
     }
 
     @Test
-    fun loginTransition_triggersSyncAndRefreshesIdentity() = runTest(testDispatcher) {
+    fun multipleSubscribers_shareSingleObserverJob_withoutDuplicatingRefreshesOrSync() = runTest {
+        val syncInvoked = CompletableDeferred<Unit>()
+        coEvery { syncUtils.performFullSync() } coAnswers {
+            syncInvoked.complete(Unit)
+        }
+
         preferencesFlow.emit(mockPreferences(null))
 
-        val scope = CoroutineScope(testDispatcher + Job())
-        coordinator.observeCookies(scope)
+        val scope1 = CoroutineScope(Dispatchers.Default + Job())
+        val scope2 = CoroutineScope(Dispatchers.Default + Job())
+        try {
+            coordinator.observeCookies(scope1)
+            coordinator.observeCookies(scope2)
 
-        advanceTimeBy(150)
-        advanceUntilIdle()
+            preferencesFlow.emit(mockPreferences("SAPISID=shared_login_123"))
 
-        coVerify(exactly = 0) { syncUtils.performFullSync(any()) }
+            withTimeout(5_000) {
+                syncInvoked.await()
+            }
+            withTimeout(5_000) {
+                coordinator.accountName.filter { it == "Test User" }.first()
+            }
 
-        preferencesFlow.emit(mockPreferences("SAPISID=login_cookie_456"))
-
-        advanceTimeBy(150)
-        advanceUntilIdle()
-
-        assertEquals("Test User", coordinator.accountName.value)
-        assertEquals("https://example.com/avatar.jpg", coordinator.accountImageUrl.value)
-
-        coVerify(atLeast = 1) { syncUtils.performFullSync() }
-        scope.cancel()
+            coVerify(exactly = 1) { YouTube.accountInfo() }
+            coVerify(exactly = 1) { syncUtils.performFullSync() }
+        } finally {
+            scope1.coroutineContext[Job]?.cancelAndJoin()
+            scope2.coroutineContext[Job]?.cancelAndJoin()
+        }
     }
 
     @Test
-    fun multipleSubscribers_shareSingleObserverJob_withoutDuplicatingRefreshes() = runTest(testDispatcher) {
+    fun subscriberCancellation_transfersObserverToRemainingSubscriber() = runTest {
         preferencesFlow.emit(mockPreferences("SAPISID=valid_cookie_123"))
 
-        val scope1 = CoroutineScope(testDispatcher + Job())
-        val scope2 = CoroutineScope(testDispatcher + Job())
+        val scope1 = CoroutineScope(Dispatchers.Default + Job())
+        val scope2 = CoroutineScope(Dispatchers.Default + Job())
+        try {
+            coordinator.observeCookies(scope1)
+            coordinator.observeCookies(scope2)
 
-        coordinator.observeCookies(scope1)
-        coordinator.observeCookies(scope2)
+            withTimeout(5_000) {
+                coordinator.accountName.filter { it == "Test User" }.first()
+            }
 
-        advanceTimeBy(150)
-        advanceUntilIdle()
+            scope1.coroutineContext[Job]?.cancelAndJoin()
 
-        coVerify(exactly = 1) { YouTube.accountInfo() }
+            coEvery { YouTube.accountInfo() } returns Result.success(
+                AccountInfo(
+                    name = "Updated User",
+                    email = "updated@example.com",
+                    channelHandle = "@updated",
+                    thumbnailUrl = "https://example.com/new_avatar.jpg",
+                ),
+            )
 
-        scope1.cancel()
-        scope2.cancel()
+            preferencesFlow.emit(mockPreferences("SAPISID=changed_cookie_789"))
+
+            withTimeout(5_000) {
+                coordinator.accountName.filter { it == "Updated User" }.first()
+            }
+
+            assertEquals("Updated User", coordinator.accountName.value)
+            assertEquals("https://example.com/new_avatar.jpg", coordinator.accountImageUrl.value)
+        } finally {
+            scope2.coroutineContext[Job]?.cancelAndJoin()
+        }
     }
 
     @Test
-    fun subscriberCancellation_transfersObserverToRemainingSubscriber() = runTest(testDispatcher) {
+    fun allSubscribersCancelled_andResubscribe_restartsObserverCorrectly() = runTest {
         preferencesFlow.emit(mockPreferences("SAPISID=valid_cookie_123"))
 
-        val scope1 = CoroutineScope(testDispatcher + Job())
-        val scope2 = CoroutineScope(testDispatcher + Job())
-
+        val scope1 = CoroutineScope(Dispatchers.Default + Job())
         coordinator.observeCookies(scope1)
-        coordinator.observeCookies(scope2)
 
-        advanceTimeBy(150)
-        advanceUntilIdle()
+        withTimeout(5_000) {
+            coordinator.accountName.filter { it == "Test User" }.first()
+        }
+        scope1.coroutineContext[Job]?.cancelAndJoin()
 
-        scope1.cancel()
-        advanceUntilIdle()
+        preferencesFlow.emit(mockPreferences(null))
 
-        coEvery { YouTube.accountInfo() } returns Result.success(
-            AccountInfo(
-                name = "Updated User",
-                email = "updated@example.com",
-                channelHandle = "@updated",
-                thumbnailUrl = "https://example.com/new_avatar.jpg",
-            ),
+        val scope2 = CoroutineScope(Dispatchers.Default + Job())
+        try {
+            coordinator.observeCookies(scope2)
+
+            withTimeout(5_000) {
+                coordinator.accountName.filter { it.isEmpty() }.first()
+            }
+
+            assertEquals("", coordinator.accountName.value)
+            assertNull(coordinator.accountImageUrl.value)
+        } finally {
+            scope2.coroutineContext[Job]?.cancelAndJoin()
+        }
+    }
+
+    @Test
+    fun cancelledScope_doesNotReceiveCallbacks() = runTest {
+        preferencesFlow.emit(mockPreferences(null))
+
+        val scope1 = CoroutineScope(Dispatchers.Default + Job())
+        val cancelledCallbackInvoked = AtomicBoolean(false)
+
+        coordinator.observeCookies(
+            scope = scope1,
+            onAuthSuccess = { cancelledCallbackInvoked.set(true) },
         )
 
-        preferencesFlow.emit(mockPreferences("SAPISID=changed_cookie_789"))
+        scope1.coroutineContext[Job]?.cancelAndJoin()
 
-        advanceTimeBy(150)
-        advanceUntilIdle()
+        val scope2 = CoroutineScope(Dispatchers.Default + Job())
+        val activeCallbackInvoked = CompletableDeferred<Unit>()
 
-        assertEquals("Updated User", coordinator.accountName.value)
-        assertEquals("https://example.com/new_avatar.jpg", coordinator.accountImageUrl.value)
+        try {
+            coordinator.observeCookies(
+                scope = scope2,
+                onAuthSuccess = { activeCallbackInvoked.complete(Unit) },
+            )
 
-        scope2.cancel()
+            preferencesFlow.emit(mockPreferences("SAPISID=auth_success_cookie"))
+
+            withTimeout(5_000) {
+                activeCallbackInvoked.await()
+            }
+
+            assertFalse(cancelledCallbackInvoked.get())
+        } finally {
+            scope2.coroutineContext[Job]?.cancelAndJoin()
+        }
     }
 }

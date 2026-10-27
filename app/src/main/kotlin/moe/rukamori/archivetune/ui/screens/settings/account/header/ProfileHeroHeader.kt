@@ -5,12 +5,7 @@
 
 package moe.rukamori.archivetune.ui.screens.settings.account.header
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.withInfiniteAnimationFrameMillis
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -29,7 +24,16 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,9 +49,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import coil3.compose.AsyncImage
+import kotlinx.coroutines.flow.first
 import moe.rukamori.archivetune.R
 import moe.rukamori.archivetune.ui.theme.yumaClickable
+import moe.rukamori.archivetune.ui.utils.LocalGlobalVisibility
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -72,37 +81,59 @@ fun ProfileHeroHeader(
     handle: String?,
     accentColor: Color = MaterialTheme.colorScheme.primary,
     isLoggedIn: Boolean = true,
+    actionLabel: String? = null,
+    isEffectActive: Boolean = true,
+    isViewportVisible: Boolean = true,
     onAccountActionClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
-    val transition = rememberInfiniteTransition(label = "heroOrbits")
-    val frontRotation by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 32000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "frontOrbitRotation"
+    val isPlayerExpanded = !LocalGlobalVisibility.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var isLifecycleResumed by remember {
+        mutableStateOf(lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED))
+    }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            isLifecycleResumed = event.targetState.isAtLeast(Lifecycle.State.RESUMED)
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+    val effectiveEffectActive = isEffectActive && isLifecycleResumed && !isPlayerExpanded
+
+    val frontRotation = rememberOrbitRotation(
+        durationMillis = 32000L,
+        startAngle = 0f,
+        endAngle = 360f,
+        isPaused = !isViewportVisible,
     )
-    val backRotation by transition.animateFloat(
-        initialValue = 360f,
-        targetValue = 0f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 48000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "backOrbitRotation"
+    val backRotation = rememberOrbitRotation(
+        durationMillis = 48000L,
+        startAngle = 360f,
+        endAngle = 0f,
+        isPaused = !isViewportVisible,
     )
+
+    val resolvedActionLabel = actionLabel ?: if (isLoggedIn) {
+        stringResource(R.string.settings)
+    } else {
+        stringResource(R.string.login)
+    }
+    val actionIcon = if (isLoggedIn) R.drawable.settings else R.drawable.login
 
     Box(
         modifier = modifier.fillMaxWidth(),
         contentAlignment = Alignment.TopCenter
     ) {
-        AvatarBackdropGlow(
-            accentColor = accentColor,
-            modifier = Modifier.fillMaxWidth()
-        )
+        if (effectiveEffectActive) {
+            AvatarBackdropGlow(
+                accentColor = accentColor,
+                isPaused = !isViewportVisible,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
 
         Column(
             modifier = Modifier
@@ -114,11 +145,13 @@ fun ProfileHeroHeader(
                 modifier = Modifier.size(140.dp),
                 contentAlignment = Alignment.Center
             ) {
-                OrbitRing(
-                    stars = BackOrbitStars,
-                    rotation = backRotation,
-                    radius = 56.dp
-                )
+                if (effectiveEffectActive) {
+                    OrbitRing(
+                        stars = BackOrbitStars,
+                        rotation = backRotation,
+                        radius = 56.dp
+                    )
+                }
 
                 AsyncImage(
                     model = avatarUrl,
@@ -138,11 +171,13 @@ fun ProfileHeroHeader(
                         )
                 )
 
-                OrbitRing(
-                    stars = FrontOrbitStars,
-                    rotation = frontRotation,
-                    radius = 48.dp
-                )
+                if (effectiveEffectActive) {
+                    OrbitRing(
+                        stars = FrontOrbitStars,
+                        rotation = frontRotation,
+                        radius = 48.dp
+                    )
+                }
             }
 
             Text(
@@ -188,19 +223,13 @@ fun ProfileHeroHeader(
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Icon(
-                        painter = painterResource(
-                            if (isLoggedIn) R.drawable.account else R.drawable.login
-                        ),
+                        painter = painterResource(actionIcon),
                         contentDescription = null,
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = if (isLoggedIn) {
-                            stringResource(R.string.account)
-                        } else {
-                            stringResource(R.string.login)
-                        },
+                        text = resolvedActionLabel,
                         style = MaterialTheme.typography.labelMedium.copy(
                             fontWeight = FontWeight.SemiBold
                         )
@@ -209,6 +238,39 @@ fun ProfileHeroHeader(
             }
         }
     }
+}
+
+@Composable
+private fun rememberOrbitRotation(
+    durationMillis: Long,
+    startAngle: Float,
+    endAngle: Float,
+    isPaused: Boolean,
+): Float {
+    var progress by rememberSaveable { mutableFloatStateOf(0f) }
+    var currentRotation by rememberSaveable { mutableFloatStateOf(startAngle) }
+    val isPausedState by rememberUpdatedState(isPaused)
+
+    LaunchedEffect(durationMillis, startAngle, endAngle) {
+        val sweep = endAngle - startAngle
+        var lastFrameMs = withInfiniteAnimationFrameMillis { it }
+        while (true) {
+            if (isPausedState) {
+                snapshotFlow { isPausedState }.first { !it }
+                lastFrameMs = withInfiniteAnimationFrameMillis { it }
+            }
+            withInfiniteAnimationFrameMillis { frameMs ->
+                val delta = (frameMs - lastFrameMs).coerceIn(0L, 100L)
+                lastFrameMs = frameMs
+                if (!isPausedState) {
+                    val progressDelta = delta.toFloat() / durationMillis.toFloat()
+                    progress = (progress + progressDelta) % 1f
+                    currentRotation = startAngle + (sweep * progress)
+                }
+            }
+        }
+    }
+    return currentRotation
 }
 
 @Composable

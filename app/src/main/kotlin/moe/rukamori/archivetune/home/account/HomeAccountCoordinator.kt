@@ -218,7 +218,9 @@ class HomeAccountCoordinator
         private val observerLock = Any()
         private var activeObserverJob: Job? = null
         private var activeScope: CoroutineScope? = null
-        private val activeSubscribers = mutableMapOf<Job, SubscriberCallbacks>()
+        private val activeSubscribers = mutableMapOf<Any, SubscriberCallbacks>()
+        private var wasPreviouslyLoggedIn = false
+        private var isInitialEmission = true
 
         private class SubscriberCallbacks(
             val scope: CoroutineScope,
@@ -236,6 +238,7 @@ class HomeAccountCoordinator
                 return
             }
 
+            val callerKey: Any = callerJob ?: scope
             synchronized(observerLock) {
                 if (callerJob != null) {
                     if (!activeSubscribers.containsKey(callerJob)) {
@@ -246,7 +249,7 @@ class HomeAccountCoordinator
                                     activeObserverJob?.cancel()
                                     activeObserverJob = null
                                     activeScope = null
-                                    val next = activeSubscribers.entries.firstOrNull { it.key.isActive }?.value
+                                    val next = activeSubscribers.entries.firstOrNull { it.value.scope.isActive }?.value
                                     if (next != null) {
                                         startObserverLocked(next.scope)
                                     }
@@ -254,8 +257,8 @@ class HomeAccountCoordinator
                             }
                         }
                     }
-                    activeSubscribers[callerJob] = SubscriberCallbacks(scope, onAuthSuccess, onAuthCleared)
                 }
+                activeSubscribers[callerKey] = SubscriberCallbacks(scope, onAuthSuccess, onAuthCleared)
 
                 if (activeObserverJob?.isActive != true) {
                     startObserverLocked(scope)
@@ -267,17 +270,15 @@ class HomeAccountCoordinator
             activeScope = scope
             activeObserverJob =
                 scope.launch(Dispatchers.IO) {
-                    var isFirstEmission = true
-                    var wasLoggedIn = false
                     context.dataStore.data
                         .map { it[InnerTubeCookieKey] }
                         .distinctUntilChanged()
                         .collect { cookie ->
                             try {
                                 val isLoggedIn = hasYouTubeLoginCookie(cookie)
-                                val loginTransition = !isFirstEmission && isLoggedIn && !wasLoggedIn
-                                wasLoggedIn = isLoggedIn
-                                isFirstEmission = false
+                                val loginTransition = !isInitialEmission && isLoggedIn && !wasPreviouslyLoggedIn
+                                wasPreviouslyLoggedIn = isLoggedIn
+                                isInitialEmission = false
 
                                 if (isLoggedIn && !cookie.isNullOrEmpty()) {
                                     if (!prepareYouTubeAccount(cookie)) {
@@ -321,8 +322,10 @@ class HomeAccountCoordinator
         }
 
         private suspend fun notifyAuthSuccess() {
-            val callbacks = synchronized(observerLock) { activeSubscribers.values.toList() }
-            for (cb in callbacks) {
+            val active = synchronized(observerLock) {
+                activeSubscribers.values.filter { it.scope.isActive }
+            }
+            for (cb in active) {
                 try {
                     cb.onAuthSuccess()
                 } catch (e: CancellationException) {
@@ -334,8 +337,10 @@ class HomeAccountCoordinator
         }
 
         private fun notifyAuthCleared() {
-            val callbacks = synchronized(observerLock) { activeSubscribers.values.toList() }
-            for (cb in callbacks) {
+            val active = synchronized(observerLock) {
+                activeSubscribers.values.filter { it.scope.isActive }
+            }
+            for (cb in active) {
                 try {
                     cb.onAuthCleared()
                 } catch (e: Exception) {
