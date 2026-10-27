@@ -85,11 +85,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.util.lerp
 import dev.chrisbanes.haze.ExperimentalHazeApi
-import dev.chrisbanes.haze.HazeDefaults
-import dev.chrisbanes.haze.HazeInputScale
+import dev.chrisbanes.haze.HazeInput
+import dev.chrisbanes.haze.HazePerformanceMode
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.HazeTint
-import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.blur.HazeBlurStyle
+import dev.chrisbanes.haze.blur.HazeColorEffect
+import dev.chrisbanes.haze.blur.hazeBlur
 import moe.rukamori.archivetune.constants.AppBarHeight
 import moe.rukamori.archivetune.designsystem.R
 import moe.rukamori.archivetune.ui.settings.SettingsDimensions
@@ -174,12 +175,14 @@ fun TopSearch(
     val fixedTintAlpha = if (pureBlack) SettingsDimensions.HazePureBlackTintAlpha else SettingsDimensions.HazeDefaultTintAlpha
     val hazeStyle =
         remember(containerColor, blurRadius, pureBlack) {
-            HazeDefaults.style(
-                backgroundColor = containerColor,
-                tint = HazeTint(containerColor.copy(alpha = fixedTintAlpha)),
-                blurRadius = blurRadius.dp,
-                noiseFactor = SettingsDimensions.HazeNoiseFactor,
-            )
+            val tintEffect = HazeColorEffect.tint(containerColor.copy(alpha = fixedTintAlpha))
+            HazeBlurStyle {
+                backgroundColor(containerColor)
+                colorEffects(listOf(tintEffect))
+                fallbackColorEffect(tintEffect)
+                blurRadius(blurRadius.dp)
+                noiseFactor(SettingsDimensions.HazeNoiseFactor)
+            }
         }
 
     BoxWithConstraints(
@@ -233,12 +236,11 @@ fun TopSearch(
                     .clip(animatedShape)
                     .then(
                         if (hazeState != null) {
-                            Modifier.hazeEffect(
-                                state = hazeState,
+                            Modifier.hazeBlur(
+                                input = HazeInput.Sources(hazeState),
                                 style = hazeStyle,
-                            ) {
-                                inputScale = HazeInputScale.Fixed(SettingsDimensions.HazeInputScaleValue)
-                            }
+                                performanceMode = HazePerformanceMode.Fixed(SettingsDimensions.HazeQualityFraction),
+                            )
                         } else {
                             Modifier.background(containerColor)
                         },

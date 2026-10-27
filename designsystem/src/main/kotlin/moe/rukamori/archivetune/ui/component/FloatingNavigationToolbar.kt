@@ -26,11 +26,12 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
-import dev.chrisbanes.haze.HazeDefaults
-import dev.chrisbanes.haze.HazeInputScale
+import dev.chrisbanes.haze.HazeInput
+import dev.chrisbanes.haze.HazePerformanceMode
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.HazeTint
-import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.blur.HazeBlurStyle
+import dev.chrisbanes.haze.blur.HazeColorEffect
+import dev.chrisbanes.haze.blur.hazeBlur
 import moe.rukamori.archivetune.constants.NavigationBarCornerRadius
 import moe.rukamori.archivetune.constants.NavigationBarHeight
 import moe.rukamori.archivetune.constants.NavigationBarHideMinScale
@@ -78,13 +79,16 @@ fun FloatingNavigationToolbar(
     val containerColor = NavBarColors.container(pureBlack)
 
     val fixedTintAlpha = if (pureBlack) SettingsDimensions.HazePureBlackTintAlpha else SettingsDimensions.HazeDefaultTintAlpha
-    val hazeStyle = remember(containerColor, blurRadius, pureBlack) {
-        HazeDefaults.style(
-            backgroundColor = containerColor,
-            tint = HazeTint(containerColor.copy(alpha = fixedTintAlpha)),
-            blurRadius = blurRadius.dp,
-            noiseFactor = SettingsDimensions.HazeNoiseFactor,
-        )
+    val hazeStyle = remember(containerColor, blurRadius, pureBlack, blurEnabled) {
+        val tintEffect = HazeColorEffect.tint(containerColor.copy(alpha = fixedTintAlpha))
+        HazeBlurStyle {
+            blurEnabled(blurEnabled)
+            backgroundColor(containerColor)
+            colorEffects(listOf(tintEffect))
+            fallbackColorEffect(tintEffect)
+            blurRadius(blurRadius.dp)
+            noiseFactor(SettingsDimensions.HazeNoiseFactor)
+        }
     }
 
     val shadowPaint = rememberNavigationShadowPaint()
@@ -139,13 +143,11 @@ fun FloatingNavigationToolbar(
             .clip(capsuleShape)
             .then(
                 if (hazeState != null) {
-                    Modifier.hazeEffect(
-                        state = hazeState,
+                    Modifier.hazeBlur(
+                        input = HazeInput.Sources(hazeState),
                         style = hazeStyle,
-                    ) {
-                        inputScale = HazeInputScale.Fixed(SettingsDimensions.HazeInputScaleValue)
-                        this.blurEnabled = blurEnabled
-                    }
+                        performanceMode = HazePerformanceMode.Fixed(SettingsDimensions.HazeQualityFraction),
+                    )
                 } else {
                     Modifier.background(containerColor)
                 },

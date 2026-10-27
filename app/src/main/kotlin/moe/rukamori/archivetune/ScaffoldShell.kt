@@ -151,6 +151,9 @@ fun ScaffoldShell(
                                 avatarUrl = accountImageUrl,
                                 accountName = accountName,
                                 accentColor = accountAccentColor,
+                                hazeState = scaffoldHazeState.effectiveHazeState,
+                                blurRadius = appState.blurRadius,
+                                blurNavBar = appState.blurNavBar,
                             )
                             ScaffoldSearchBarHost(
                                 searchState = appState.searchState, navController = navController,

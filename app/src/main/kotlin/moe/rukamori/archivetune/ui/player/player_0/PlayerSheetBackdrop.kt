@@ -26,13 +26,17 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.composed
 import dev.chrisbanes.haze.ExperimentalHazeApi
-import dev.chrisbanes.haze.HazeDefaults
-import dev.chrisbanes.haze.HazeInputScale
+import dev.chrisbanes.haze.HazeInput
+import dev.chrisbanes.haze.HazePerformanceMode
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.HazeStyle
-import dev.chrisbanes.haze.HazeTint
-import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.blur.HazeBlurStyle
+import dev.chrisbanes.haze.blur.HazeColorEffect
+import dev.chrisbanes.haze.blur.hazeBlur
 import moe.rukamori.archivetune.ui.settings.SettingsDimensions
 
 @Composable
@@ -40,7 +44,7 @@ internal fun rememberMiniHazeStyle(
     pureBlack: Boolean,
     blurRadius: Float,
     gradientColor: Int = 0,
-): HazeStyle {
+): HazeBlurStyle {
     val defaultContainer = MaterialTheme.colorScheme.surfaceContainer
     val tintColor = remember(pureBlack, gradientColor, defaultContainer) {
         if (pureBlack) Color.Black
@@ -50,12 +54,14 @@ internal fun rememberMiniHazeStyle(
     val fixedTintAlpha = if (pureBlack) SettingsDimensions.HazePureBlackTintAlpha else SettingsDimensions.HazeDefaultTintAlpha
 
     return remember(tintColor, blurRadius, pureBlack, defaultContainer) {
-        HazeDefaults.style(
-            backgroundColor = if (pureBlack) Color.Black else defaultContainer,
-            tint = HazeTint(tintColor.copy(alpha = fixedTintAlpha)),
-            blurRadius = blurRadius.dp,
-            noiseFactor = SettingsDimensions.HazeNoiseFactor,
-        )
+        val tintEffect = HazeColorEffect.tint(tintColor.copy(alpha = fixedTintAlpha))
+        HazeBlurStyle {
+            backgroundColor(if (pureBlack) Color.Black else defaultContainer)
+            colorEffects(listOf(tintEffect))
+            fallbackColorEffect(tintEffect)
+            blurRadius(blurRadius.dp)
+            noiseFactor(SettingsDimensions.HazeNoiseFactor)
+        }
     }
 }
 
@@ -76,24 +82,38 @@ internal fun rememberBackgroundGradient(gradientColor: Int): Brush {
 @OptIn(ExperimentalHazeApi::class)
 internal fun Modifier.playerSheetBackdrop(
     hazeState: HazeState?,
-    hazeStyle: HazeStyle,
+    hazeStyle: HazeBlurStyle,
     backgroundBrush: Brush,
     pureBlack: Boolean = false,
     expansionFractionProvider: () -> Float = { 0f },
-): Modifier {
-    val base = if (pureBlack) this.background(Color.Black) else this.background(backgroundBrush)
-    return if (hazeState != null && !pureBlack) {
-        base.hazeEffect(
-            state = hazeState,
-            style = hazeStyle,
-        ) {
-            inputScale = HazeInputScale.Fixed(SettingsDimensions.HazeInputScaleValue)
-            this.blurEnabled = expansionFractionProvider() < 0.99f
+): Modifier = this.then(
+    if (pureBlack) {
+        Modifier.background(Color.Black)
+    } else {
+        Modifier.background(backgroundBrush)
+    }
+).then(
+    if (hazeState != null && !pureBlack) {
+        Modifier.composed {
+            val currentProvider by rememberUpdatedState(expansionFractionProvider)
+            val isBlurEnabled by remember {
+                derivedStateOf { currentProvider() < 0.99f }
+            }
+            val dynamicStyle = remember(hazeStyle, isBlurEnabled) {
+                hazeStyle.then {
+                    blurEnabled(isBlurEnabled)
+                }
+            }
+            Modifier.hazeBlur(
+                input = HazeInput.Sources(hazeState),
+                style = dynamicStyle,
+                performanceMode = HazePerformanceMode.Fixed(SettingsDimensions.HazeQualityFraction),
+            )
         }
     } else {
-        base
+        Modifier
     }
-}
+)
 
 internal fun Modifier.playerSheetGlassBorder(
     expansionFractionProvider: () -> Float,

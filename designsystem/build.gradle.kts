@@ -38,6 +38,7 @@ dependencies {
     implementation(libs.material3)
     implementation(libs.graphics.shapes)
     implementation(libs.haze)
+    implementation(libs.haze.blur)
 
     implementation(libs.palette)
     implementation(libs.google.material)

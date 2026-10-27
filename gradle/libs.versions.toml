@@ -50,7 +50,7 @@ accompanist-core = "0.4.7"
 androidsvg = "1.4"
 aboutLibraries = "15.0.3"
 lottie = "6.6.2"
-haze = "1.5.3"
+haze = "2.0.1"
 graphicsShapes = "1.0.1"
 coreSplashscreen = "1.0.1"
 googleMaterial = "1.12.0"
@@ -178,7 +178,7 @@ aboutlibraries-core = { module = "com.mikepenz:aboutlibraries-core", version.ref
 foundation-layout = { group = "androidx.compose.foundation", name = "foundation-layout", version.ref = "foundationLayout" }
 animation-core = { group = "androidx.compose.animation", name = "animation-core", version.ref = "animationCore" }
 haze = { module = "dev.chrisbanes.haze:haze", version.ref = "haze" }
-haze-materials = { module = "dev.chrisbanes.haze:haze-materials", version.ref = "haze" }
+haze-blur = { module = "dev.chrisbanes.haze:haze-blur", version.ref = "haze" }
 graphics-shapes = { module = "androidx.graphics:graphics-shapes", version.ref = "graphicsShapes" }
 androidx-foundation-layout = { group = "androidx.compose.foundation", name = "foundation-layout", version.ref = "foundationLayoutVersion" }
 kopus = { module = "eu.buney.kopus:kopus", version.ref = "kopus" }

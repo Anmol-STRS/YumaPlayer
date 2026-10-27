@@ -344,6 +344,7 @@ implementation(libs.androidx.foundation.layout)
     implementation(libs.shimmer)
     implementation(libs.lottie.compose)
     implementation(libs.haze)
+    implementation(libs.haze.blur)
     implementation(libs.graphics.shapes)
 
     implementation(libs.google.material)

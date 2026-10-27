@@ -137,7 +137,7 @@ object SettingsDimensions {
     const val BlurRadiusMax = 40f
     const val BlurRadiusDefault = 24f
     const val HazeNoiseFactor = 0f
-    const val HazeInputScaleValue = 0.33f
+    const val HazeQualityFraction = 0.33f
     const val HazePureBlackTintAlpha = 0.65f
     const val HazeDefaultTintAlpha = 0.55f
 

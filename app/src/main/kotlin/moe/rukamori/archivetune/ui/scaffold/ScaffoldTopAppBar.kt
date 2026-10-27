@@ -47,6 +47,8 @@ import kotlinx.coroutines.delay
 import moe.rukamori.archivetune.R
 import moe.rukamori.archivetune.constants.AppBarHeight
 import moe.rukamori.archivetune.ui.screens.Screens
+import dev.chrisbanes.haze.HazeState
+import moe.rukamori.archivetune.ui.settings.SettingsDimensions
 import moe.rukamori.archivetune.ui.state.UpdateState
 import moe.rukamori.archivetune.viewmodels.NewsViewModel
 import kotlin.math.roundToInt
@@ -66,6 +68,9 @@ fun ScaffoldTopAppBar(
     avatarUrl: String? = null,
     accountName: String = "",
     accentColor: Color? = null,
+    hazeState: HazeState? = null,
+    blurRadius: Float = SettingsDimensions.BlurRadiusDefault,
+    blurNavBar: Boolean = true,
 ) {
     if (!visible) return
 
@@ -180,6 +185,10 @@ fun ScaffoldTopAppBar(
                     onNavigateNews = { navController.navigate("news") },
                     onNavigateNewRelease = { navController.navigate("new_release") },
                     onNavigateSettings = { navController.navigate("settings") },
+                    hazeState = hazeState,
+                    blurRadius = blurRadius,
+                    blurNavBar = blurNavBar,
+                    pureBlack = pureBlack,
                 )
             },
             scrollBehavior = if (isLibraryRoute || shouldUseFloatingTopBar) null else scrollController.topAppBarScrollBehavior,

@@ -35,11 +35,12 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.ExperimentalHazeApi
-import dev.chrisbanes.haze.HazeDefaults
-import dev.chrisbanes.haze.HazeInputScale
+import dev.chrisbanes.haze.HazeInput
+import dev.chrisbanes.haze.HazePerformanceMode
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.HazeTint
-import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.blur.HazeBlurStyle
+import dev.chrisbanes.haze.blur.HazeColorEffect
+import dev.chrisbanes.haze.blur.hazeBlur
 import dev.chrisbanes.haze.hazeSource
 import moe.rukamori.archivetune.ui.settings.SettingsDimensions
 import moe.rukamori.archivetune.ui.state.PlayerUiState
@@ -181,17 +182,18 @@ fun PlayerBackgroundLayers(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .hazeEffect(
-                            state = playerHazeState,
-                            style = HazeDefaults.style(
-                                backgroundColor = Color.Transparent,
-                                tint = HazeTint(Color.Black.copy(alpha = 0.35f)),
-                                blurRadius = 56.dp,
-                                noiseFactor = SettingsDimensions.HazeNoiseFactor,
-                            )
-                        ) {
-                            inputScale = HazeInputScale.Fixed(SettingsDimensions.HazeInputScaleValue)
-                        }
+                        .hazeBlur(
+                            input = HazeInput.Sources(playerHazeState),
+                            style = HazeBlurStyle {
+                                val tintEffect = HazeColorEffect.tint(Color.Black.copy(alpha = 0.35f))
+                                backgroundColor(Color.Transparent)
+                                colorEffects(listOf(tintEffect))
+                                fallbackColorEffect(tintEffect)
+                                blurRadius(56.dp)
+                                noiseFactor(SettingsDimensions.HazeNoiseFactor)
+                            },
+                            performanceMode = HazePerformanceMode.Fixed(SettingsDimensions.HazeQualityFraction),
+                        )
                 )
             }
         }
