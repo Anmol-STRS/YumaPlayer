@@ -71,6 +71,7 @@ import moe.rukamori.archivetune.ui.haptics.rememberYumaHaptics
 import moe.rukamori.archivetune.ui.menu.YouTubeAlbumMenu
 import moe.rukamori.archivetune.ui.menu.YouTubeArtistMenu
 import moe.rukamori.archivetune.ui.menu.YouTubePlaylistMenu
+import moe.rukamori.archivetune.ui.screens.settings.account.header.ProfileHeroHeader
 import moe.rukamori.archivetune.ui.theme.yumaClickable
 import moe.rukamori.archivetune.ui.utils.backToMain
 import moe.rukamori.archivetune.viewmodels.AccountContentType
@@ -145,8 +146,11 @@ fun AccountScreen(
                 .padding(top = innerPadding.calculateTopPadding()),
         ) {
             item(span = { GridItemSpan(maxLineSpan) }) {
-                AccountYumaHeroBanner(
-                    onSettingsClick = { navController.navigate("settings/account") },
+                ProfileHeroHeader(
+                    avatarUrl = null, // сюда привяжешь url аватара из сессии/БД
+                    displayName = "MuwMix",
+                    handle = "muwmix",
+                    onSettingsClick = { navController.navigate("settings/account") }
                 )
             }
 
