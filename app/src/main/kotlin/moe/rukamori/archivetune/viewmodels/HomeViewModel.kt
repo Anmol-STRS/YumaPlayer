@@ -68,10 +68,6 @@ import moe.rukamori.archivetune.utils.reportException
 import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
 
-typealias AccountChannelsState = moe.rukamori.archivetune.home.state.AccountChannelsState
-typealias AccountChannelCollection = moe.rukamori.archivetune.home.state.AccountChannelCollection
-typealias AccountChannelUiModel = moe.rukamori.archivetune.home.state.AccountChannelUiModel
-
 @HiltViewModel
 class HomeViewModel
     @Inject

@@ -32,6 +32,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.res.painterResource
@@ -103,20 +104,12 @@ fun ProfileIdentityCard(
         else -> RoundedCornerShape(SettingsDimensions.SegmentedCornerLarge)
     }
 
-    val glowState = rememberProfileMeshGlowState(
-        isLoggedIn = isLoggedIn,
-        extractedColorHex = extractedColorHex,
-    )
-
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .profileMeshGlow(
-                shape = resolvedShape,
-                glassBackground = colors.glassBackground,
-                glassBorder = colors.glassBorder,
-                glowState = glowState,
-            ),
+            .clip(resolvedShape)
+            .background(colors.glassBackground)
+            .border(1.dp, colors.glassBorder, resolvedShape),
     ) {
         Row(
             modifier = Modifier
@@ -128,8 +121,8 @@ fun ProfileIdentityCard(
             ProfileAvatarBadge(
                 accountImageUrl = accountImageUrl,
                 isLoggedIn = isLoggedIn,
-                primaryColor = glowState.primaryColor,
-                tertiaryColor = glowState.tertiaryColor,
+                primaryColor = MaterialTheme.colorScheme.primary,
+                tertiaryColor = MaterialTheme.colorScheme.tertiary,
                 onAvatarPixelsReady = onAvatarPixelsReady,
             )
 

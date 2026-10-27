@@ -155,16 +155,15 @@ fun ProfileHeroHeader(
                         val drawable = successResult.result.image
                         val bitmap = (drawable as? coil3.BitmapImage)?.bitmap
                         if (bitmap != null) {
-                            // 1. Отдаем пиксели для извлечения доминирующего цвета (для fallback и окантовок)
                             if (onAvatarPixelsReady != null) {
                                 val pixels = IntArray(bitmap.width * bitmap.height)
                                 bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
                                 onAvatarPixelsReady(pixels)
                             }
 
-                            // 2. В фоне блюрим картинку через встроенный ImageBlurUtils
+                            // Подготовка текстуры 192x192 с blur 8px ровно как в reLynth
                             coroutineScope.launch(Dispatchers.Default) {
-                                val scaled = Bitmap.createScaledBitmap(bitmap, 128, 128, true)
+                                val scaled = Bitmap.createScaledBitmap(bitmap, 192, 192, true)
                                 val blurred = ImageBlurUtils.blur(scaled, 8f)
                                 withContext(Dispatchers.Main) {
                                     blurredAvatar = blurred
@@ -185,6 +184,7 @@ fun ProfileHeroHeader(
 
                 ActiveFrontOrbitRing(isPaused = shouldPauseAnimation)
             }
+            // ... далее разметка имени, хэндла и кнопок без изменений
 
             Text(
                 text = displayName.ifBlank { stringResource(R.string.account) },
