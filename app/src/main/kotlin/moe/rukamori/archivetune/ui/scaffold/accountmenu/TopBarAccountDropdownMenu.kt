@@ -27,6 +27,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.ExperimentalHazeApi
 import dev.chrisbanes.haze.HazeInput
+import dev.chrisbanes.haze.HazePerformanceMode
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.blur.HazeBlurStyle
 import dev.chrisbanes.haze.blur.HazeColorEffect
@@ -50,31 +51,29 @@ internal fun TopBarAccountDropdownMenu(
     val contentColor = if (pureBlack) Color.White else MaterialTheme.colorScheme.onSurface
     val isHazeActive = blurNavBar && hazeState != null
     val menuTitle = stringResource(R.string.more_options)
+    val fixedTintAlpha = if (pureBlack) SettingsDimensions.HazePureBlackTintAlpha else SettingsDimensions.HazeDefaultTintAlpha
 
     val hazeModifier = if (blurNavBar && hazeState != null) {
-        val blurStyle = remember(surfaceColor, blurRadius) {
-            val tintEffect = HazeColorEffect.tint(surfaceColor.copy(alpha = 0.72f))
+        val blurStyle = remember(surfaceColor, blurRadius, fixedTintAlpha) {
+            val tintEffect = HazeColorEffect.tint(surfaceColor.copy(alpha = fixedTintAlpha))
             HazeBlurStyle {
                 backgroundColor(surfaceColor)
                 colorEffects(listOf(tintEffect))
                 fallbackColorEffect(tintEffect)
                 blurRadius(blurRadius.dp)
-                noiseFactor(0.12f)
+                noiseFactor(SettingsDimensions.HazeNoiseFactor)
             }
         }
         Modifier.hazeBlur(
             input = HazeInput.Sources(hazeState),
             style = blurStyle,
+            performanceMode = HazePerformanceMode.Fixed(SettingsDimensions.HazeQualityFraction),
         )
     } else {
         Modifier
     }
 
-    val popupBackground = if (isHazeActive) {
-        surfaceColor.copy(alpha = 0.72f)
-    } else {
-        surfaceColor
-    }
+    val popupBackground = if (isHazeActive) Color.Transparent else surfaceColor
     val popupBorderColor = if (isHazeActive) {
         contentColor.copy(alpha = 0.12f)
     } else {
