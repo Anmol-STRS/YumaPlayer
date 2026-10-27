@@ -92,6 +92,8 @@ data class AccountSettingsUiState(
     val latestVersionName: String = "",
     val showToken: Boolean = false,
     val tokenActionTitle: String = "",
+    val tokenDescription: String = "",
+    val tokenPreview: String? = null,
 )
 
 @Immutable
@@ -119,6 +121,37 @@ data class AccountSettingsUiActions(
     val onNavigateMusicTogether: () -> Unit = {},
     val onNavigateHiddenPlaylists: () -> Unit = {},
     val onTokenRowClick: () -> Unit = {},
+    val onRevealToken: () -> Unit = {},
+)
+
+@Immutable
+data class AccountDialogsState(
+    val showSpotifyLogin: Boolean = false,
+    val showSpotifyOptionsDialog: Boolean = false,
+    val showLoginChoiceDialog: Boolean = false,
+    val showTokenEditor: Boolean = false,
+    val showUnsavedAccountDialog: Boolean = false,
+    val spotifyState: SpotifyAccountUiState = SpotifyAccountUiState(),
+    val showSpotifyPlaylists: Boolean = true,
+    val tokenEditorState: TokenEditorDialogState = TokenEditorDialogState(),
+)
+
+@Immutable
+data class AccountDialogsActions(
+    val onDismissSpotifyLogin: () -> Unit = {},
+    val onCookiesCaptured: (spDc: String, spKey: String) -> Unit = { _, _ -> },
+    val onShowSpotifyPlaylistsChange: (Boolean) -> Unit = {},
+    val onConnectSpotify: () -> Unit = {},
+    val onSpotifyLogout: () -> Unit = {},
+    val onDismissSpotifyOptions: () -> Unit = {},
+    val onDismissLoginChoice: () -> Unit = {},
+    val onBrowserLogin: () -> Unit = {},
+    val onAdvancedLogin: () -> Unit = {},
+    val tokenEditorActions: TokenEditorDialogActions = TokenEditorDialogActions(),
+    val onDismissUnsavedAccount: () -> Unit = {},
+    val onCancelUnsavedAccount: () -> Unit = {},
+    val onNoThanksUnsavedAccount: () -> Unit = {},
+    val onSaveYesUnsavedAccount: () -> Unit = {},
 )
 
 fun hasVisibleSecureDetails(

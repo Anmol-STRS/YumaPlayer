@@ -48,7 +48,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import moe.rukamori.archivetune.R
 import moe.rukamori.archivetune.ui.theme.yumaClickable
@@ -103,7 +102,6 @@ fun ProfileHeroHeader(
         modifier = modifier
             .fillMaxWidth()
             .drawBehind {
-                // Световой купол за шапкой (эллиптический гауссов спад из шейдера xe)
                 val domeCenter = Offset(x = size.width / 2f, y = -size.width * 0.15f)
                 val domeRadius = size.width * 0.72f
 
