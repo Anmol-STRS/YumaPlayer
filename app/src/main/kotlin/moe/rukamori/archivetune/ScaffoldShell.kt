@@ -51,6 +51,7 @@ import moe.rukamori.archivetune.ui.scaffold.ScaffoldSearchBarHost
 import moe.rukamori.archivetune.ui.scaffold.ScaffoldTopAppBar
 import moe.rukamori.archivetune.ui.scaffold.rememberScaffoldAppState
 import moe.rukamori.archivetune.ui.utils.LocalGlobalVisibility
+import moe.rukamori.archivetune.ui.utils.LocalPlayerIsExpanded
 import moe.rukamori.archivetune.utils.SyncUtils
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -91,6 +92,7 @@ fun ScaffoldShell(
             LocalBottomSheetPageState provides bottomSheetPageState,
             LocalMenuState provides menuState,
             LocalGlobalVisibility provides isHomeScreenVisible,
+            LocalPlayerIsExpanded provides appState.playerBottomSheetState.isExpanded,
         ) {
             ScreenBackground(isVisible = LocalGlobalVisibility.current, modifier = Modifier.fillMaxSize())
             if (splashEnabled) {

@@ -536,6 +536,7 @@
     <string name="action_logout">Log out</string>
     <string name="action_login">Log in</string>
     <string name="login">Login</string>
+    <string name="login_browser">Web browser</string>
     <string name="not_logged_in">Not logged in</string>
     <string name="playback_confirmation_required">Playback confirmation required</string>
     <string name="playback_requires_youtube_music_confirmation">Confirm playback in YouTube Music, then return to YumaPlayer.</string>

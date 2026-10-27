@@ -329,6 +329,7 @@
     <string name="action_logout">Выйти</string>
     <string name="action_login">Войти</string>
     <string name="login">Вход</string>
+    <string name="login_browser">Веб-браузер</string>
     <string name="not_logged_in">Вход не выполнен</string>
     <string name="content_language">Язык контента по умолчанию</string>
     <string name="content_country">Страна контента по умолчанию</string>

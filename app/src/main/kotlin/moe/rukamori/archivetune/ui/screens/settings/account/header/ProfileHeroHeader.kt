@@ -56,7 +56,7 @@ import coil3.compose.AsyncImage
 import kotlinx.coroutines.flow.first
 import moe.rukamori.archivetune.R
 import moe.rukamori.archivetune.ui.theme.yumaClickable
-import moe.rukamori.archivetune.ui.utils.LocalGlobalVisibility
+import moe.rukamori.archivetune.ui.utils.LocalPlayerIsExpanded
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -87,7 +87,7 @@ fun ProfileHeroHeader(
     onAccountActionClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val isGlobalVisible = LocalGlobalVisibility.current
+    val isPlayerExpanded = LocalPlayerIsExpanded.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var isLifecycleResumed by remember {
         mutableStateOf(lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED))
@@ -101,7 +101,7 @@ fun ProfileHeroHeader(
             lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
-    val effectiveEffectActive = isEffectActive && isLifecycleResumed && isGlobalVisible
+    val effectiveEffectActive = isEffectActive && isLifecycleResumed && !isPlayerExpanded
 
     val resolvedActionLabel = actionLabel ?: if (isLoggedIn) {
         stringResource(R.string.settings)

@@ -256,7 +256,7 @@ fun ProfileAccountMenu(
             Column(verticalArrangement = Arrangement.spacedBy(SettingsDimensions.SegmentedItemGap)) {
                 if (isLoggedIn) {
                     val isCurrentSaved = savedAccounts.accounts.any { it.innerTubeCookie == activeInnerTubeCookie }
-                    val actionsCount = (if (!isCurrentSaved) 1 else 0) + 2
+                    val actionsCount = (if (!isCurrentSaved) 1 else 0) + 3
                     var actionIndex = 0
 
                     if (!isCurrentSaved) {
@@ -281,6 +281,18 @@ fun ProfileAccountMenu(
                     )
 
                     AccountActionItem(
+                        title = stringResource(R.string.token_settings),
+                        subtitle = stringResource(R.string.token_adv_login_description),
+                        icon = painterResource(R.drawable.token),
+                        tint = MaterialTheme.colorScheme.secondary,
+                        shape = segmentedSettingsItemShape(actionIndex++, actionsCount),
+                        onClick = {
+                            onDismissRequest()
+                            onAdvancedLogin()
+                        },
+                    )
+
+                    AccountActionItem(
                         title = stringResource(R.string.action_logout),
                         icon = painterResource(R.drawable.logout),
                         tint = MaterialTheme.colorScheme.error,
@@ -294,7 +306,7 @@ fun ProfileAccountMenu(
                 } else {
                     AccountActionItem(
                         title = stringResource(R.string.login),
-                        subtitle = "YouTube Browser",
+                        subtitle = stringResource(R.string.login_browser),
                         icon = painterResource(R.drawable.login),
                         tint = MaterialTheme.colorScheme.primary,
                         shape = segmentedSettingsItemShape(0, 2),
