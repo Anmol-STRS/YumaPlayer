@@ -159,6 +159,11 @@ class ExoDeckController(
 
         runCatching { incomingPlayer.removeListener(service.secondaryCrossfadeListener) }
         service.transferAudioEffects(incomingPlayer)
+
+        // Read the current modes at handoff which prevents overwriting user choice
+        // Preserves user's latest repeat and shuffle settings 
+        incomingPlayer.repeatMode = outgoingPlayer.repeatMode
+        incomingPlayer.shuffleModeEnabled = outgoingPlayer.shuffleModeEnabled
         incomingPlayer.setShuffleOrder(outgoingPlayer.shuffleOrder)
 
         dualForwardingPlayer.attachPlayer(incomingPlayer)
