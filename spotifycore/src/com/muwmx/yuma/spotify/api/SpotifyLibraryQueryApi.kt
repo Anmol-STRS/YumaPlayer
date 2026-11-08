@@ -7,8 +7,12 @@
 package moe.rukamori.archivetune.spotify.api
 
 import io.ktor.client.request.parameter
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
@@ -139,36 +143,52 @@ object SpotifyLibraryQueryApi {
                     variables = vars,
                 )
 
-            val tracksData =
-                response
-                    .obj("data")
-                    ?.obj("me")
-                    ?.obj("library")
-                    ?.obj("tracks")
-                    ?: throw SpotifyException(500, "Invalid fetchLibraryTracks response")
-
-            val pagingInfo = tracksData.obj("pagingInfo")
-
-            val savedTracks =
-                tracksData.arr("items")?.mapNotNull { elem ->
-                    val trackWrapper = elem.jsonObject.obj("track") ?: return@mapNotNull null
-                    val trackData = trackWrapper.obj("data") ?: return@mapNotNull null
-                    val wrapperUri = trackWrapper.str("_uri") ?: trackWrapper.str("uri")
-                    val track = SpotifyParsers.parseGqlTrack(trackData, uriOverride = wrapperUri)
-                    if (track.id.isBlank() || track.name.isBlank()) return@mapNotNull null
-                    SpotifySavedTrack(track = track)
-                } ?: emptyList()
-
-            val total = tracksData.int("totalCount") ?: 0
-            SpotifyGraphqlClient.log("D", "likedSongs GQL: received ${savedTracks.size} tracks, total: $total")
-
-            SpotifyPaging(
-                items = savedTracks,
-                total = total,
-                limit = pagingInfo?.int("limit") ?: limit,
-                offset = pagingInfo?.int("offset") ?: offset,
-            )
+            val page = parseLikedSongsPage(response, limit, offset)
+            SpotifyGraphqlClient.log("D", "likedSongs GQL: received ${page.items.size} tracks, total: ${page.total}")
+            page
         }
+
+    internal fun parseLikedSongsPage(
+        response: JsonObject,
+        limit: Int,
+        offset: Int,
+    ): SpotifyPaging<SpotifySavedTrack> {
+        val tracksData =
+            response
+                .obj("data")
+                ?.obj("me")
+                ?.obj("library")
+                ?.obj("tracks")
+                ?: throw SpotifyException(500, "Invalid fetchLibraryTracks response")
+        val items = tracksData["items"] as? JsonArray
+            ?: throw SpotifyException(500, "Invalid fetchLibraryTracks items")
+        val total = (tracksData["totalCount"] as? JsonPrimitive)
+            ?.takeUnless { it.isString }
+            ?.intOrNull
+            ?.takeIf { it >= 0 }
+            ?: throw SpotifyException(500, "Invalid fetchLibraryTracks totalCount")
+        val pagingInfo = tracksData.obj("pagingInfo")
+        val pageOffset = pagingInfo?.int("offset") ?: offset
+        if (pageOffset < 0 || pageOffset.toLong() + items.size > total) {
+            throw SpotifyException(500, "Inconsistent fetchLibraryTracks paging")
+        }
+        val savedTracks =
+            items.mapNotNull { elem ->
+                val trackWrapper = elem.jsonObject.obj("track") ?: return@mapNotNull null
+                val trackData = trackWrapper.obj("data") ?: return@mapNotNull null
+                val wrapperUri = trackWrapper.str("_uri") ?: trackWrapper.str("uri")
+                val track = SpotifyParsers.parseGqlTrack(trackData, uriOverride = wrapperUri)
+                if (track.id.isBlank() || track.name.isBlank()) return@mapNotNull null
+                SpotifySavedTrack(track = track)
+            }
+
+        return SpotifyPaging(
+            items = savedTracks,
+            total = total,
+            limit = pagingInfo?.int("limit") ?: limit,
+            offset = pageOffset,
+        )
+    }
 
     suspend fun addToLibrary(uris: List<String>): Result<Unit> =
         runCatching {
