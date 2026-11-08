@@ -6,6 +6,7 @@
 
 package moe.rukamori.archivetune.spotify.sync
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -51,14 +52,30 @@ class SpotifyLikedSync
                 var offset = 0
                 val limit = 50
                 val maxPages = 60
+                var expectedTotal: Int? = null
+                var snapshotComplete = false
 
                 for (page in 0 until maxPages) {
-                    if (!state.isSyncStillEnabled(gen)) break
-                    val result = Spotify.likedSongs(limit = limit, offset = offset).getOrNull()
-                    if (result == null || result.items.isEmpty()) break
-                    tracks.addAll(result.items.mapNotNull { it.track })
+                    if (!state.isSyncStillEnabled(gen)) return@withLock
+                    val result = Spotify.likedSongs(limit = limit, offset = offset).getOrThrow()
+                    if (expectedTotal == null) expectedTotal = result.total
+                    if (result.offset != offset || result.total != expectedTotal) break
+
+                    tracks.addAll(result.items.map { it.track })
                     offset += result.items.size
-                    if (offset >= result.total || result.items.size < limit) break
+                    if (offset >= result.total) {
+                        // Filtered, duplicate, or missing items cannot prove that a like was removed.
+                        snapshotComplete =
+                            offset == result.total &&
+                            tracks.all { it.id.isNotBlank() } &&
+                            tracks.map { it.id }.toSet().size == result.total
+                        break
+                    }
+                    if (result.items.size < limit) break
+                }
+
+                if (authoritative && !snapshotComplete) {
+                    Timber.w("syncSpotifyLikedSongs: Incomplete snapshot, preserving existing Spotify likes")
                 }
 
                 val resolveSemaphore = Semaphore(4)
@@ -95,18 +112,19 @@ class SpotifyLikedSync
                 if (!state.isSyncStillEnabled(gen)) return@withLock
                 val localLikedIds = localLikedSongs.map { it.id }.toSet()
                 val resolvedYoutubeIds = resolvedTracks.map { it.metadata.id }.toSet()
-                val resolvedSpotifyIds = resolvedTracks.map { it.track.id }.toSet()
+                // Remote membership does not depend on a successful YouTube match.
+                val remoteSpotifyIds = tracks.map { it.id }.toSet()
 
                 val staleLikedSongs =
-                    if (authoritative) {
+                    if (authoritative && snapshotComplete) {
                         val unlikeCandidateIds = localLikedSongs.map { it.id }.filter { it !in resolvedYoutubeIds }
                         val matchEntities = state.database.getSpotifyMatchesByYouTubeIds(unlikeCandidateIds)
-                        val matchByYtId = matchEntities.associateBy { it.youtubeId }
+                        val matchesByYtId = matchEntities.groupBy { it.youtubeId }
                         localLikedSongs
                             .filter { song ->
                                 if (song.id in resolvedYoutubeIds) return@filter false
-                                val match = matchByYtId[song.id] ?: return@filter false
-                                match.spotifyId !in resolvedSpotifyIds
+                                val matches = matchesByYtId[song.id] ?: return@filter false
+                                matches.none { it.spotifyId in remoteSpotifyIds }
                             }.map { it.song.copy(liked = it.song.likedYtm, likedSpotify = false, likedDate = if (it.song.likedYtm) it.song.likedDate else null) }
                     } else {
                         emptyList()
@@ -154,6 +172,8 @@ class SpotifyLikedSync
                         state.database.update(updatedSong)
                     }
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Timber.e(e, "Error during syncSpotifyLikedSongs")
             }
